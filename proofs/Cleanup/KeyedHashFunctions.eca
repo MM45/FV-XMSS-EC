@@ -682,7 +682,7 @@ module M_ETCR (A : Adv_METCR, O : Oracle_METCR) = {
       (2) "0 <= i < size nrts": index provided by adversary is within the bounds 
           of nrts (i.e., between 0 (including) and nrts (excluding)), and
       (3) "x <> x'": x does not equal x', and
-      (4) "f k x = f k x'": f k maps x to the same element as it maps x'
+      (4) "f k x = f k' x'": f k maps x to the same element as f k' maps x'
     *)     
     return 1 <= nrts <= t_metcr /\ 0 <= i < nrts /\ x <> x' /\ f k x = f k' x';
   }
