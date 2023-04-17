@@ -2586,7 +2586,7 @@ module type Adv_MEFGCMA_WOTSTWES(O : Oracle_MEFGCMA_WOTSTWES, OC : Oracle_THFC) 
 
 
 (* -- Notions -- *)
-(* D-EF-GCMA game for WOTS-TW in encompassing structure *) 
+(* M-EF-GCMA game for WOTS-TW in encompassing structure *) 
 module M_EF_GCMA_WOTSTWES(A : Adv_MEFGCMA_WOTSTWES, O : Oracle_MEFGCMA_WOTSTWES, OC : Oracle_THFC) = {
   module A = A(O, OC)
   

@@ -924,6 +924,7 @@ local module EF_CMA_RO_CC_NoRepro = {
     var is_valid, is_fresh : bool;
     var rco : rco_t;
     var cm : msg_fl_t;
+    var sigfl : sig_fl_t;
     var comps : (msg_fl_t * (rco_t * msg_al_t)) list;
     
     (* Initialize (hash) random oracle *)
@@ -947,7 +948,11 @@ local module EF_CMA_RO_CC_NoRepro = {
       Verify (w.r.t. message m) the signature sig provided by the adversary 
       using the verification algorithm of the considered signature scheme 
     *)
-    is_valid <@ AL_KU_DSS(FL_KU_DSS).verify(pk, m, sig);
+    rco <- sig.`1;
+    sigfl <- sig.`2;
+    cm <@ Wrapped_Oracle(MCO).o(rco, m);
+    
+    is_valid <@ FL_KU_DSS.verify(pk, cm, sigfl);
 
     (* 
       Check whether message for which the adversary forged a signature is fresh 
@@ -957,8 +962,6 @@ local module EF_CMA_RO_CC_NoRepro = {
     is_fresh <@ O_CMA_CC_NoRepro.fresh(m);
     
     (* Collision check *)
-    rco <- sig.`1;
-    cm <@ Wrapped_Oracle(MCO).o(rco, m);
     comps <@ O_CMA_CC_NoRepro.compressions();
     
     coll <- assoc comps cm <> None;
@@ -973,9 +976,11 @@ local module EF_CMA_RO_CC_NoRepro = {
 }.
 
 
-local equiv Equiv_EFCMAROCC_EFCMAROCCNRepro :
-  EF_CMA_RO_CC.main ~ EF_CMA_RO_CC_NoRepro.main : ={glob FL_KU_DSS, glob A} ==> ={res}.
+local lemma EFCMAROCC_EFCMAROCCNoRepro &m :
+  Pr[EF_CMA_RO_CC.main() @ &m : res /\ !EF_CMA_RO_CC.coll] =
+  Pr[EF_CMA_RO_CC_NoRepro.main() @ &m : res /\ !EF_CMA_RO_CC_NoRepro.coll].
 proof.
+byequiv => //.
 proc. inline *. wp => /=.
 call (: true).
 wp.
@@ -1033,6 +1038,7 @@ local module EF_CMA_RO_CC_ReproSample = {
     var is_valid, is_fresh : bool;
     var rco : rco_t;
     var cm : msg_fl_t;
+    var sigfl : sig_fl_t;
     var comps : (msg_fl_t * (rco_t * msg_al_t)) list;
     
     (* Initialize (hash) random oracle *)
@@ -1056,7 +1062,11 @@ local module EF_CMA_RO_CC_ReproSample = {
       Verify (w.r.t. message m) the signature sig provided by the adversary 
       using the verification algorithm of the considered signature scheme 
     *)
-    is_valid <@ AL_KU_DSS(FL_KU_DSS).verify(pk, m, sig);
+    rco <- sig.`1;
+    sigfl <- sig.`2;
+    cm <@ Wrapped_Oracle(MCO).o(rco, m);
+    
+    is_valid <@ FL_KU_DSS.verify(pk, cm, sigfl);
 
     (* 
       Check whether message for which the adversary forged a signature is fresh 
@@ -1066,8 +1076,6 @@ local module EF_CMA_RO_CC_ReproSample = {
     is_fresh <@ O_CMA_CC_ReproSample.fresh(m);
     
     (* Collision check *)
-    rco <- sig.`1;
-    cm <@ Wrapped_Oracle(MCO).o(rco, m);
     comps <@ O_CMA_CC_ReproSample.compressions();
     
     coll <- assoc comps cm <> None;
@@ -1114,6 +1122,7 @@ local module (R_Repro_EFCMARORepro : DistA) (WMCO : POracle, RepWMCO : RepO_t) =
     var is_valid, is_fresh : bool;
     var rco : rco_t;
     var cm : msg_fl_t;
+    var sigfl : sig_fl_t;
     var comps : (msg_fl_t * (rco_t * msg_al_t)) list;
     var coll : bool;
     
@@ -1121,14 +1130,16 @@ local module (R_Repro_EFCMARORepro : DistA) (WMCO : POracle, RepWMCO : RepO_t) =
     
     O_R_Repro_EFCMARORepro.init(sk);
     
-    (m, sig) <@ A(O_R_Repro_EFCMARORepro, WMCO).forge(pk);
+    (m, sig) <@ QC_A(A, O_R_Repro_EFCMARORepro, WMCO).forge(pk);
     
-    is_valid <@ AL_KU_DSS(FL_KU_DSS).verify(pk, m, sig);
+    rco <- sig.`1;
+    sigfl <- sig.`2;
+    cm <@ WMCO.o(rco, m);
+    
+    is_valid <@ FL_KU_DSS.verify(pk, cm, sigfl);
 
     is_fresh <@ O_R_Repro_EFCMARORepro.fresh(m);
     
-    rco <- sig.`1;
-    cm <@ WMCO.o(rco, m);
     comps <@ O_R_Repro_EFCMARORepro.compressions();
     
     coll <- assoc comps cm <> None;
@@ -1154,7 +1165,7 @@ do 2! congr; last congr.
   - proc; inline *. 
     by wp; skip.
   - proc; inline *.
-    rcondf{2} 5; 1: by auto.
+    rcondf{2} 7; 1: by auto.
     wp; call (: true); wp => /=.
     rnd{1}.
     rnd (fun (rco : rco_t) => (rco, m{2})) 
@@ -1176,7 +1187,7 @@ call (:   ={glob FL_KU_DSS, glob O_CMA_CC, Wrapped_Oracle.prog_list}
 + proc; inline *. 
   by wp; skip.
 + proc; inline *.
-  rcondt{2} 5; 1: by auto.
+  rcondt{2} 7; 1: by auto.
   wp; call (: true); wp => /=.
   rnd.
   rnd (fun (rco : rco_t) => (rco, m{2})) 
@@ -1192,6 +1203,62 @@ wp; call (: true); wp; while (={w, ERO.m}).
 by wp; skip.
 qed.
 
+local module T = R_Repro_EFCMARORepro(Wrapped_Oracle(ERO), RepO(Wrapped_Oracle(ERO))).
+
+local hoare test :
+  R_Repro_EFCMARORepro(Wrapped_Oracle(MCO), RepO(Wrapped_Oracle(MCO))).distinguish :
+    Wrapped_Oracle.ch = 0 /\ RepO.ctr = 0 /\ RepO.se 
+    ==> 
+    Wrapped_Oracle.ch <= qS + qH + 1 /\ RepO.ctr <= qS /\ RepO.se.
+proof.
+proc.
+wp.
+do 3! (call (: true) => //).
+inline 6; inline 7.
+wp => /=.
+call (: Wrapped_Oracle.ch = 0 /\ RepO.ctr = 0 /\ RepO.se
+        ==>
+           QC_A.cS <= qS /\ QC_A.cH <= qH
+        /\ Wrapped_Oracle.ch = QC_A.cH + QC_A.cS /\ RepO.ctr = QC_A.cS /\ RepO.se). 
+conseq (: Wrapped_Oracle.ch = 0 /\ RepO.ctr = 0 /\ RepO.se
+          ==>
+          Wrapped_Oracle.ch = QC_A.cH + QC_A.cS /\ RepO.ctr = QC_A.cS /\ RepO.se)
+       (: true ==>  QC_A.cS <= qS /\ QC_A.cH <= qH) => //.
+       apply: (A_forge_queries (T.O_R_Repro_EFCMARORepro) (Wrapped_Oracle(ERO))).
+
+proc.
+wp. 
+call (: Wrapped_Oracle.ch = QC_A.cH + QC_A.cS /\ RepO.ctr = QC_A.cS /\ RepO.se).
+proc.
+inline *.
+wp. 
+by skip => /#.
+proc.
+inline *.
+auto.
+call (: true).
+auto.
+case RepO.b.
++ rcondt 7; 1: auto.
+  wp.
+  rnd. rnd.
+  wp. skip.
+  progress ; 1: smt().
+  admit.
+rcondf 7; 1 : auto.
+rnd.
+wp.
+skip.
+progress.
+smt().
+admit.
+wp.
+skip. 
+progress.
+call(: true) => //.
+call(: true) => //.
+skip => /#.
+qed.
 
 local module O_CMA_CC_ReproQuery = {
   include var O_CMA_CC [-init, sign]
@@ -1235,6 +1302,7 @@ local module EF_CMA_RO_CC_ReproQuery = {
     var is_valid, is_fresh : bool;
     var rco : rco_t;
     var cm : msg_fl_t;
+    var sigfl : sig_fl_t;
     var comps : (msg_fl_t * (rco_t * msg_al_t)) list;
     var nrqs : int;
     
@@ -1260,7 +1328,11 @@ local module EF_CMA_RO_CC_ReproQuery = {
       Verify (w.r.t. message m) the signature sig provided by the adversary 
       using the verification algorithm of the considered signature scheme 
     *)
-    is_valid <@ AL_KU_DSS(FL_KU_DSS).verify(pk, m, sig);
+    rco <- sig.`1;
+    sigfl <- sig.`2;
+    cm <@ Wrapped_Oracle(MCO).o(rco, m);
+    
+    is_valid <@ FL_KU_DSS.verify(pk, cm, sigfl);
 
     (* 
       Check whether message for which the adversary forged a signature is fresh 
@@ -1270,8 +1342,6 @@ local module EF_CMA_RO_CC_ReproQuery = {
     is_fresh <@ O_CMA_CC_ReproQuery.fresh(m);
     
     (* Collision check *)
-    rco <- sig.`1;
-    cm <@ Wrapped_Oracle(MCO).o(rco, m);
     comps <@ O_CMA_CC_ReproSample.compressions();
     
     coll <- assoc comps cm <> None;
@@ -1339,25 +1409,70 @@ qed.
 
 local lemma EFRMAROCCReproQuery_IEFRMA &m :
   Pr[EF_CMA_RO_CC_ReproQuery.main() @ &m : res /\ !EF_CMA_RO_CC_ReproQuery.coll]
-  =
+  <=
   Pr[I_EF_RMA(FL_KU_DSS, R_EFCMARO_IEFRMA(A), O_RMA_Default).main() @ &m : res].
 proof.
 byequiv => //.
 proc; inline *.
-wp; call (: true); wp => /=.
+wp => /=. call (: true); wp => /=. print R_EFCMARO_IEFRMA. print O_RMA_Default.
 call (:    ={glob FL_KU_DSS, MCO.m, Wrapped_Oracle.prog_list, O_RMA_Default.sk}
-        /\ ={qs, comps}(O_CMA_CC, R_EFCMARO_IEFRMA.O_CMA_R_EFCMARO_IEFRMA)).
-+ admit.
-+ admit.
-swap{1} 6 -5; wp.
+        /\ ={qs, comps}(O_CMA_CC, R_EFCMARO_IEFRMA.O_CMA_R_EFCMARO_IEFRMA)
+        /\ size R_EFCMARO_IEFRMA.O_CMA_R_EFCMARO_IEFRMA.qs{2} = size DSS_FL.O_Base_Default.qs{2}
+        /\ (forall (cm : msg_fl_t), 
+              (! exists (m : msg_al_t) (rco : rco_t), (cm, (rco, m)) \in R_EFCMARO_IEFRMA.O_CMA_R_EFCMARO_IEFRMA.comps{2}) 
+              =>
+              ! cm \in DSS_FL.O_Base_Default.qs{2})).
++ proc; inline *.
+  by wp; skip.
++ proc; inline *.
+  wp; call (: true) => /=.
+  rnd; rnd.
+  wp; skip => /> &2 eqsz ninqs rco rcoin cm cmin.
+  rewrite 2!size_rcons eqsz assoc_cons /= => cm'.
+  rewrite mem_rcons /= negb_or => nex; split.
+  - move: nex; apply contra => ->.
+    by exists m{2} rco; rewrite mem_rcons. 
+  apply ninqs; rewrite negb_exists => m /=; rewrite negb_exists => rco' /=.
+  move: nex; rewrite negb_exists => /(_ m) /=; rewrite negb_exists => /(_ rco') /=.
+  by rewrite mem_rcons /= negb_or => [#].
+swap{1} 6 -5.
+wp.
 while (={w, ERO.m}); 1: by auto.
 wp; call(:true); wp => /=.
-skip => />.
-progress.
-admit. admit. admit.
-admit.
-admit.
-admit.
+skip => /> cmap msig comps' qs qs' plist eqsz ninqsp ver ltqS_szqs verT ninqs.
+pose ifte := if _ then _ else _; move=> eqnone.
+rewrite -eqsz ltqS_szqs /=; apply: ninqsp.
+rewrite negb_exists /= => m; rewrite negb_exists /= => rco.
+move/iffRL /contra: (assoc_none comps' ifte) => /= /(_ eqnone).
+by rewrite negb_exists /= => /(_ (rco, m)).
 qed.
-  
+
+
+lemma iefrma_cr_lemma_test &m :
+  Pr[EF_CMA_RO(AL_KU_DSS(FL_KU_DSS), A, O_CMA, MCO).main() @ &m : res]
+  <=
+  Pr[CR_RO(R_EFCMARO_CRRO(FL_KU_DSS, A), MCO).main() @ &m : res]
+  +
+  `| Pr[ReproGame(MCO, R_Repro_EFCMARORepro).main(false) @ &m : res] -
+     Pr[ReproGame(MCO, R_Repro_EFCMARORepro).main(true) @ &m : res] |
+  +
+  Pr[I_EF_RMA(FL_KU_DSS, R_EFCMARO_IEFRMA(A), O_RMA_Default).main() @ &m : res].
+proof. print Equiv_EFCMARO_EFCMAROCC.
+have ->:
+  Pr[EF_CMA_RO(AL_KU_DSS(FL_KU_DSS), A, O_CMA, MCO).main() @ &m : res]
+  =
+  Pr[EF_CMA_RO_CC.main() @ &m : res].
++ by byequiv Equiv_EFCMARO_EFCMAROCC.
+rewrite Pr[mu_split EF_CMA_RO_CC.coll] -addrA ler_add 1:EFCMAROCC_CRRO.
+rewrite EFCMAROCC_EFCMAROCCNoRepro -ger0_norm 1:Pr[mu_ge0] // -subr0.
+rewrite -(subrr Pr[EF_CMA_RO_CC_ReproSample.main() @ &m : res /\ !EF_CMA_RO_CC_ReproSample.coll]).
+rewrite opprB (addrC Pr[EF_CMA_RO_CC_ReproSample.main() @ &m : res /\ !EF_CMA_RO_CC_ReproSample.coll]) addrA.
+apply (ler_trans (`|  Pr[EF_CMA_RO_CC_NoRepro.main() @ &m : res /\ !EF_CMA_RO_CC_NoRepro.coll]
+                    - Pr[EF_CMA_RO_CC_ReproSample.main() @ &m : res /\ !EF_CMA_RO_CC_ReproSample.coll] |
+                  + Pr[EF_CMA_RO_CC_ReproSample.main() @ &m : res /\ !EF_CMA_RO_CC_ReproSample.coll])).
++ by rewrite -{4}(ger0_norm Pr[EF_CMA_RO_CC_ReproSample.main() @ &m : res /\ !EF_CMA_RO_CC_ReproSample.coll]) 1:Pr[mu_ge0] 2:&(ler_norm_add).
+apply ler_add; 1: by rewrite EFCMARORepro_ReproGame.
+by rewrite EFRMAROCCReproSample_Query EFRMAROCCReproQuery_IEFRMA.
+qed.
+
 end section Proof_EFCMA_RO_ALKUDSS.
