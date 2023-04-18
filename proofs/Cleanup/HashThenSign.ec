@@ -5,15 +5,18 @@ require (*--*) Word Subtype ROM.
 (*---*) import RField IntOrder RealOrder BS2Int.
 
 (* -- Local -- *)
-require (*--*) DigitalSignatures Reprogramming EFRMA_Interactive_Equiv.
+require (*--*) DigitalSignatures KeyedHashFunctions Reprogramming EFRMA_Interactive_Equiv.
 
 
+
+(* Message-signature pairs *)
+op n : { int | 0 <= n } as ge0_n.
 
 (* Signature queries *)
-op qS : { int | 0 <= qS } as ge0_qS.
+op qS : { int | 0 <= qS <= n } as rng_qS.
 
 (* Random oracle (hash) queries *)
-op qH : { int | 0 <= qH } as ge0_qH.  
+op qH : { int | 0 <= qH } as ge0_qH. 
 
 
 
@@ -26,16 +29,16 @@ type sk_fl_t.
 type msg_fl_t.
 
 clone import FinType as MSG_FL with
-  type t <= msg_fl_t.
+  type t <- msg_fl_t.
 
 type sig_fl_t.
 
 
-(* -- Arbitrary-length digital signature scheme -- *) 
+(* -- Arbitrary-length digital signature scheme -- *)
 type rco_t.
 
 clone import FinType as RCO with
-  type t <= rco_t.
+  type t <- rco_t.
 
 type pk_al_t = pk_fl_t.
 
@@ -49,19 +52,18 @@ clone import FinType as MSG_AL with
 type sig_al_t = rco_t * sig_fl_t.
 
 clone import FinProdType as RCOMSGAL with
-  type t1 <= rco_t,
-  type t2 <= msg_al_t,
-  theory FT1 <= RCO,
-  theory FT2 <= MSG_AL.
+  type t1 <- rco_t,
+  type t2 <- msg_al_t,
+  theory FT1 <- RCO,
+  theory FT2 <- MSG_AL.
 
-
+  
 (* --- Distributions --- *)
-op [lossless] dmsg_fl : msg_fl_t distr.
+op [lossless full uniform] dmsg_fl : msg_fl_t distr.
 
 op [lossless] dmsg_al : msg_al_t distr.
 
-op [lossless] drco : rco_t distr.
-
+op [lossless full uniform] drco : rco_t distr.
 
 
 (* --- Clones --- *)
@@ -72,11 +74,11 @@ clone import DigitalSignatures as DSS_FL with
   type sig_t <= sig_fl_t.
   
 clone import DigitalSignatures as DSS_AL with
-  type pk_t <= pk_al_t,
-  type sk_t <= sk_al_t,
-  type msg_t <= msg_al_t,
-  type sig_t <= sig_al_t.
-
+  type pk_t <- pk_al_t,
+  type sk_t <- sk_al_t,
+  type msg_t <- msg_al_t,
+  type sig_t <- sig_al_t.
+(*
 clone import DSS_FL.KeyUpdating.EFRMA as DSS_FL_EFRMA with
   op n_efrma <= qS,
   op dmsg <= dmsg_fl
@@ -85,8 +87,8 @@ clone import DSS_FL.KeyUpdating.EFRMA as DSS_FL_EFRMA with
   
   realize dmsg_ll by exact: dmsg_fl_ll.
   realize ge0_nefrma by exact: ge0_qS. 
-  
-   
+*)  
+
 clone import ROM as MCORO with
   type in_t <- rco_t * msg_al_t,
   type out_t <- msg_fl_t,
@@ -95,40 +97,63 @@ clone import ROM as MCORO with
   type d_out_t <- bool.
 
 clone import MCORO.LazyEager as MCOROLE with 
-  theory FinType <= RCOMSGAL.
-  
+  theory FinType <- RCOMSGAL.
+
 module MCO = ERO.
 
 clone import Reprogramming as Repro with
     type from <- rco_t * msg_al_t,
     type hash <- msg_fl_t,
-        
+      
+      op p_max_bound <- mu1 drco witness,
+         
       op dhash <- dmsg_fl,
       
-  theory MUFF.FinT <= RCOMSGAL,
-  theory MUFFH.FinT <= MSG_FL,
-  theory ROM_ <= MCORO,
-  theory LE <= MCOROLE
+  theory MUFF.FinT <- RCOMSGAL,
+  theory MUFFH.FinT <- MSG_FL,
+  theory ROM_ <- MCORO,
+  theory LE <- MCOROLE
   
   proof dhash_ll by exact: dmsg_fl_ll.
 
 clone import EFRMA_Interactive_Equiv as EFRMAEqv with
-  type msg_t <= msg_fl_t,
-  type sig_t <= sig_fl_t,
-  type pk_t <= pk_fl_t,
-  type sk_t <= sk_fl_t,
+  type msg_t <- msg_fl_t,
+  type sig_t <- sig_fl_t,
+  type pk_t <- pk_fl_t,
+  type sk_t <- sk_fl_t,
   
-  op dmsg <= dmsg_fl,
-  op n_efrma <= qS,
+  op n_efrma <- n,
+  op dmsg <- dmsg_fl,
   
-  theory ClassDS <= DSS_FL
+  theory ClassDS <- DSS_FL
   
   rename [theory] "Class_EFRMA" as "DSS_FL_EFRMA"
   
-  proof *.
-
+  proof *. 
   realize dmsg_ll by exact: dmsg_fl_ll.
-  realize ge0_nefrma by exact: ge0_qS.
+  realize ge0_nefrma by exact: ge0_n.
+  
+import DSS_FL_EFRMA.
+
+
+(* --- Auxiliary --- *)
+lemma p_max_rcom (m : msg_al_t) :
+  p_max (dmap drco (fun (rco : rco_t) => (rco, m))) = mu1 drco witness.
+proof.
+apply ler_anti; split => [|_].
++ move: (listmax_in Real.(<=) RealOrder.ler_trans RealOrder.ler_total). 
+  move=> /(_ 0%r (map (fun (x : rco_t * msg_al_t) => 
+                          mu (dmap drco (fun (rco : rco_t) => (rco, m))) ((=) x)) 
+                       RCOMSGAL.enum) _).
+  - rewrite size_map; move: (enumP witness).
+    by case RCOMSGAL.enum => //=; smt(size_ge0).
+  move/mapP => @/p_max [rcom] [rcomin /= ->].
+  by rewrite dmapE /(\o) /= (drco_uni witness rcom.`1) 1,2:drco_fu /pred1 mu_le.
+apply (ler_trans (mu1 (dmap drco (fun (rco : rco_t) => (rco, m))) (witness, m))) => [| @/pred1].
++ rewrite ler_eqVlt; left.
+  by rewrite dmap1E /pred1 /(\o).
+by rewrite (mu_eq _ _ (fun (p : rco_t * msg_al_t) => (witness, m) = p)) 1:/# p_maxE.
+qed.  
 
 
 (* --- Properties --- *)
@@ -147,7 +172,7 @@ module type SOracle_CMA = {
 
   
 (* - Adversary Classes - *)
-module type Adv_EFCMA_RO(SO : SOracle_CMA, HO : POracle) = {
+module type Adv_EFCMA_RO(SO : SOracle_CMA, RO : POracle) = {
   proc forge(pk : pk_al_t) : msg_al_t * sig_al_t 
 }.
 
@@ -192,7 +217,7 @@ module (O_CMA : Oracle_CMA) (S : DSS_AL.KeyUpdating.Scheme) = {
 }.
 
 (* - - *)
-module EF_CMA_RO(S : DSS_AL.KeyUpdating.Scheme, A : Adv_EFCMA_RO, SO : Oracle_CMA, HO : Oracle) = {
+module EF_CMA_RO(S : DSS_AL.KeyUpdating.Scheme, A : Adv_EFCMA_RO, SO : Oracle_CMA, RO : Oracle) = {
   proc main() = {
     var pk : pk_al_t;
     var sk : sk_al_t;
@@ -201,7 +226,7 @@ module EF_CMA_RO(S : DSS_AL.KeyUpdating.Scheme, A : Adv_EFCMA_RO, SO : Oracle_CM
     var is_valid, is_fresh : bool;
     
     (* Initialize (hash) random oracle *)
-    HO.init();
+    RO.init();
     
     (* Generate a key pair using the considered signature scheme *)
     (pk, sk) <@ S.keygen();
@@ -214,7 +239,7 @@ module EF_CMA_RO(S : DSS_AL.KeyUpdating.Scheme, A : Adv_EFCMA_RO, SO : Oracle_CM
       message and the signature) given the public key pk and access to a signing oracle 
       that it can query an unlimited number of times
     *)
-    (m, sig) <@ A(SO(S), HO).forge(pk);
+    (m, sig) <@ A(SO(S), RO).forge(pk);
 
     (* 
       Verify (w.r.t. message m) the signature sig provided by the adversary 
@@ -375,7 +400,7 @@ module AL_KU_DSS(FL_KU_DSS : DSS_FL.KeyUpdating.Scheme) : DSS_AL.KeyUpdating.Sch
 
 
 (* --- Reduction Adversaries --- *)
-module (R_EFCMARO_CRRO (FL_KU_DSS : DSS_FL.KeyUpdating.Scheme, A : Adv_EFCMA_RO) : Adv_CR_RO) (HO : POracle) = {
+module (R_EFCMARO_CRRO (FL_KU_DSS : DSS_FL.KeyUpdating.Scheme, A : Adv_EFCMA_RO) : Adv_CR_RO) (RO : POracle) = {
   module O_CMA_R_EFCMARO_CRRO : SOracle_CMA  = {
     var sk : sk_al_t
     var comps : (msg_fl_t * (rco_t * msg_al_t)) list
@@ -393,7 +418,7 @@ module (R_EFCMARO_CRRO (FL_KU_DSS : DSS_FL.KeyUpdating.Scheme, A : Adv_EFCMA_RO)
       
       rco <$ drco;
 
-      cm <@ HO.o((rco, m));
+      cm <@ RO.o((rco, m));
 
       (sigfl, sk) <@ FL_KU_DSS.sign(sk, cm);
 
@@ -417,11 +442,11 @@ module (R_EFCMARO_CRRO (FL_KU_DSS : DSS_FL.KeyUpdating.Scheme, A : Adv_EFCMA_RO)
     
     O_CMA_R_EFCMARO_CRRO.init(sk);
     
-    (mal', sig') <@ A(O_CMA_R_EFCMARO_CRRO, HO).forge(pk);
+    (mal', sig') <@ A(O_CMA_R_EFCMARO_CRRO, RO).forge(pk);
     
     rco' <- sig'.`1;
     
-    mfl' <@ HO.o((rco', mal'));
+    mfl' <@ RO.o((rco', mal'));
     
     (rco, mal) <- oget (assoc O_CMA_R_EFCMARO_CRRO.comps mfl');
     
@@ -430,7 +455,7 @@ module (R_EFCMARO_CRRO (FL_KU_DSS : DSS_FL.KeyUpdating.Scheme, A : Adv_EFCMA_RO)
 }.  
 
 
-module (R_EFCMARO_METCRRO (FL_KU_DSS : DSS_FL.KeyUpdating.Scheme, A : Adv_EFCMA_RO) : Adv_METCR_RO) (O : TOracle_METCR, HO : POracle) = {
+module (R_EFCMARO_METCRRO (FL_KU_DSS : DSS_FL.KeyUpdating.Scheme, A : Adv_EFCMA_RO) : Adv_METCR_RO) (O : TOracle_METCR, RO : POracle) = {
   module O_CMA_R_EFCMARO_METCRRO : SOracle_CMA  = {
     var sk : sk_al_t
     var comps : (msg_fl_t * (rco_t * msg_al_t)) list
@@ -448,7 +473,7 @@ module (R_EFCMARO_METCRRO (FL_KU_DSS : DSS_FL.KeyUpdating.Scheme, A : Adv_EFCMA_
       
       rco <@ O.query(m);
 
-      cm <@ HO.o((rco, m));
+      cm <@ RO.o((rco, m));
 
       (sigfl, sk) <@ FL_KU_DSS.sign(sk, cm);
 
@@ -473,11 +498,11 @@ module (R_EFCMARO_METCRRO (FL_KU_DSS : DSS_FL.KeyUpdating.Scheme, A : Adv_EFCMA_
     
     O_CMA_R_EFCMARO_METCRRO.init(sk);
     
-    (mal', sig') <@ A(O_CMA_R_EFCMARO_METCRRO, HO).forge(pk);
+    (mal', sig') <@ A(O_CMA_R_EFCMARO_METCRRO, RO).forge(pk);
     
     rco' <- sig'.`1;
     
-    mfl' <@ HO.o((rco', mal'));
+    mfl' <@ RO.o((rco', mal'));
     
     i <- index mfl' (unzip1 O_CMA_R_EFCMARO_METCRRO.comps);
     
@@ -640,17 +665,18 @@ module (QC_A(A : Adv_EFCMA_RO) : Adv_EFCMA_RO) (SO : SOracle_CMA) (RO : POracle)
 
 
 
-section Proof_EFCMA_RO_ALKUDSS.
+section Proofs_EFCMA_RO_ALKUDSS.
 
-declare module FL_KU_DSS <: DSS_FL.KeyUpdating.Scheme{-ERO, -O_CMA, -O_METCR, -R_EFCMARO_CRRO, -R_EFCMARO_METCRRO, -Wrapped_Oracle, -RepO, -O_RMA_Default, -R_EFCMARO_IEFRMA, -QC_A}.
+declare module FL_KU_DSS <: DSS_FL.KeyUpdating.Scheme{-ERO, -O_CMA, -O_METCR, -R_EFCMARO_CRRO, -R_EFCMARO_METCRRO, -Wrapped_Oracle, -RepO, -O_RMA_Default, -R_EFCMARO_IEFRMA, -QC_A, -Lazy.LRO, -ReproGame, -R_EFRMA_IEFRMA}.
+
+declare axiom FL_KU_DSS_sign_ll : islossless FL_KU_DSS.sign. 
 declare axiom FL_KU_DSS_verify_ll : islossless FL_KU_DSS.verify. 
 
-declare module A <: Adv_EFCMA_RO{-FL_KU_DSS, -ERO, -O_CMA, -O_METCR, -R_EFCMARO_CRRO, -R_EFCMARO_METCRRO, -Wrapped_Oracle, -RepO, -O_RMA_Default, -R_EFCMARO_IEFRMA, -QC_A}.
+declare module A <: Adv_EFCMA_RO{-FL_KU_DSS, -ERO, -O_CMA, -O_METCR, -R_EFCMARO_CRRO, -R_EFCMARO_METCRRO, -Wrapped_Oracle, -RepO, -DSS_FL_EFRMA.O_RMA_Default, -R_EFCMARO_IEFRMA, -QC_A, -Lazy.LRO, -ReproGame, -R_EFRMA_IEFRMA}.
 
-(*
-declare axiom A_forge_queries (RO <: POracle {-A, -QC_RO, -QC_SO}) (SO <: SOracle_CMA{-A, -QC_RO, -QC_SO}) : 
-  hoare[A(QC_SO(SO), QC_RO(RO)).forge : QC_SO.cS = 0 /\ QC_RO.cH = 0 ==> QC_SO.cS <= qS /\ QC_RO.cH <= qH].
-*)
+declare axiom A_forge_ll (SO <: SOracle_CMA{-A}) (RO <: POracle{-A}) : 
+  islossless SO.sign => islossless RO.o => islossless A(SO, RO).forge.
+
 declare axiom A_forge_queries (SO <: SOracle_CMA{-A, -QC_A}) (RO <: POracle{-A, -QC_A}):
   hoare[QC_A(A, SO, RO).forge : true ==> QC_A.cS <= qS /\ QC_A.cH <= qH].
 
@@ -1203,9 +1229,7 @@ wp; call (: true); wp; while (={w, ERO.m}).
 by wp; skip.
 qed.
 
-local module T = R_Repro_EFCMARORepro(Wrapped_Oracle(ERO), RepO(Wrapped_Oracle(ERO))).
-
-local hoare test :
+local hoare R_Repro_EFCMARORepro_Queries :
   R_Repro_EFCMARORepro(Wrapped_Oracle(MCO), RepO(Wrapped_Oracle(MCO))).distinguish :
     Wrapped_Oracle.ch = 0 /\ RepO.ctr = 0 /\ RepO.se 
     ==> 
@@ -1220,44 +1244,32 @@ call (: Wrapped_Oracle.ch = 0 /\ RepO.ctr = 0 /\ RepO.se
         ==>
            QC_A.cS <= qS /\ QC_A.cH <= qH
         /\ Wrapped_Oracle.ch = QC_A.cH + QC_A.cS /\ RepO.ctr = QC_A.cS /\ RepO.se). 
-conseq (: Wrapped_Oracle.ch = 0 /\ RepO.ctr = 0 /\ RepO.se
-          ==>
-          Wrapped_Oracle.ch = QC_A.cH + QC_A.cS /\ RepO.ctr = QC_A.cS /\ RepO.se)
-       (: true ==>  QC_A.cS <= qS /\ QC_A.cH <= qH) => //.
-       apply: (A_forge_queries (T.O_R_Repro_EFCMARORepro) (Wrapped_Oracle(ERO))).
-
-proc.
-wp. 
-call (: Wrapped_Oracle.ch = QC_A.cH + QC_A.cS /\ RepO.ctr = QC_A.cS /\ RepO.se).
-proc.
-inline *.
-wp. 
++ conseq (: Wrapped_Oracle.ch = 0 /\ RepO.ctr = 0 /\ RepO.se
+            ==>
+            Wrapped_Oracle.ch = QC_A.cH + QC_A.cS /\ RepO.ctr = QC_A.cS /\ RepO.se)
+         (: true ==>  QC_A.cS <= qS /\ QC_A.cH <= qH) => //.
+  - by apply: (A_forge_queries (<: R_Repro_EFCMARORepro(Wrapped_Oracle(ERO), RepO(Wrapped_Oracle(ERO))).O_R_Repro_EFCMARORepro) (Wrapped_Oracle(ERO))).
+  proc.
+  call (: Wrapped_Oracle.ch = QC_A.cH + QC_A.cS /\ RepO.ctr = QC_A.cS /\ RepO.se).
+  - proc; inline *.
+    by wp; skip => /#.
+  - proc; inline *.
+    wp; call (: true); wp => /=.
+    case RepO.b.
+    * rcondt 7; 1: by auto.
+      wp.
+      rnd; rnd.
+      wp; skip => /> &1 seT bT rcom _ cm _.
+      split => [/# |].
+      by rewrite p_max_rcom.
+    rcondf 7; 1: by auto.
+    rnd.
+    wp; skip => /> &1 se b rcom _.
+    split => [/# |].
+    by rewrite p_max_rcom.
+  by wp; skip.
+do 2! (call(: true) => //).
 by skip => /#.
-proc.
-inline *.
-auto.
-call (: true).
-auto.
-case RepO.b.
-+ rcondt 7; 1: auto.
-  wp.
-  rnd. rnd.
-  wp. skip.
-  progress ; 1: smt().
-  admit.
-rcondf 7; 1 : auto.
-rnd.
-wp.
-skip.
-progress.
-smt().
-admit.
-wp.
-skip. 
-progress.
-call(: true) => //.
-call(: true) => //.
-skip => /#.
 qed.
 
 local module O_CMA_CC_ReproQuery = {
@@ -1414,7 +1426,7 @@ local lemma EFRMAROCCReproQuery_IEFRMA &m :
 proof.
 byequiv => //.
 proc; inline *.
-wp => /=. call (: true); wp => /=. print R_EFCMARO_IEFRMA. print O_RMA_Default.
+wp => /=. call (: true); wp => /=.
 call (:    ={glob FL_KU_DSS, MCO.m, Wrapped_Oracle.prog_list, O_RMA_Default.sk}
         /\ ={qs, comps}(O_CMA_CC, R_EFCMARO_IEFRMA.O_CMA_R_EFCMARO_IEFRMA)
         /\ size R_EFCMARO_IEFRMA.O_CMA_R_EFCMARO_IEFRMA.qs{2} = size DSS_FL.O_Base_Default.qs{2}
@@ -1441,23 +1453,21 @@ while (={w, ERO.m}); 1: by auto.
 wp; call(:true); wp => /=.
 skip => /> cmap msig comps' qs qs' plist eqsz ninqsp ver ltqS_szqs verT ninqs.
 pose ifte := if _ then _ else _; move=> eqnone.
-rewrite -eqsz ltqS_szqs /=; apply: ninqsp.
-rewrite negb_exists /= => m; rewrite negb_exists /= => rco.
+split; 1: by rewrite -eqsz; smt(rng_qS).
+apply: ninqsp; rewrite negb_exists /= => m; rewrite negb_exists /= => rco.
 move/iffRL /contra: (assoc_none comps' ifte) => /= /(_ eqnone).
 by rewrite negb_exists /= => /(_ (rco, m)).
 qed.
 
-
-lemma iefrma_cr_lemma_test &m :
+lemma ALKUDSS_EFCMARO_CRRO_IEFRMA &m :
   Pr[EF_CMA_RO(AL_KU_DSS(FL_KU_DSS), A, O_CMA, MCO).main() @ &m : res]
   <=
   Pr[CR_RO(R_EFCMARO_CRRO(FL_KU_DSS, A), MCO).main() @ &m : res]
   +
-  `| Pr[ReproGame(MCO, R_Repro_EFCMARORepro).main(false) @ &m : res] -
-     Pr[ReproGame(MCO, R_Repro_EFCMARORepro).main(true) @ &m : res] |
+  Pr[I_EF_RMA(FL_KU_DSS, R_EFCMARO_IEFRMA(A), O_RMA_Default).main() @ &m : res]
   +
-  Pr[I_EF_RMA(FL_KU_DSS, R_EFCMARO_IEFRMA(A), O_RMA_Default).main() @ &m : res].
-proof. print Equiv_EFCMARO_EFCMAROCC.
+  qS%r * (qS + qH + 1)%r * mu1 drco witness.
+proof.
 have ->:
   Pr[EF_CMA_RO(AL_KU_DSS(FL_KU_DSS), A, O_CMA, MCO).main() @ &m : res]
   =
@@ -1471,8 +1481,171 @@ apply (ler_trans (`|  Pr[EF_CMA_RO_CC_NoRepro.main() @ &m : res /\ !EF_CMA_RO_CC
                     - Pr[EF_CMA_RO_CC_ReproSample.main() @ &m : res /\ !EF_CMA_RO_CC_ReproSample.coll] |
                   + Pr[EF_CMA_RO_CC_ReproSample.main() @ &m : res /\ !EF_CMA_RO_CC_ReproSample.coll])).
 + by rewrite -{4}(ger0_norm Pr[EF_CMA_RO_CC_ReproSample.main() @ &m : res /\ !EF_CMA_RO_CC_ReproSample.coll]) 1:Pr[mu_ge0] 2:&(ler_norm_add).
-apply ler_add; 1: by rewrite EFCMARORepro_ReproGame.
-by rewrite EFRMAROCCReproSample_Query EFRMAROCCReproQuery_IEFRMA.
+rewrite addrC; apply ler_add.
++ by rewrite EFRMAROCCReproSample_Query EFRMAROCCReproQuery_IEFRMA.
+apply (ler_trans `| Pr[ReproGame(ERO, R_Repro_EFCMARORepro).main(false) @ &m : res] -
+                    Pr[ReproGame(ERO, R_Repro_EFCMARORepro).main(true) @ &m : res] |).
++ by rewrite EFCMARORepro_ReproGame.
+apply (rom_reprogramming R_Repro_EFCMARORepro _ _ _ _ &m R_Repro_EFCMARORepro_Queries).
++ by move: rng_qS => [->].
+by smt(rng_qS ge0_qH).
 qed.
 
-end section Proof_EFCMA_RO_ALKUDSS.
+
+lemma ALKUDSS_EFCMARO_METCRRO_IEFRMA &m :
+  Pr[EF_CMA_RO(AL_KU_DSS(FL_KU_DSS), A, O_CMA, MCO).main() @ &m : res]
+  <=
+  Pr[M_ETCR_RO(R_EFCMARO_METCRRO(FL_KU_DSS, A), O_METCR, MCO).main() @ &m : res]
+  +
+  Pr[I_EF_RMA(FL_KU_DSS, R_EFCMARO_IEFRMA(A), O_RMA_Default).main() @ &m : res]
+  +
+  qS%r * (qS + qH + 1)%r * mu1 drco witness.
+proof.
+have ->:
+  Pr[EF_CMA_RO(AL_KU_DSS(FL_KU_DSS), A, O_CMA, MCO).main() @ &m : res]
+  =
+  Pr[EF_CMA_RO_CC.main() @ &m : res].
++ by byequiv Equiv_EFCMARO_EFCMAROCC.
+rewrite Pr[mu_split EF_CMA_RO_CC.coll] -addrA ler_add 1:EFCMAROCC_METCRRO.
+rewrite EFCMAROCC_EFCMAROCCNoRepro -ger0_norm 1:Pr[mu_ge0] // -subr0.
+rewrite -(subrr Pr[EF_CMA_RO_CC_ReproSample.main() @ &m : res /\ !EF_CMA_RO_CC_ReproSample.coll]).
+rewrite opprB (addrC Pr[EF_CMA_RO_CC_ReproSample.main() @ &m : res /\ !EF_CMA_RO_CC_ReproSample.coll]) addrA.
+apply (ler_trans (`|  Pr[EF_CMA_RO_CC_NoRepro.main() @ &m : res /\ !EF_CMA_RO_CC_NoRepro.coll]
+                    - Pr[EF_CMA_RO_CC_ReproSample.main() @ &m : res /\ !EF_CMA_RO_CC_ReproSample.coll] |
+                  + Pr[EF_CMA_RO_CC_ReproSample.main() @ &m : res /\ !EF_CMA_RO_CC_ReproSample.coll])).
++ by rewrite -{4}(ger0_norm Pr[EF_CMA_RO_CC_ReproSample.main() @ &m : res /\ !EF_CMA_RO_CC_ReproSample.coll]) 1:Pr[mu_ge0] 2:&(ler_norm_add).
+rewrite addrC; apply ler_add.
++ by rewrite EFRMAROCCReproSample_Query EFRMAROCCReproQuery_IEFRMA.
+apply (ler_trans `| Pr[ReproGame(ERO, R_Repro_EFCMARORepro).main(false) @ &m : res] -
+                    Pr[ReproGame(ERO, R_Repro_EFCMARORepro).main(true) @ &m : res] |).
++ by rewrite EFCMARORepro_ReproGame.
+apply (rom_reprogramming R_Repro_EFCMARORepro _ _ _ _ &m R_Repro_EFCMARORepro_Queries).
++ by move: rng_qS => [->].
+by smt(rng_qS ge0_qH).
+qed.
+
+
+declare op opsign : sk_fl_t -> msg_fl_t -> sig_fl_t * sk_fl_t.
+
+declare axiom FL_KU_DSS_sign_fun (sk : sk_fl_t) (cm : msg_fl_t) :
+  hoare[FL_KU_DSS.sign: arg = (sk, cm) ==> res = opsign sk cm].
+
+local lemma FL_KU_DSS_sign_pfun (sk : sk_fl_t) (cm : msg_fl_t) :
+  phoare[FL_KU_DSS.sign: arg = (sk, cm) ==> res = opsign sk cm] = 1%r.
+proof. by conseq FL_KU_DSS_sign_ll (FL_KU_DSS_sign_fun sk cm). qed.
+
+declare axiom FL_KU_DSS_keygen_stateless:
+  equiv[FL_KU_DSS.keygen ~ FL_KU_DSS.keygen: true ==> ={res}].
+  
+declare axiom FL_KU_DSS_verify_stateless:
+  equiv[FL_KU_DSS.verify ~ FL_KU_DSS.verify: ={arg} ==> ={res}].
+
+lemma ALKUDSS_EFCMARO_CRRO_EFRMA &m :
+  Pr[EF_CMA_RO(AL_KU_DSS(FL_KU_DSS), A, O_CMA, MCO).main() @ &m : res]
+  <=
+  Pr[CR_RO(R_EFCMARO_CRRO(FL_KU_DSS, A), MCO).main() @ &m : res]
+  +
+  Pr[EF_RMA(FL_KU_DSS, R_EFRMA_IEFRMA(R_EFCMARO_IEFRMA(A))).main() @ &m : res]
+  +
+  qS%r * (qS + qH + 1)%r * mu1 drco witness
+  +
+  n%r * mu1 dmsg_fl witness.
+proof.
+move: (I_EFRMA_le_EF_RMA (R_EFCMARO_IEFRMA(A)) _).
++ move=> SO SOs_ll.
+  proc; inline *.
+  wp.
+  call (A_forge_ll (<: R_EFCMARO_IEFRMA(A, SO).O_CMA_R_EFCMARO_IEFRMA) (Wrapped_Oracle(MCO))).
+  - proc; inline *.
+    wp; call (SOs_ll); rnd; skip => />.
+    by apply drco_ll.
+  - proc; inline *.
+    by wp; skip.
+  wp. 
+  while (true) (size w).
+  - move=> z.
+    wp; rnd; wp; skip => /> &1 neqw.
+    split; 2: apply dmsg_fl_ll.
+    by move: neqw; case (w{1}) => // rcom rcoml _ /= /#.
+  by wp; skip => />; smt(size_ge0 size_eq0).
+move=> /(_ FL_KU_DSS FL_KU_DSS_sign_ll FL_KU_DSS_verify_ll).
+move=> /(_ opsign FL_KU_DSS_sign_fun FL_KU_DSS_keygen_stateless FL_KU_DSS_verify_stateless).
+move=> /(_ (mu1 dmsg_fl witness) &m _).
++ by move=> cm; rewrite ler_eqVlt; left; rewrite &(dmsg_fl_uni) dmsg_fl_fu.
+by move: (ALKUDSS_EFCMARO_CRRO_IEFRMA &m) => /#.
+qed.
+
+
+lemma ALKUDSS_EFCMARO_METCRRO_EFRMA &m :
+  Pr[EF_CMA_RO(AL_KU_DSS(FL_KU_DSS), A, O_CMA, MCO).main() @ &m : res]
+  <=
+  Pr[M_ETCR_RO(R_EFCMARO_METCRRO(FL_KU_DSS, A), O_METCR, MCO).main() @ &m : res]
+  +
+  Pr[EF_RMA(FL_KU_DSS, R_EFRMA_IEFRMA(R_EFCMARO_IEFRMA(A))).main() @ &m : res]
+  +
+  qS%r * (qS + qH + 1)%r * mu1 drco witness
+  +
+  n%r * mu1 dmsg_fl witness.
+proof.
+move: (I_EFRMA_le_EF_RMA (R_EFCMARO_IEFRMA(A)) _).
++ move=> SO SOs_ll.
+  proc; inline *.
+  wp.
+  call (A_forge_ll (<: R_EFCMARO_IEFRMA(A, SO).O_CMA_R_EFCMARO_IEFRMA) (Wrapped_Oracle(MCO))).
+  - proc; inline *.
+    wp; call (SOs_ll); rnd; skip => />.
+    by apply drco_ll.
+  - proc; inline *.
+    by wp; skip.
+  wp. 
+  while (true) (size w).
+  - move=> z.
+    wp; rnd; wp; skip => /> &1 neqw.
+    split; 2: apply dmsg_fl_ll.
+    by move: neqw; case (w{1}) => // rcom rcoml _ /= /#.
+  by wp; skip => />; smt(size_ge0 size_eq0).
+move=> /(_ FL_KU_DSS FL_KU_DSS_sign_ll FL_KU_DSS_verify_ll).
+move=> /(_ opsign FL_KU_DSS_sign_fun FL_KU_DSS_keygen_stateless FL_KU_DSS_verify_stateless).
+move=> /(_ (mu1 dmsg_fl witness) &m _).
++ by move=> cm; rewrite ler_eqVlt; left; rewrite &(dmsg_fl_uni) dmsg_fl_fu.
+by move: (ALKUDSS_EFCMARO_METCRRO_IEFRMA &m) => /#.
+qed.
+
+end section Proofs_EFCMA_RO_ALKUDSS.
+
+
+theory StateManagingWithPRF.
+
+type ms_t.
+
+type idx_t.
+
+clone import FinType as IDX with
+  type t <- idx_t.
+
+type sk_al_sm_t.
+
+
+op [lossless] dms : ms_t distr.
+
+
+(* --- Operators --- *)
+op mkg : ms_t -> idx_t -> rco_t. 
+
+clone import KeyedHashFunctions as MKG with
+  type key_t <= ms_t, 
+  type in_t <= idx_t,
+  type out_t <= rco_t,   
+    
+    op f <= mkg,
+    
+    op dkey <= dms,
+    op doutm <= fun _ => drco
+    
+    proof dkey_ll by exact: dms_ll
+    proof doutm_ll by smt(drco_ll).
+
+op extr_idx : sk_al_sm_t -> idx_t.
+op extr_sk : sk_al_sm_t -> sk_al_t. 
+
+end StateManagingWithPRF.

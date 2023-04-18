@@ -1569,7 +1569,7 @@ module (R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF (A : Adv_EFRMA_FLXMSSTWES) : TRH.Adv_
 
 
 (* -- EF-RMA for Fixed-Length XMSS-TW (in an encompassing structure) -- *)
-section EF_RMA_FLXMSSTWES.
+section Proof_EF_RMA_FLXMSSTWES.
 (* - Module declarations - *)
 declare module A <: Adv_EFRMA_FLXMSSTWES{-PRF_SK.O_PRF_Default, -F.O_THFC_Default, -F.O_SMDTPRE_Default, -F.O_SMDTTCR_Default, -F.O_SMDTUD_Default, -PKCO.O_SMDTTCR_Default, -PKCO.O_THFC_Default, -TRH.O_SMDTTCR_Default, -TRH.O_THFC_Default, -O_MEFGCMA_WOTSTWES, -R_PRF_FLXMSSTWESInlineNOPRF, -R_SMDTUDC_Game23WOTSTWES, -R_SMDTTCRC_Game34WOTSTWES, -R_SMDTPREC_Game4WOTSTWES, -R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF, -R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF, -R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF, -R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF}.
 
@@ -4600,7 +4600,7 @@ rewrite -4!addrA ler_add; first by rewrite (Step_EFRMAFLXMSSTWESInlineNOPRF_PRF 
 by rewrite !addrA thm_nprf.
 qed.
 
-end section EF_RMA_FLXMSSTWES.
+end section Proof_EF_RMA_FLXMSSTWES.
 
 
 
@@ -4659,7 +4659,7 @@ module FL_XMSS_TW : FLXMSSTW.Scheme = {
   }
 }.
 
-lemma XMSS_keygen_ll: islossless FL_XMSS_TW.keygen.
+lemma FLXMSSTW_keygen_ll: islossless FL_XMSS_TW.keygen.
 proof.
 islossless; while true (l - size leafl); auto=> [|/#].
 inline *; auto.
@@ -4667,7 +4667,7 @@ while true (len - size pkWOTS0); auto; 1:smt(size_rcons).
 by while true (len - size skWOTS0); auto; smt(size_rcons).
 qed.
 
-lemma XMSS_sign_ll: islossless FL_XMSS_TW.sign.
+lemma FLXMSSTW_sign_ll: islossless FL_XMSS_TW.sign.
 proof.
 islossless.
 + while true (l - size leafl); auto=> [|/#].
@@ -4678,7 +4678,7 @@ islossless.
 + by while true (len - size skWOTS); auto; smt(size_rcons).
 qed.
 
-lemma XMSS_verify_ll: islossless FL_XMSS_TW.verify.
+lemma FLXMSSTW_verify_ll: islossless FL_XMSS_TW.verify.
 proof. by islossless; while true (len - size pkWOTS); auto; smt(size_rcons). qed.
 
 (* -- Proof of EF-RMA for Fixed-Length XMSS-TW as standalone -- *)

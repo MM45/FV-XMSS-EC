@@ -72,12 +72,12 @@ module R_EFRMA_IEFRMA (A : Adv_I_EFRMA) : Adv_EFRMA = {
 }.
 
 section.
-declare module A <: Adv_I_EFRMA {-R_EFRMA_IEFRMA, -O_RMA_Default, -EF_RMA}.
+declare module A <: Adv_I_EFRMA {-R_EFRMA_IEFRMA, -O_RMA_Default}.
 declare axiom A_ll (O <: SOracle_RMA {-A}):
      islossless O.sign
   => islossless A(O).forge.
 
-declare module S <: Scheme {-A, -R_EFRMA_IEFRMA, -O_RMA_Default, -EF_RMA}.
+declare module S <: Scheme {-A, -R_EFRMA_IEFRMA, -O_RMA_Default}.
 declare axiom Ssign_ll: islossless S.sign.
 declare axiom Sverify_ll: islossless S.verify.
 
