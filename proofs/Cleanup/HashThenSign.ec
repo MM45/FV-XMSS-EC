@@ -42,8 +42,6 @@ clone import FinType as RCO with
 
 type pk_al_t = pk_fl_t.
 
-type sk_al_t = sk_fl_t.
-
 type msg_al_t.
 
 clone import FinType as MSG_AL with
@@ -72,22 +70,6 @@ clone import DigitalSignatures as DSS_FL with
   type sk_t <= sk_fl_t,
   type msg_t <= msg_fl_t,
   type sig_t <= sig_fl_t.
-  
-clone import DigitalSignatures as DSS_AL with
-  type pk_t <- pk_al_t,
-  type sk_t <- sk_al_t,
-  type msg_t <- msg_al_t,
-  type sig_t <- sig_al_t.
-(*
-clone import DSS_FL.KeyUpdating.EFRMA as DSS_FL_EFRMA with
-  op n_efrma <= qS,
-  op dmsg <= dmsg_fl
-  
-  proof *.
-  
-  realize dmsg_ll by exact: dmsg_fl_ll.
-  realize ge0_nefrma by exact: ge0_qS. 
-*)  
 
 clone import ROM as MCORO with
   type in_t <- rco_t * msg_al_t,
@@ -157,6 +139,110 @@ qed.
 
 
 (* --- Properties --- *)
+(* -- CR (for a random oracle) -- *)
+module type Adv_CR_RO(HO : POracle) = {
+  proc find() : (rco_t * msg_al_t) * (rco_t * msg_al_t)
+}.
+
+module CR_RO(A : Adv_CR_RO, HO : Oracle) = {
+  proc main() = {
+    var kx, kx' : rco_t * msg_al_t;
+    var y, y' : msg_fl_t;
+    
+    HO.init();
+    
+    (kx, kx') <@ A(HO).find();
+    
+    y <@ HO.o(kx);
+    y' <@ HO.o(kx');
+    
+    return kx <> kx' /\ y = y';
+  }
+}.
+
+
+(* -- M-eTCR (for a random oracle) -- *)
+(* Type for oracles used in M_ETCR game *)
+module type Oracle_METCR = {
+  proc init() : unit
+  proc query(x : msg_al_t) : rco_t
+  proc get(i : int) : rco_t * msg_al_t
+  proc nr_targets() : int
+}.
+
+module type TOracle_METCR = {
+  proc query(x : msg_al_t) : rco_t
+}.
+
+(* Implementation of an oracle for M_ETCR *)
+module O_METCR : Oracle_METCR = {
+  var ts : (rco_t * msg_al_t) list
+  
+  proc init() : unit = {
+    ts <- [];
+  }
+  
+  proc query(m : msg_al_t) : rco_t = {
+    var rco : rco_t;
+    
+    rco <$ drco;
+    
+    ts <- rcons ts (rco, m);
+      
+    return rco;
+  }
+  
+  (* Gets i-th element in list of targets; returns witness if index is out of bounds *)
+  proc get(i : int) : rco_t * msg_al_t = {
+    return nth witness ts i;
+  }
+  
+  (* Returns the number of elements in the list of targets *)
+  proc nr_targets() : int = {
+    return size ts; 
+  }
+}.
+
+
+(* Class of adversaries against M_ETCR *)
+module type Adv_METCR_RO(O : TOracle_METCR, HO : POracle) = {
+  proc find() : int * rco_t * msg_al_t
+}.
+
+module M_ETCR_RO(A : Adv_METCR_RO, O : Oracle_METCR, HO : Oracle) = {
+  proc main() = {
+    var k, k' : rco_t;
+    var x, x' : msg_al_t;
+    var y, y' : msg_fl_t;
+    var i, nrts : int;
+    
+    O.init();
+    HO.init();
+    
+    (i, k', x') <@ A(O, HO).find();
+    
+    (k, x) <@ O.get(i);
+    
+    y <@ HO.o((k, x));
+    y' <@ HO.o((k', x'));
+    
+    nrts <@ O.nr_targets();
+    
+    return 0 <= i < nrts /\ x <> x' /\ y = y';
+  }
+}.
+
+
+theory WithSampling.
+
+type sk_al_t = sk_fl_t.
+
+clone import DigitalSignatures as DSS_AL with
+  type pk_t <- pk_al_t,
+  type sk_t <- sk_al_t,
+  type msg_t <- msg_al_t,
+  type sig_t <- sig_al_t.
+
 (* -- EF-CMA -- *)
 (* - Oracle Interfaces - *)
 module type Oracle_CMA(S : DSS_AL.KeyUpdating.Scheme) = {
@@ -263,101 +349,6 @@ module EF_CMA_RO(S : DSS_AL.KeyUpdating.Scheme, A : Adv_EFCMA_RO, SO : Oracle_CM
   }
 }.
 
-
-(* -- CR (for a random oracle) -- *)
-module type Adv_CR_RO(HO : POracle) = {
-  proc find() : (rco_t * msg_al_t) * (rco_t * msg_al_t)
-}.
-
-module CR_RO(A : Adv_CR_RO, HO : Oracle) = {
-  proc main() = {
-    var kx, kx' : rco_t * msg_al_t;
-    var y, y' : msg_fl_t;
-    
-    HO.init();
-    
-    (kx, kx') <@ A(HO).find();
-    
-    y <@ HO.o(kx);
-    y' <@ HO.o(kx');
-    
-    return kx <> kx' /\ y = y';
-  }
-}.
-
-
-(* -- M-eTCR (for a random oracle) -- *)
-(* Type for oracles used in M_ETCR game *)
-module type Oracle_METCR = {
-  proc init() : unit
-  proc query(x : msg_al_t) : rco_t
-  proc get(i : int) : rco_t * msg_al_t
-  proc nr_targets() : int
-}.
-
-module type TOracle_METCR = {
-  proc query(x : msg_al_t) : rco_t
-}.
-
-(* Implementation of an oracle for M_ETCR *)
-module O_METCR : Oracle_METCR = {
-  var ts : (rco_t * msg_al_t) list
-  
-  proc init() : unit = {
-    ts <- [];
-  }
-  
-  proc query(m : msg_al_t) : rco_t = {
-    var rco : rco_t;
-    
-    rco <$ drco;
-    
-    ts <- rcons ts (rco, m);
-      
-    return rco;
-  }
-  
-  (* Gets i-th element in list of targets; returns witness if index is out of bounds *)
-  proc get(i : int) : rco_t * msg_al_t = {
-    return nth witness ts i;
-  }
-  
-  (* Returns the number of elements in the list of targets *)
-  proc nr_targets() : int = {
-    return size ts; 
-  }
-}.
-
-
-(* Class of adversaries against M_ETCR *)
-module type Adv_METCR_RO(O : TOracle_METCR, HO : POracle) = {
-  proc find() : int * rco_t * msg_al_t
-}.
-
-module M_ETCR_RO(A : Adv_METCR_RO, O : Oracle_METCR, HO : Oracle) = {
-  proc main() = {
-    var k, k' : rco_t;
-    var x, x' : msg_al_t;
-    var y, y' : msg_fl_t;
-    var i, nrts : int;
-    
-    O.init();
-    HO.init();
-    
-    (i, k', x') <@ A(O, HO).find();
-    
-    (k, x) <@ O.get(i);
-    
-    y <@ HO.o((k, x));
-    y' <@ HO.o((k', x'));
-    
-    nrts <@ O.nr_targets();
-    
-    return 0 <= i < nrts /\ x <> x' /\ y = y';
-  }
-}.
-
- 
 (* --- Scheme --- *)
 module AL_KU_DSS(FL_KU_DSS : DSS_FL.KeyUpdating.Scheme) : DSS_AL.KeyUpdating.Scheme = {
   proc keygen = FL_KU_DSS.keygen
@@ -1450,8 +1441,8 @@ call (:    ={glob FL_KU_DSS, MCO.m, Wrapped_Oracle.prog_list, O_RMA_Default.sk}
 swap{1} 6 -5.
 wp.
 while (={w, ERO.m}); 1: by auto.
-wp; call(:true); wp => /=.
-skip => /> cmap msig comps' qs qs' plist eqsz ninqsp ver ltqS_szqs verT ninqs.
+wp; call(: true); wp => /=.
+skip => /> cmap msig qs' plist comps' qs eqsz ninqsp ver ltqS_szqs verT ninqs.
 pose ifte := if _ then _ else _; move=> eqnone.
 split; 1: by rewrite -eqsz; smt(rng_qS).
 apply: ninqsp; rewrite negb_exists /= => m; rewrite negb_exists /= => rco.
@@ -1575,7 +1566,6 @@ move=> /(_ (mu1 dmsg_fl witness) &m _).
 by move: (ALKUDSS_EFCMARO_CRRO_IEFRMA &m) => /#.
 qed.
 
-
 lemma ALKUDSS_EFCMARO_METCRRO_EFRMA &m :
   Pr[EF_CMA_RO(AL_KU_DSS(FL_KU_DSS), A, O_CMA, MCO).main() @ &m : res]
   <=
@@ -1613,28 +1603,33 @@ qed.
 
 end section Proofs_EFCMA_RO_ALKUDSS.
 
+end WithSampling.
 
-theory StateManagingWithPRF.
+
+theory WithPRF.
+
+clone WithSampling as WS.
 
 type ms_t.
 
-type idx_t.
+type id_t.
+(*
+clone import FinType as ID with
+  type t <- id_t.
+*)
 
-clone import FinType as IDX with
-  type t <- idx_t.
-
-type sk_al_sm_t.
+type sk_al_t = ms_t * sk_fl_t.
 
 
 op [lossless] dms : ms_t distr.
 
 
 (* --- Operators --- *)
-op mkg : ms_t -> idx_t -> rco_t. 
+op mkg : ms_t -> id_t -> rco_t. 
 
 clone import KeyedHashFunctions as MKG with
   type key_t <= ms_t, 
-  type in_t <= idx_t,
+  type in_t <= id_t,
   type out_t <= rco_t,   
     
     op f <= mkg,
@@ -1645,7 +1640,409 @@ clone import KeyedHashFunctions as MKG with
     proof dkey_ll by exact: dms_ll
     proof doutm_ll by smt(drco_ll).
 
-op extr_idx : sk_al_sm_t -> idx_t.
-op extr_sk : sk_al_sm_t -> sk_al_t. 
+op extr_id : sk_fl_t -> id_t.
 
-end StateManagingWithPRF.
+clone import DigitalSignatures as DSS_AL with
+  type pk_t <- pk_al_t,
+  type sk_t <- sk_al_t,
+  type msg_t <- msg_al_t,
+  type sig_t <- sig_al_t.
+
+
+(* -- EF-CMA -- *)
+(* - Oracle Interfaces - *)
+module type Oracle_CMA(S : DSS_AL.KeyUpdating.Scheme) = {
+  proc init(sk_init : sk_al_t) : unit {}
+  proc sign(m : msg_al_t) : sig_al_t {S.sign}
+  proc fresh(m : msg_al_t) : bool {}
+  proc nr_queries() : int {}
+}.
+
+module type SOracle_CMA = {
+  proc sign(m : msg_al_t) : sig_al_t
+}.
+
+  
+(* - Adversary Classes - *)
+module type Adv_EFCMA_RO(SO : SOracle_CMA, RO : POracle) = {
+  proc forge(pk : pk_al_t) : msg_al_t * sig_al_t 
+}.
+
+
+(* - Oracles - *)
+module (O_CMA : Oracle_CMA) (S : DSS_AL.KeyUpdating.Scheme) = {
+    var sk : sk_al_t
+    var qs : msg_al_t list
+    
+    (* Initialize secret/signing key and oracle query list qs *)
+    proc init(sk_init : sk_al_t) : unit = {
+      sk <- sk_init;
+      qs <- [];
+    }
+
+    (* 
+      Sign given message m using the considered signature scheme with the
+      secret/signing key sk and append m to the list of oracle queries qs
+    *)
+    proc sign(m : msg_al_t) : sig_al_t = {
+      var sig : sig_al_t;
+      
+      (sig, sk) <@ S.sign(sk, m);
+
+      qs <- rcons qs m;
+            
+      return sig;
+    }
+
+    (* 
+      Check whether given message m is fresh, i.e., whether m is not contained in
+      the list of oracle queries qs 
+    *)
+    proc fresh(m : msg_al_t) : bool = {
+      return ! m \in qs;
+    }
+    
+    (* Get the number of oracle queries, i.e., the size of the oracle query list qs *)
+    proc nr_queries() : int = {
+      return size qs;
+    }
+}.
+
+(* - - *)
+module EF_CMA_RO(S : DSS_AL.KeyUpdating.Scheme, A : Adv_EFCMA_RO, SO : Oracle_CMA, RO : Oracle) = {
+  proc main() = {
+    var pk : pk_al_t;
+    var sk : sk_al_t;
+    var m : msg_al_t;
+    var sig : sig_al_t;
+    var is_valid, is_fresh : bool;
+    
+    (* Initialize (hash) random oracle *)
+    RO.init();
+    
+    (* Generate a key pair using the considered signature scheme *)
+    (pk, sk) <@ S.keygen();
+
+    (* Initialize the signing oracle with the generated secret key *)
+    SO(S).init(sk);
+
+    (*
+      Ask the adversary to forge a signature for any message (and provide both the
+      message and the signature) given the public key pk and access to a signing oracle 
+      that it can query an unlimited number of times
+    *)
+    (m, sig) <@ A(SO(S), RO).forge(pk);
+
+    (* 
+      Verify (w.r.t. message m) the signature sig provided by the adversary 
+      using the verification algorithm of the considered signature scheme 
+    *)
+    is_valid <@ S.verify(pk, m, sig);
+
+    (* 
+      Check whether message for which the adversary forged a signature is fresh 
+      (i.e., check whether message is not included in the list of messages for which 
+      the adversary received signatures through an oracle query)
+    *)
+    is_fresh <@ SO(S).fresh(m);
+
+    (* 
+      Success iff
+      (1) "is_valid": the forged signature provided by the adversary is valid, and
+      (2) "is_fresh": the message for which the adversary forged a signature is fresh.
+    *)
+    return is_valid /\ is_fresh;
+  }
+}.
+
+(* --- Scheme --- *)
+module AL_KU_DSS(FL_KU_DSS : DSS_FL.KeyUpdating.Scheme) : DSS_AL.KeyUpdating.Scheme = {
+  proc keygen() : pk_al_t * sk_al_t = {
+    var ms : ms_t;
+    var pk : pk_al_t;
+    var skfl : sk_fl_t;
+    var sk : sk_al_t;
+    
+    ms <$ dms;
+    
+    (pk, skfl) <@ FL_KU_DSS.keygen();
+    
+    sk <- (ms, skfl);
+    
+    return (pk, sk);
+  }
+  
+  proc sign(sk : sk_al_t, m : msg_al_t) : sig_al_t * sk_al_t = {
+    var ms : ms_t;
+    var id : id_t;
+    var skfl : sk_fl_t;
+    var rco : rco_t;
+    var cm : msg_fl_t;
+    var sigfl : sig_fl_t;
+    var sig : sig_al_t;
+    
+    ms <- sk.`1;
+    skfl <- sk.`2;
+    
+    id <- extr_id skfl;
+    
+    rco <- mkg ms id;
+    
+    cm <@ MCO.o((rco, m));
+    
+    (sigfl, skfl) <@ FL_KU_DSS.sign(skfl, cm);
+    
+    sig <- (rco, sigfl);
+    sk <- (ms, skfl);
+    
+    return (sig, sk);
+  }
+  
+  proc verify(pk : pk_al_t, m : msg_al_t, sig : sig_al_t) : bool = {
+    var rco : rco_t;
+    var cm : msg_fl_t;
+    var sigfl : sig_fl_t;
+    var ver : bool;
+    
+    rco <- sig.`1;
+    
+    cm <@ MCO.o((rco, m));
+    
+    sigfl <- sig.`2;
+    
+    ver <@ FL_KU_DSS.verify(pk, cm, sigfl);
+    
+    return ver;
+  }
+}.
+
+(* -- Reduction Adversaries -- *)
+module (R_PRF_EFCMARO (FL_KU_DSS : DSS_FL.KeyUpdating.Scheme, A : Adv_EFCMA_RO) : Adv_PRF) (O : Oracle_PRF) = {
+  module O_CMA_R_PRF_EFCMARO : SOracle_CMA = {
+    var skfl : sk_fl_t
+    var qs : msg_al_t list
+    
+    proc init(skfl_init : sk_fl_t) : unit = {
+      skfl <- skfl_init;
+      qs <- [];
+    }
+
+    proc sign(m : msg_al_t) : sig_al_t = {
+      var id : id_t;
+      var rco : rco_t;
+      var sigfl : sig_fl_t;
+      var sig : sig_al_t;
+      var cm : msg_fl_t;
+      
+      id <- extr_id skfl;
+      
+      rco <@ O.query(id);
+      
+      cm <@ MCO.o((rco, m));
+      
+      (sigfl, skfl) <@ FL_KU_DSS.sign(skfl, cm);
+      
+      sig <- (rco, sigfl);
+      
+      qs <- rcons qs m;
+            
+      return sig;
+    }
+    
+    proc fresh(m : msg_al_t) : bool = {
+      return ! m \in qs; 
+    }
+  }
+  
+  proc distinguish() : bool = {
+    var pk : pk_al_t;
+    var sk : sk_al_t;
+    var skfl : sk_fl_t;
+    var m' : msg_al_t;
+    var sig' : sig_al_t;
+    var is_valid, is_fresh : bool;
+    
+    MCO.init();
+    
+    (pk, skfl) <@ FL_KU_DSS.keygen();
+    
+    O_CMA_R_PRF_EFCMARO.init(skfl);
+    
+    (m', sig') <@ A(O_CMA_R_PRF_EFCMARO, MCO).forge(pk);
+    
+    is_valid <@ AL_KU_DSS(FL_KU_DSS).verify(pk, m', sig');
+    
+    is_fresh <@ O_CMA_R_PRF_EFCMARO.fresh(m');
+    
+    return is_valid /\ is_fresh;  
+  }
+}.
+
+section Proofs_EFCMA_RO_ALKUDSS.
+
+declare module FL_KU_DSS <: DSS_FL.KeyUpdating.Scheme{-ERO, -O_CMA, -O_METCR, -WS.R_EFCMARO_CRRO, -WS.R_EFCMARO_METCRRO, -Wrapped_Oracle, -RepO, -O_RMA_Default, -WS.R_EFCMARO_IEFRMA, -WS.QC_A, -Lazy.LRO, -ReproGame, -R_EFRMA_IEFRMA, -R_PRF_EFCMARO, -O_PRF_Default, -WS.O_CMA}.
+
+declare axiom FL_KU_DSS_sign_ll : islossless FL_KU_DSS.sign. 
+declare axiom FL_KU_DSS_verify_ll : islossless FL_KU_DSS.verify. 
+
+declare op skupd : sk_fl_t -> sk_fl_t.
+declare op opsign : sk_fl_t -> msg_fl_t -> sig_fl_t * sk_fl_t.
+
+declare axiom FL_KU_DSS_sign_fun (sk : sk_fl_t) (cm : msg_fl_t) :
+  hoare[FL_KU_DSS.sign: arg = (sk, cm) ==> res = opsign sk cm].
+
+local lemma FL_KU_DSS_sign_pfun (sk : sk_fl_t) (cm : msg_fl_t) :
+  phoare[FL_KU_DSS.sign: arg = (sk, cm) ==> res = opsign sk cm] = 1%r.
+proof. by conseq FL_KU_DSS_sign_ll (FL_KU_DSS_sign_fun sk cm). qed.
+
+declare axiom FL_KU_DSS_sign_skupd (sk : sk_fl_t) :
+  hoare[FL_KU_DSS.sign: arg.`1 = sk ==> res.`2 = skupd sk].
+
+  
+(*
+declare axiom FL_KU_DSS_keygen_id0:
+  hoare[FL_KU_DSS.keygen : true ==> extr_id res.`2 = nth witness ID.enum 0].
+*)
+(*
+declare axiom opsign_iter_id (sk : sk_fl_t) (cm : msg_fl_t) :
+  let idx = index (extr_id sk) ID.enum in 
+       idx < ID.card - 1
+    => extr_id (opsign sk cm).`2 = nth witness ID.enum idx.
+*)
+
+declare axiom skupd_fold_id (n m : int) (sk : sk_fl_t) :
+     n < m <= qS
+  => extr_id (fold skupd sk n) <> extr_id (fold skupd sk m).
+    
+declare axiom FL_KU_DSS_keygen_stateless:
+  equiv[FL_KU_DSS.keygen ~ FL_KU_DSS.keygen: true ==> ={res}].
+  
+declare axiom FL_KU_DSS_verify_stateless:
+  equiv[FL_KU_DSS.verify ~ FL_KU_DSS.verify: ={arg} ==> ={res}].
+
+
+declare module A <: Adv_EFCMA_RO{-FL_KU_DSS, -ERO, -O_CMA, -O_METCR, -WS.R_EFCMARO_CRRO, -WS.R_EFCMARO_METCRRO, -Wrapped_Oracle, -RepO, -DSS_FL_EFRMA.O_RMA_Default, -WS.R_EFCMARO_IEFRMA, -WS.QC_A, -Lazy.LRO, -ReproGame, -R_EFRMA_IEFRMA, -R_PRF_EFCMARO, -O_PRF_Default, -WS.O_CMA}.
+
+declare axiom A_forge_ll (SO <: SOracle_CMA{-A}) (RO <: POracle{-A}) : 
+  islossless SO.sign => islossless RO.o => islossless A(SO, RO).forge.
+
+declare axiom A_forge_queries (SO <: SOracle_CMA{-A, -WS.QC_A}) (RO <: POracle{-A, -WS.QC_A}):
+  hoare[WS.QC_A(A, SO, RO).forge : true ==> WS.QC_A.cS <= qS /\ WS.QC_A.cH <= qH].
+
+lemma take_mem (s : 'a list) (x : 'a) :
+  ! x \in take (index x s) s.
+proof.
+elim: s => // x' s ih /=.
+case (x' = x) => [-> | neqxxp].
+by rewrite index_cons /=.
+rewrite (: !index x (x' :: s) <= 0).
+rewrite ler_eqVlt negb_or; split; smt(index_cons index_ge0).
+simplify.
+rewrite (eq_sym x) neqxxp /=.
+rewrite index_cons (eq_sym x) neqxxp /= ih //.
+qed.
+
+local lemma test &m :
+  `| Pr[EF_CMA_RO(AL_KU_DSS(FL_KU_DSS), A, O_CMA, MCO).main() @ &m : res] -
+     Pr[WS.EF_CMA_RO(WS.AL_KU_DSS(FL_KU_DSS), A, WS.O_CMA, MCO).main() @ &m : res] |
+  =
+  `| Pr[PRF(R_PRF_EFCMARO(FL_KU_DSS, A), O_PRF_Default).main(false) @ &m : res] -
+     Pr[PRF(R_PRF_EFCMARO(FL_KU_DSS, A), O_PRF_Default).main(true) @ &m : res] |.
+proof.
+do 2! congr; last congr.
++ byequiv => //.
+  proc; inline{2} 2.
+  wp => /=.
+  call (: ={qs}(O_CMA, R_PRF_EFCMARO.O_CMA_R_PRF_EFCMARO)).
+  - by skip.
+  call (: ={glob FL_KU_DSS, ERO.m}).
+  - by inline *; call (: true); wp; skip.
+  call (:   ={glob FL_KU_DSS, ERO.m}
+         /\ ={qs}(O_CMA, R_PRF_EFCMARO.O_CMA_R_PRF_EFCMARO)
+         /\  O_CMA.sk{1}.`1 = O_PRF_Default.k{2}
+         /\ O_CMA.sk{1}.`2 = R_PRF_EFCMARO.O_CMA_R_PRF_EFCMARO.skfl{2}
+         /\ ! O_PRF_Default.b{2}).
+  - by proc; skip.
+  - proc; inline *. 
+    wp.
+    rcondf{2} 3; 1: by auto.
+    call (: true).
+    by wp; skip.
+  inline *.
+  wp; call (: true) => /=.
+  swap{1} 4 -1.
+  while (={ERO.m, w}); 1: by auto.
+  wp.
+  rnd.
+  by wp; skip.
+byequiv => //.
+proc; inline{2} 2.
+wp => /=.
+call (: ={qs}(WS.O_CMA, R_PRF_EFCMARO.O_CMA_R_PRF_EFCMARO)).
+- by skip.
+call (: ={glob FL_KU_DSS, ERO.m}).
+- by inline *; call (: true); wp; skip.
+(*  
+call (:   ={glob FL_KU_DSS, ERO.m}
+       /\ ={qs}(WS.O_CMA, R_PRF_EFCMARO.O_CMA_R_PRF_EFCMARO)
+       /\ WS.O_CMA.sk{1} = R_PRF_EFCMARO.O_CMA_R_PRF_EFCMARO.skfl{2}
+       /\ O_PRF_Default.b{2}
+       /\ (forall (id : id_t), id \in O_PRF_Default.m{2} <=>
+             id \in take (index (extr_id R_PRF_EFCMARO.O_CMA_R_PRF_EFCMARO.skfl{2}) ID.enum) ID.enum)).
+*)
+seq 3 4 : (   ={glob FL_KU_DSS, ERO.m, pk}
+           /\ ={qs}(WS.O_CMA, R_PRF_EFCMARO.O_CMA_R_PRF_EFCMARO)
+           /\ WS.O_CMA.sk{1} = R_PRF_EFCMARO.O_CMA_R_PRF_EFCMARO.skfl{2}
+           /\ O_PRF_Default.b{2}
+           /\ O_PRF_Default.m{2} = empty
+           /\ WS.O_CMA.qs{1} = []
+           /\ R_PRF_EFCMARO.O_CMA_R_PRF_EFCMARO.qs{2} = []) => />.
++ inline *. 
+  wp; call (: true).
+  while (={w, ERO.m}); 1: by auto.
+  wp. 
+  rnd{2}.
+  by wp; skip.
+call (:   ={glob FL_KU_DSS, ERO.m}
+       /\ ={qs}(WS.O_CMA, R_PRF_EFCMARO.O_CMA_R_PRF_EFCMARO)
+       /\ WS.O_CMA.sk{1} = R_PRF_EFCMARO.O_CMA_R_PRF_EFCMARO.skfl{2}
+       /\ O_PRF_Default.b{2}
+       /\ ).
+- by proc; skip.
+- proc; inline *. 
+  wp.
+  rcondt{2} 3; 1: by auto.
+  call (:   ={glob FL_KU_DSS} ==> ={glob FL_KU_DSS, res}
+         /\ extr_id res{2}.`2 = ).
+  wp => /=.
+  rcondt{2} 3.
+  - move=> &1.
+    wp; skip => /> &2 bT /(_ (extr_id WS.O_CMA.sk{1})) /iffLR /contra /(_ _) //.
+    by rewrite take_mem.
+  wp.
+  rnd.
+  wp; skip => />.
+  progress.
+  search "_.[_]".
+  by rewrite get_set_sameE oget_some.
+  rewrite get_set_sameE oget_some //.
+  search dom.
+  admit. admit.
+inline *.
+wp. 
+call (:   ={glob FL_KU_DSS} 
+       ==> 
+          ={glob FL_KU_DSS, res} 
+       /\ extr_id res{2}.`2 = nth witness ID.enum 0).
+conseq (: ={glob FL_KU_DSS} ==> ={glob FL_KU_DSS, res})
+       _
+       FL_KU_DSS_keygen_id0.
+proc true => //.
+while (={ERO.m, w}); 1: by auto.
+wp.
+rnd{2}.
+wp; skip => />; smt(mem_empty index_nth).
+qed.
+
+end WithPRF.
+
