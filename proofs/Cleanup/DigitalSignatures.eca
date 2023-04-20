@@ -615,6 +615,7 @@ theory Stateless.
         var m : msg_t;
         
         m <$ dmsg;
+        
         sig <@ S.sign(sk, m);
  
         qs <- rcons qs m;
@@ -1231,8 +1232,9 @@ theory Stateless.
           a signature for the i-th message in the list ml previously provided by the
           adversary. Naturally, the signatures are created using the signing algorithm
           of the considered signature scheme with the previously generated secret key.
-          Note that, in case the adversary provided less than n messages in ml, the
-          resulting list of signatures will have the same size as ml (and, hence, less than n).
+          Note that, in case the adversary provided less than n_sfnacma messages in ml, the
+          resulting list of signatures will have the same size as ml 
+          (and, hence, less than n_sfnacma).
         *)
         sigl <- [];
         while (size sigl < min (size ml) n_sfnacma) {
@@ -1457,33 +1459,6 @@ theory Stateless.
     }
   }.
   
-  abstract theory TBCMA.
-    (* Maximum number of oracle queries the adversary is allowed to make in TB-CMA game *)
-    const q_tbcma : { int | 0 <= q_tbcma } as ge0_qtbcma.
-
-    (* TB-CMA game *)
-    module TB_CMA(S : Scheme, A : Adv_TBCMA, O : Oracle_CMA) = {
-      proc main() : bool = {
-        var is_validfresh : bool;
-        var nrqs : int;
-        
-        (* Execute TB_CMA with Unlimited queries *)
-        is_validfresh <@ TB_CMA_U(S, A, O).main();
-        
-        (* Get the total number of oracle queries that the adversary made *) 
-        nrqs <@ O(S).nr_queries();
-        
-        (* 
-          Success iff
-          (1) "is_validfresh": the message and forged signature provided by the adversary
-                               are, respectively, fresh and valid, and
-          (2) "nrqs <= q_tbcma": the adversary made at most q_tbcma oracle queries
-        *)
-        return is_validfresh /\ nrqs <= q_tbcma;
-      }
-    }.
-  end TBCMA.
-  
   
   (*
     - 
@@ -1497,16 +1472,13 @@ theory Stateless.
     (* (Proper) distribution over type of to-be-signed artifacts ('messages') *)
     op [lossless] dmsg : msg_t distr.
 
-    (* Maximum number of oracle queries the adversary is allowed to make in UF-CMA game *)
-    const q_ufcma : { int | 0 <= q_ufcma } as ge0_qufcma.
-
     (* Class of adversaries against UF-CMA *)
     module type Adv_UFCMA(O : SOracle_CMA) = {
       proc forge(pk : pk_t, m : msg_t) : sig_t
     }.
 
     (* UF-CMA game with Unlimited oracle queries *)
-    module UF_CMA_U(S : Scheme, A : Adv_UFCMA, O : Oracle_CMA) = {
+    module UF_CMA(S : Scheme, A : Adv_UFCMA, O : Oracle_CMA) = {
       proc main() : bool = {
         var pk : pk_t;
         var sk : sk_t;
@@ -1550,31 +1522,9 @@ theory Stateless.
         return is_valid /\ is_fresh; 
       }
     }.
-
-    (* UF-CMA game *)
-    module UF_CMA(S : Scheme, A : Adv_UFCMA, O : Oracle_CMA) = {
-      proc main() : bool = {
-        var is_validfresh : bool;
-        var nrqs : int;
-        
-        (* Execute UF_CMA with Unlimited queries *)
-        is_validfresh <@ UF_CMA_U(S, A, O).main();
-        
-        (* Get the total number of oracle queries that the adversary made *) 
-        nrqs <@ O(S).nr_queries();
-
-        (* 
-          Success iff
-          (1) "is_validfresh": the message and forged signature provided by the adversary
-                               are, respectively, fresh and valid, and
-          (2) "nrqs <= q_ufcma": the adversary made at most q_ufcma oracle queries
-        *)
-        return is_validfresh /\ nrqs <= q_ufcma; 
-      }
-    }.
   end UFCMA.
-  
-  
+
+    
   (*
     -
     Selective Forgery under Chosen-Message Attack (SF-CMA).
@@ -1590,7 +1540,7 @@ theory Stateless.
   }.
   
   (* SF-CMA game with Unlimited oracle queries *)
-  module SF_CMA_U(S : Scheme, A : Adv_SFCMA, O : Oracle_CMA) = {
+  module SF_CMA(S : Scheme, A : Adv_SFCMA, O : Oracle_CMA) = {
     proc main() : bool = {
       var pk : pk_t;
       var sk : sk_t;
@@ -1634,33 +1584,6 @@ theory Stateless.
       return is_valid /\ is_fresh; 
     }
   }.
-
-  abstract theory SFCMA.
-    (* Maximum number of oracle queries the adversary is allowed to make in SF-CMA game *)
-    const q_sfcma : { int | 0 <= q_sfcma } as ge0_qsfcma.
-
-    (* SF-CMA game *)
-    module SF_CMA(S : Scheme, A : Adv_SFCMA, O : Oracle_CMA) = {
-      proc main() : bool = {
-        var is_validfresh : bool;
-        var nrqs : int;
-        
-        (* Execute SF_CMA with Unlimited queries *)
-        is_validfresh <@ SF_CMA_U(S, A, O).main();
-        
-        (* Get the total number of oracle queries that the adversary made *) 
-        nrqs <@ O(S).nr_queries();
-
-        (* 
-          Success iff
-          (1) "is_validfresh": the message and forged signature provided by the adversary
-                               are, respectively, fresh and valid, and
-          (2) "nrqs <= q_sfcma": the adversary made at most q_sfcma oracle queries
-        *)
-        return is_validfresh /\ nrqs <= q_sfcma; 
-      }
-    }.
-  end SFCMA.
     
 
   (*
@@ -1676,7 +1599,7 @@ theory Stateless.
   }.
 
   (* EF-CMA game with Unlimited oracle queries *)
-  module EF_CMA_U(S : Scheme, A : Adv_EFCMA, O : Oracle_CMA) = {
+  module EF_CMA(S : Scheme, A : Adv_EFCMA, O : Oracle_CMA) = {
     proc main() : bool = {
       var pk : pk_t;
       var sk : sk_t;
@@ -1719,33 +1642,6 @@ theory Stateless.
     }
   }.
 
-  abstract theory EFCMA.
-    (* Maximum number of oracle queries the adversary is allowed to make in EF-CMA game *)
-    const q_efcma : { int | 0 <= q_efcma } as ge0_qefcma.
-  
-    (* EF-CMA game *)
-    module EF_CMA(S : Scheme, A : Adv_EFCMA, O : Oracle_CMA) = {
-      proc main() : bool = {
-        var is_validfresh : bool;
-        var nrqs : int;
-        
-        (* Execute EF_CMA with Unlimited queries *)
-        is_validfresh <@ EF_CMA_U(S, A, O).main();
-        
-        (* Get the total number of oracle queries that the adversary made *) 
-        nrqs <@ O(S).nr_queries();
-
-        (* 
-          Success iff
-          (1) "is_validfresh": the message and forged signature provided by the adversary
-                               are, respectively, fresh and valid, and
-          (2) "nrqs <= q_efcma": the adversary made at most q_efcma oracle queries
-        *)
-        return is_validfresh /\ nrqs <= q_efcma;
-      }
-    }.
-  end EFCMA.
-  
   
   (*
     - 
@@ -1823,7 +1719,7 @@ theory Stateless.
   }.
 
   (* SEF-CMA game with Unlimited oracle queries *)
-  module SEF_CMA_U(S : Scheme, A : Adv_SEFCMA, O : Oracle_SEFCMA) = {
+  module SEF_CMA(S : Scheme, A : Adv_SEFCMA, O : Oracle_SEFCMA) = {
     proc main() : bool = {
       var pk : pk_t;
       var sk : sk_t;
@@ -1865,33 +1761,6 @@ theory Stateless.
       return is_valid /\ is_fresh; 
     }
   }.
-
-  abstract theory SEFCMA.
-    (* Maximum number of oracle queries the adversary is allowed to make in SEF-CMA game *)
-    const q_sefcma : { int | 0 <= q_sefcma } as ge0_qsefcma.
-
-    (* SEF-CMA game *)
-    module SEF_CMA(S : Scheme, A : Adv_SEFCMA, O : Oracle_SEFCMA) = {
-      proc main() : bool = {
-        var is_validfresh : bool;
-        var nrqs : int;
-        
-        (* Execute SEF_CMA with Unlimited queries *)
-        is_validfresh <@ SEF_CMA_U(S, A, O).main();
-        
-        (* Get the total number of oracle queries that the adversary made *) 
-        nrqs <@ O(S).nr_queries();
-
-        (* 
-          Success iff
-          (1) "is_validfresh": the message and forged signature provided by the adversary
-                               are, respectively, fresh and valid, and
-          (2) "nrqs <= q_sefcma": the adversary made at most q_sefcma oracle queries
-        *)
-        return is_validfresh /\ nrqs <= q_sefcma;
-      }
-    }.
-  end SEFCMA.
 end Stateless.
 
 
@@ -3297,7 +3166,7 @@ theory KeyUpdating.
   }.
   
   (* TB-CMA game with Unlimited oracle queries *)
-  module TB_CMA_U(S : Scheme, A : Adv_TBCMA, O : Oracle_CMA) = {
+  module TB_CMA(S : Scheme, A : Adv_TBCMA, O : Oracle_CMA) = {
     proc main() : bool = {
       var pk : pk_t;
       var sk, sk' : sk_t;
@@ -3318,33 +3187,6 @@ theory KeyUpdating.
       return sk' = sk; 
     }
   }.
-  
-  abstract theory TBCMA.
-    (* Maximum number of oracle queries the adversary is allowed to make in TB-CMA game *)
-    const q_tbcma : { int | 0 <= q_tbcma } as ge0_qtbcma.
-
-    (* TB-CMA game *)
-    module TB_CMA(S : Scheme, A : Adv_TBCMA, O : Oracle_CMA) = {
-      proc main() : bool = {
-        var is_validfresh : bool;
-        var nrqs : int;
-        
-        (* Execute TB_CMA with Unlimited queries *)
-        is_validfresh <@ TB_CMA_U(S, A, O).main();
-        
-        (* Get the total number of oracle queries that the adversary made *) 
-        nrqs <@ O(S).nr_queries();
-        
-        (* 
-          Success iff
-          (1) "is_validfresh": the message and forged signature provided by the adversary
-                               are, respectively, fresh and valid, and
-          (2) "nrqs <= q_tbcma": the adversary made at most q_tbcma oracle queries
-        *)
-        return is_validfresh /\ nrqs <= q_tbcma;
-      }
-    }.
-  end TBCMA.
   
   
   (*
@@ -3367,8 +3209,8 @@ theory KeyUpdating.
       proc forge(pk : pk_t, m : msg_t) : sig_t
     }.
 
-    (* UF-CMA game with Unlimited oracle queries *)
-    module UF_CMA_U(S : Scheme, A : Adv_UFCMA, O : Oracle_CMA) = {
+    (* UF-CMA game *)
+    module UF_CMA(S : Scheme, A : Adv_UFCMA, O : Oracle_CMA) = {
       proc main() : bool = {
         var pk : pk_t;
         var sk : sk_t;
@@ -3412,28 +3254,6 @@ theory KeyUpdating.
         return is_valid /\ is_fresh; 
       }
     }.
-
-    (* UF-CMA game *)
-    module UF_CMA(S : Scheme, A : Adv_UFCMA, O : Oracle_CMA) = {
-      proc main() : bool = {
-        var is_validfresh : bool;
-        var nrqs : int;
-        
-        (* Execute UF_CMA with Unlimited queries *)
-        is_validfresh <@ UF_CMA_U(S, A, O).main();
-        
-        (* Get the total number of oracle queries that the adversary made *) 
-        nrqs <@ O(S).nr_queries();
-
-        (* 
-          Success iff
-          (1) "is_validfresh": the message and forged signature provided by the adversary
-                               are, respectively, fresh and valid, and
-          (2) "nrqs <= q_ufcma": the adversary made at most q_ufcma oracle queries
-        *)
-        return is_validfresh /\ nrqs <= q_ufcma; 
-      }
-    }.
   end UFCMA.
   
   
@@ -3451,8 +3271,8 @@ theory KeyUpdating.
     proc forge(pk : pk_t) : sig_t
   }.
   
-  (* SF-CMA game with Unlimited oracle queries *)
-  module SF_CMA_U(S : Scheme, A : Adv_SFCMA, O : Oracle_CMA) = {
+  (* SF-CMA game *)
+  module SF_CMA(S : Scheme, A : Adv_SFCMA, O : Oracle_CMA) = {
     proc main() : bool = {
       var pk : pk_t;
       var sk : sk_t;
@@ -3497,33 +3317,6 @@ theory KeyUpdating.
     }
   }.
 
-  abstract theory SFCMA.
-    (* Maximum number of oracle queries the adversary is allowed to make in SF-CMA game *)
-    const q_sfcma : { int | 0 <= q_sfcma } as ge0_qsfcma.
-
-    (* SF-CMA game *)
-    module SF_CMA(S : Scheme, A : Adv_SFCMA, O : Oracle_CMA) = {
-      proc main() : bool = {
-        var is_validfresh : bool;
-        var nrqs : int;
-        
-        (* Execute SF_CMA with Unlimited queries *)
-        is_validfresh <@ SF_CMA_U(S, A, O).main();
-        
-        (* Get the total number of oracle queries that the adversary made *) 
-        nrqs <@ O(S).nr_queries();
-
-        (* 
-          Success iff
-          (1) "is_validfresh": the message and forged signature provided by the adversary
-                               are, respectively, fresh and valid, and
-          (2) "nrqs <= q_sfcma": the adversary made at most q_sfcma oracle queries
-        *)
-        return is_validfresh /\ nrqs <= q_sfcma; 
-      }
-    }.
-  end SFCMA.
-    
 
   (*
     -
@@ -3537,8 +3330,8 @@ theory KeyUpdating.
     proc forge(pk : pk_t) : msg_t * sig_t
   }.
 
-  (* EF-CMA game with Unlimited oracle queries *)
-  module EF_CMA_U(S : Scheme, A : Adv_EFCMA, O : Oracle_CMA) = {
+  (* EF-CMA game *)
+  module EF_CMA(S : Scheme, A : Adv_EFCMA, O : Oracle_CMA) = {
     proc main() : bool = {
       var pk : pk_t;
       var sk : sk_t;
@@ -3580,33 +3373,6 @@ theory KeyUpdating.
       return is_valid /\ is_fresh; 
     }
   }.
-
-  abstract theory EFCMA.
-    (* Maximum number of oracle queries the adversary is allowed to make in EF-CMA game *)
-    const q_efcma : { int | 0 <= q_efcma } as ge0_qefcma.
-  
-    (* EF-CMA game *)
-    module EF_CMA(S : Scheme, A : Adv_EFCMA, O : Oracle_CMA) = {
-      proc main() : bool = {
-        var is_validfresh : bool;
-        var nrqs : int;
-        
-        (* Execute EF_CMA with Unlimited queries *)
-        is_validfresh <@ EF_CMA_U(S, A, O).main();
-        
-        (* Get the total number of oracle queries that the adversary made *) 
-        nrqs <@ O(S).nr_queries();
-
-        (* 
-          Success iff
-          (1) "is_validfresh": the message and forged signature provided by the adversary
-                               are, respectively, fresh and valid, and
-          (2) "nrqs <= q_efcma": the adversary made at most q_efcma oracle queries
-        *)
-        return is_validfresh /\ nrqs <= q_efcma;
-      }
-    }.
-  end EFCMA.
   
   
   (*
@@ -3684,8 +3450,8 @@ theory KeyUpdating.
     proc forge(pk : pk_t) : msg_t * sig_t
   }.
 
-  (* SEF-CMA game with Unlimited oracle queries *)
-  module SEF_CMA_U(S : Scheme, A : Adv_SEFCMA, O : Oracle_SEFCMA) = {
+  (* SEF-CMA game *)
+  module SEF_CMA(S : Scheme, A : Adv_SEFCMA, O : Oracle_SEFCMA) = {
     proc main() : bool = {
       var pk : pk_t;
       var sk : sk_t;
@@ -3727,31 +3493,4 @@ theory KeyUpdating.
       return is_valid /\ is_fresh; 
     }
   }.
-
-  abstract theory SEFCMA.
-    (* Maximum number of oracle queries the adversary is allowed to make in SEF-CMA game *)
-    const q_sefcma : { int | 0 <= q_sefcma } as ge0_qsefcma.
-
-    (* SEF-CMA game *)
-    module SEF_CMA(S : Scheme, A : Adv_SEFCMA, O : Oracle_SEFCMA) = {
-      proc main() : bool = {
-        var is_validfresh : bool;
-        var nrqs : int;
-        
-        (* Execute SEF_CMA with Unlimited queries *)
-        is_validfresh <@ SEF_CMA_U(S, A, O).main();
-        
-        (* Get the total number of oracle queries that the adversary made *) 
-        nrqs <@ O(S).nr_queries();
-
-        (* 
-          Success iff
-          (1) "is_validfresh": the message and forged signature provided by the adversary
-                               are, respectively, fresh and valid, and
-          (2) "nrqs <= q_sefcma": the adversary made at most q_sefcma oracle queries
-        *)
-        return is_validfresh /\ nrqs <= q_sefcma;
-      }
-    }.
-  end SEFCMA.
 end KeyUpdating.

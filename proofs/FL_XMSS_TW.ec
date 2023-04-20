@@ -89,7 +89,7 @@ type sigFLXMSSTW = index * sigWOTS * apFLXMSSTW.
 
 
 (* --- Distributions --- *)
-op [lossless] dmsgFLXMSSTW : msgFLXMSSTW distr.
+op [lossless full uniform] dmsgFLXMSSTW : msgFLXMSSTW distr.
 
 
 
@@ -4606,7 +4606,7 @@ end section EF_RMA_FLXMSSTWES.
 
 (* --- Fixed-Length XMSS-TW as standalone --- *)
 (* Import relevant definitions for key-updating signature scheme *)
-clone import DigitalSignatures as SS with
+clone import DigitalSignatures as SSFL with
   type pk_t <= pkFLXMSSTW,
   type sk_t <= skFLXMSSTW,
   type msg_t <= msgFLXMSSTW,

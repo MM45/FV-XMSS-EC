@@ -53,13 +53,15 @@ clone import FinProdType as RCOMSGAL with
   type t1 <- rco_t,
   type t2 <- msg_al_t,
   theory FT1 <- RCO,
-  theory FT2 <- MSG_AL.
+  theory FT2 <- MSG_AL
+  
+  proof *.
 
   
 (* --- Distributions --- *)
 op [lossless full uniform] dmsg_fl : msg_fl_t distr.
 
-op [lossless] dmsg_al : msg_al_t distr.
+(*op [lossless] dmsg_al : msg_al_t distr.*)
 
 op [lossless full uniform] drco : rco_t distr.
 
@@ -69,17 +71,23 @@ clone import DigitalSignatures as DSS_FL with
   type pk_t <= pk_fl_t,
   type sk_t <= sk_fl_t,
   type msg_t <= msg_fl_t,
-  type sig_t <= sig_fl_t.
+  type sig_t <= sig_fl_t
+  
+  proof *.
 
 clone import ROM as MCORO with
   type in_t <- rco_t * msg_al_t,
   type out_t <- msg_fl_t,
   op dout <- fun _ => dmsg_fl,
   type d_in_t <- int,
-  type d_out_t <- bool.
+  type d_out_t <- bool
+  
+  proof *.
 
 clone import MCORO.LazyEager as MCOROLE with 
-  theory FinType <- RCOMSGAL.
+  theory FinType <- RCOMSGAL
+  
+  proof *.
 
 module MCO = ERO.
 
@@ -96,7 +104,8 @@ clone import Reprogramming as Repro with
   theory ROM_ <- MCORO,
   theory LE <- MCOROLE
   
-  proof dhash_ll by exact: dmsg_fl_ll.
+  proof *. 
+  realize dhash_ll by exact: dmsg_fl_ll.
 
 clone import EFRMA_Interactive_Equiv as EFRMAEqv with
   type msg_t <- msg_fl_t,
@@ -232,8 +241,6 @@ module M_ETCR_RO(A : Adv_METCR_RO, O : Oracle_METCR, HO : Oracle) = {
   }
 }.
 
-
-theory WithSampling.
 
 type sk_al_t = sk_fl_t.
 
@@ -1442,7 +1449,7 @@ swap{1} 6 -5.
 wp.
 while (={w, ERO.m}); 1: by auto.
 wp; call(: true); wp => /=.
-skip => /> cmap msig qs' plist comps' qs eqsz ninqsp ver ltqS_szqs verT ninqs.
+skip => /> cmap msig comps' qs qs' plist eqsz ninqsp ver ltqS_szqs verT ninqs.
 pose ifte := if _ then _ else _; move=> eqnone.
 split; 1: by rewrite -eqsz; smt(rng_qS).
 apply: ninqsp; rewrite negb_exists /= => m; rewrite negb_exists /= => rco.
@@ -1603,9 +1610,7 @@ qed.
 
 end section Proofs_EFCMA_RO_ALKUDSS.
 
-end WithSampling.
-
-
+(*
 theory WithPRF.
 
 clone WithSampling as WS.
@@ -1755,6 +1760,49 @@ module EF_CMA_RO(S : DSS_AL.KeyUpdating.Scheme, A : Adv_EFCMA_RO, SO : Oracle_CM
   }
 }.
 
+
+module (QC_A(A : Adv_EFCMA_RO) : Adv_EFCMA_RO) (SO : SOracle_CMA) (RO : POracle) = {
+  var cS : int
+  var cH : int
+  
+  module QC_SO : SOracle_CMA = {
+    proc sign(m : msg_al_t) : sig_al_t = {
+      var sig : sig_al_t;
+
+      cS <- cS + 1;
+
+      sig <@ SO.sign(m);
+
+      return sig;
+    }
+  }
+  
+  module QC_RO : POracle = {
+    proc o(x : rco_t * msg_al_t) : msg_fl_t = {
+      var cm : msg_fl_t;
+
+      cH <- cH + 1;
+
+      cm <@ RO.o(x);
+
+      return cm; 
+    }
+  }
+  
+  proc forge(pk : pk_al_t) : msg_al_t * sig_al_t = {
+    var m : msg_al_t;
+    var sig : sig_al_t;
+    
+    cS <- 0;
+    cH <- 0;
+    
+    (m, sig) <@ A(QC_SO, QC_RO).forge(pk);
+    
+    return (m, sig); 
+  }
+}.
+
+
 (* --- Scheme --- *)
 module AL_KU_DSS(FL_KU_DSS : DSS_FL.KeyUpdating.Scheme) : DSS_AL.KeyUpdating.Scheme = {
   proc keygen() : pk_al_t * sk_al_t = {
@@ -1858,8 +1906,8 @@ module (R_PRF_EFCMARO (FL_KU_DSS : DSS_FL.KeyUpdating.Scheme, A : Adv_EFCMA_RO) 
     var pk : pk_al_t;
     var sk : sk_al_t;
     var skfl : sk_fl_t;
-    var m' : msg_al_t;
-    var sig' : sig_al_t;
+    var m : msg_al_t;
+    var sig : sig_al_t;
     var is_valid, is_fresh : bool;
     
     MCO.init();
@@ -1868,11 +1916,11 @@ module (R_PRF_EFCMARO (FL_KU_DSS : DSS_FL.KeyUpdating.Scheme, A : Adv_EFCMA_RO) 
     
     O_CMA_R_PRF_EFCMARO.init(skfl);
     
-    (m', sig') <@ A(O_CMA_R_PRF_EFCMARO, MCO).forge(pk);
+    (m, sig) <@ A(O_CMA_R_PRF_EFCMARO, MCO).forge(pk);
     
-    is_valid <@ AL_KU_DSS(FL_KU_DSS).verify(pk, m', sig');
+    is_valid <@ AL_KU_DSS(FL_KU_DSS).verify(pk, m, sig);
     
-    is_fresh <@ O_CMA_R_PRF_EFCMARO.fresh(m');
+    is_fresh <@ O_CMA_R_PRF_EFCMARO.fresh(m);
     
     return is_valid /\ is_fresh;  
   }
@@ -1880,14 +1928,18 @@ module (R_PRF_EFCMARO (FL_KU_DSS : DSS_FL.KeyUpdating.Scheme, A : Adv_EFCMA_RO) 
 
 section Proofs_EFCMA_RO_ALKUDSS.
 
-declare module FL_KU_DSS <: DSS_FL.KeyUpdating.Scheme{-ERO, -O_CMA, -O_METCR, -WS.R_EFCMARO_CRRO, -WS.R_EFCMARO_METCRRO, -Wrapped_Oracle, -RepO, -O_RMA_Default, -WS.R_EFCMARO_IEFRMA, -WS.QC_A, -Lazy.LRO, -ReproGame, -R_EFRMA_IEFRMA, -R_PRF_EFCMARO, -O_PRF_Default, -WS.O_CMA}.
+declare module FL_KU_DSS <: DSS_FL.KeyUpdating.Scheme{-ERO, -O_CMA, -O_METCR, -WS.R_EFCMARO_CRRO, -WS.R_EFCMARO_METCRRO, -Wrapped_Oracle, -RepO, -O_RMA_Default, -WS.R_EFCMARO_IEFRMA, -WS.QC_A, -Lazy.LRO, -ReproGame, -R_EFRMA_IEFRMA, -R_PRF_EFCMARO, -O_PRF_Default, -WS.O_CMA, -QC_A}.
 
 declare axiom FL_KU_DSS_sign_ll : islossless FL_KU_DSS.sign. 
 declare axiom FL_KU_DSS_verify_ll : islossless FL_KU_DSS.verify. 
 
+declare op init_sk : sk_fl_t -> bool.
 declare op skupd : sk_fl_t -> sk_fl_t.
 declare op opsign : sk_fl_t -> msg_fl_t -> sig_fl_t * sk_fl_t.
 
+declare axiom FL_KU_DSS_keygen_initsk :
+  hoare[FL_KU_DSS.keygen: true ==> init_sk res.`2].
+  
 declare axiom FL_KU_DSS_sign_fun (sk : sk_fl_t) (cm : msg_fl_t) :
   hoare[FL_KU_DSS.sign: arg = (sk, cm) ==> res = opsign sk cm].
 
@@ -1895,8 +1947,8 @@ local lemma FL_KU_DSS_sign_pfun (sk : sk_fl_t) (cm : msg_fl_t) :
   phoare[FL_KU_DSS.sign: arg = (sk, cm) ==> res = opsign sk cm] = 1%r.
 proof. by conseq FL_KU_DSS_sign_ll (FL_KU_DSS_sign_fun sk cm). qed.
 
-declare axiom FL_KU_DSS_sign_skupd (sk : sk_fl_t) :
-  hoare[FL_KU_DSS.sign: arg.`1 = sk ==> res.`2 = skupd sk].
+declare axiom FL_KU_DSS_sign_skupd (skf : sk_fl_t) :
+  hoare[FL_KU_DSS.sign: arg.`1 = skf ==> res.`2 = skupd skf].
 
   
 (*
@@ -1910,9 +1962,12 @@ declare axiom opsign_iter_id (sk : sk_fl_t) (cm : msg_fl_t) :
     => extr_id (opsign sk cm).`2 = nth witness ID.enum idx.
 *)
 
-declare axiom skupd_fold_id (n m : int) (sk : sk_fl_t) :
-     n < m <= qS
-  => extr_id (fold skupd sk n) <> extr_id (fold skupd sk m).
+declare axiom skupd_fold_id (i j : int) (sk : sk_fl_t) :
+     init_sk sk
+  => i <= qS
+  => j <= qS
+  => i <> j
+  => extr_id (fold skupd sk i) <> extr_id (fold skupd sk j).
     
 declare axiom FL_KU_DSS_keygen_stateless:
   equiv[FL_KU_DSS.keygen ~ FL_KU_DSS.keygen: true ==> ={res}].
@@ -1921,13 +1976,13 @@ declare axiom FL_KU_DSS_verify_stateless:
   equiv[FL_KU_DSS.verify ~ FL_KU_DSS.verify: ={arg} ==> ={res}].
 
 
-declare module A <: Adv_EFCMA_RO{-FL_KU_DSS, -ERO, -O_CMA, -O_METCR, -WS.R_EFCMARO_CRRO, -WS.R_EFCMARO_METCRRO, -Wrapped_Oracle, -RepO, -DSS_FL_EFRMA.O_RMA_Default, -WS.R_EFCMARO_IEFRMA, -WS.QC_A, -Lazy.LRO, -ReproGame, -R_EFRMA_IEFRMA, -R_PRF_EFCMARO, -O_PRF_Default, -WS.O_CMA}.
+declare module A <: Adv_EFCMA_RO{-FL_KU_DSS, -ERO, -O_CMA, -O_METCR, -WS.R_EFCMARO_CRRO, -WS.R_EFCMARO_METCRRO, -Wrapped_Oracle, -RepO, -DSS_FL_EFRMA.O_RMA_Default, -WS.R_EFCMARO_IEFRMA, -WS.QC_A, -Lazy.LRO, -ReproGame, -R_EFRMA_IEFRMA, -R_PRF_EFCMARO, -O_PRF_Default, -WS.O_CMA, -QC_A}.
 
 declare axiom A_forge_ll (SO <: SOracle_CMA{-A}) (RO <: POracle{-A}) : 
   islossless SO.sign => islossless RO.o => islossless A(SO, RO).forge.
 
-declare axiom A_forge_queries (SO <: SOracle_CMA{-A, -WS.QC_A}) (RO <: POracle{-A, -WS.QC_A}):
-  hoare[WS.QC_A(A, SO, RO).forge : true ==> WS.QC_A.cS <= qS /\ WS.QC_A.cH <= qH].
+declare axiom A_forge_queries (SO <: SOracle_CMA{-A, -QC_A}) (RO <: POracle{-A, -QC_A}):
+  hoare[QC_A(A, SO, RO).forge : true ==> QC_A.cS <= qS /\ QC_A.cH <= qH].
 
 lemma take_mem (s : 'a list) (x : 'a) :
   ! x \in take (index x s) s.
@@ -1975,6 +2030,41 @@ do 2! congr; last congr.
   wp.
   rnd.
   by wp; skip.
+have ->:
+  Pr[WS.EF_CMA_RO(WS.AL_KU_DSS(FL_KU_DSS), A, WS.O_CMA, MCO).main() @ &m :res]
+  =
+  Pr[WS.EF_CMA_RO(WS.AL_KU_DSS(FL_KU_DSS), WS.QC_A(A), WS.O_CMA, MCO).main() @ &m : res].
++ byequiv => //.
+  proc.
+  seq 4 4 : (={glob FL_KU_DSS, WS.O_CMA.qs, ERO.m, sig, pk, m}); 2: by sim.
+  inline{2} 4.
+  wp => /=.
+  call (: ={glob FL_KU_DSS, ERO.m, WS.O_CMA.sk, WS.O_CMA.qs}).
+  - by proc; inline *; wp; skip.
+  - by proc; inline *; sim.
+  inline *.
+  wp; call (: true); wp.
+  while (={w, ERO.m}).
+  - by wp; rnd; wp; skip.
+  by wp; skip.
+have ->:
+  Pr[PRF(R_PRF_EFCMARO(FL_KU_DSS, A), O_PRF_Default).main(true) @ &m : res]
+  =
+  Pr[PRF(R_PRF_EFCMARO(FL_KU_DSS, QC_A(A)), O_PRF_Default).main(true) @ &m : res].
++ byequiv => //.
+  proc.
+  inline{1} 2; inline{2} 2.
+  seq 5 5 : (={glob FL_KU_DSS, R_PRF_EFCMARO.O_CMA_R_PRF_EFCMARO.qs, ERO.m, sig, pk, m}); 2: by sim.
+  inline{2} 5.
+  wp => /=.
+  call (: ={glob FL_KU_DSS, glob O_PRF_Default, ERO.m, R_PRF_EFCMARO.O_CMA_R_PRF_EFCMARO.qs, R_PRF_EFCMARO.O_CMA_R_PRF_EFCMARO.skfl}).
+  - by proc; inline *; wp; skip.
+  - by proc; inline *; sim.
+  inline *.
+  wp; call (: true); wp.
+  while (={w, ERO.m}).
+  - by wp; rnd; wp; skip.
+  by wp; rnd; wp; skip.
 byequiv => //.
 proc; inline{2} 2.
 wp => /=.
@@ -1982,6 +2072,111 @@ call (: ={qs}(WS.O_CMA, R_PRF_EFCMARO.O_CMA_R_PRF_EFCMARO)).
 - by skip.
 call (: ={glob FL_KU_DSS, ERO.m}).
 - by inline *; call (: true); wp; skip.
+seq 3 4 :  (   ={glob FL_KU_DSS, glob A, pk, ERO.m}
+            /\ O_PRF_Default.b{2}
+            /\ O_PRF_Default.m{2} = empty
+            /\ WS.O_CMA.sk{1} = R_PRF_EFCMARO.O_CMA_R_PRF_EFCMARO.skfl{2}
+            /\ init_sk R_PRF_EFCMARO.O_CMA_R_PRF_EFCMARO.skfl{2}) => />.
++ inline *.
+  wp.
+  call (: ={glob FL_KU_DSS} ==> ={glob FL_KU_DSS, res} /\ init_sk res{2}.`2).
+  conseq (: ={glob FL_KU_DSS} ==> ={glob FL_KU_DSS, res})
+         _
+         FL_KU_DSS_keygen_initsk.
+  by proc true.
+  while (={w, ERO.m}).
+  - wp.
+    rnd.
+    by wp; skip.
+  by wp; rnd{2}; wp; skip.
+exists* R_PRF_EFCMARO.O_CMA_R_PRF_EFCMARO.skfl{2}; elim* => skbc.
+call (:   ={glob FL_KU_DSS, glob A, pk, ERO.m} 
+       /\ O_PRF_Default.b{2}
+       /\ O_PRF_Default.m{2} = empty
+       /\ WS.O_CMA.sk{1} = R_PRF_EFCMARO.O_CMA_R_PRF_EFCMARO.skfl{2}
+       /\ init_sk skbc
+       /\ QC_A.cS{2} <= qS /\ QC_A.cH{2} <= qH
+        ==> 
+           ={glob FL_KU_DSS, res} 
+        /\ ={qs}(WS.O_CMA, R_PRF_EFCMARO.O_CMA_R_PRF_EFCMARO)
+        /\ R_PRF_EFCMARO.O_CMA_R_PRF_EFCMARO.skfl{2} = fold skupd skbc QC_A.cS{2}
+        /\ QC_A.cS{2} <= qS /\ QC_A.cH{2} <= qH).
++ conseq (: ={glob FL_KU_DSS, glob A, pk, ERO.m} 
+       /\ O_PRF_Default.b{2}
+       /\ O_PRF_Default.m{2} = empty
+       /\ WS.O_CMA.sk{1} = R_PRF_EFCMARO.O_CMA_R_PRF_EFCMARO.skfl{2}
+       /\ init_sk skbc
+       /\ QC_A.cS{2} <= qS
+        ==> 
+           ={glob FL_KU_DSS, res} 
+        /\ ={qs}(WS.O_CMA, R_PRF_EFCMARO.O_CMA_R_PRF_EFCMARO)
+        /\ R_PRF_EFCMARO.O_CMA_R_PRF_EFCMARO.skfl{2} = fold skupd skbc QC_A.cS{2})
+        _
+        (A_forge_queries (<: R_PRF_EFCMARO(FL_KU_DSS, QC_A(A), O_PRF_Default).O_CMA_R_PRF_EFCMARO) MCO) => //.
+        progress.
+proc. sp.
+call (: qS < QC_A.cS,
+        ={glob FL_KU_DSS, ERO.m} /\ ={qs}(WS.O_CMA, R_PRF_EFCMARO.O_CMA_R_PRF_EFCMARO)
+        /\ R_PRF_EFCMARO.O_CMA_R_PRF_EFCMARO.skfl{2} = fold skupd skbc QC_A.cS{2}
+        /\ WS.O_CMA.sk{1} = R_PRF_EFCMARO.O_CMA_R_PRF_EFCMARO.skfl{2}
+        /\ O_PRF_Default.b{2}
+        /\ init_sk skbc
+        /\ (forall (id : id_t), 
+              id \in O_PRF_Default.m{2} <=>
+                (exists (i : int), 0 <= i < QC_A.cS{2} /\ id = extr_id (fold skupd skbc i)))).
+by move=> SO RO ROll SOll; apply (A_forge_ll SO RO SOll ROll). 
+by proc; inline *; wp; skip.
+by move=> &2 _; proc; inline *; auto.
+by move=> _; proc; inline *; auto. 
+admit.
+by move=> &2 _; proc; inline *; wp; call FL_KU_DSS_sign_ll; wp; rnd; wp; skip => />; apply drco_ll. 
+move=> _; proc; inline *; wp; call FL_KU_DSS_sign_ll; wp; sp; if; auto.
+if; auto => />; progress. apply drco_ll. smt(). smt(). smt().
+skip. progress. admit. admit. smt. smt.
+ rnd; wp. skip => />. apply drco_ll. auto.
+
+auto.
+smt(A_forge_ll).
+proc. inline *.
+rcondt{2} 5; 1: by auto.
+rcondt{2} 5.
+move=> &1.
+wp. skip => />. progress.
+move/iffLR /contra: (H2 (extr_id (fold skupd skbc QC_A.cS{hr}))).
+rewrite negb_exists => /= /(_ _) // i.
+rewrite negb_and -implybE => rng_i.
+rewrite -lezNgt in H.
+move: (skupd_fold_id QC_A.cS{hr} i skbc H1 H).
+smt().
+wp.
+call(:    ={glob FL_KU_DSS, arg} 
+       /\ ={qs}(WS.O_CMA, R_PRF_EFCMARO.O_CMA_R_PRF_EFCMARO)
+       /\ arg{2}.`1 = fold skupd skbc (QC_A.cS{2} - 1)
+       /\ 1 <= QC_A.cS{2}
+       ==>
+          ={res, glob FL_KU_DSS}
+       /\ ={qs}(WS.O_CMA, R_PRF_EFCMARO.O_CMA_R_PRF_EFCMARO)
+       /\ res{2}.`2 = fold skupd skbc (QC_A.cS{2})).
+conseq (: ={glob FL_KU_DSS, arg} ==> ={res, glob FL_KU_DSS})
+       _
+       (: sk = fold skupd skbc (QC_A.cS - 1) ==> res.`2 = skupd (fold skupd skbc (QC_A.cS - 1))).
+       progress. 
+       progress. rewrite H1. smt(foldS).
+       print FL_KU_DSS_sign_skupd.
+       admit.
+       proc true. smt. smt. wp. rnd. wp. skip. progress.
+by rewrite get_set_sameE oget_some.
+admit.
+by rewrite get_set_sameE oget_some.
+search "_.[_]".
+ admit.
+ admit.
+ progress. proc. inline*. wp. call FL_KU_DSS_sign_ll. wp. rnd. wp. skip => />. rewrite drco_ll //.
+ progress. proc; inline *. wp. call FL_KU_DSS_sign_ll. wp.  sp. if. if. wp. rnd. wp; skip => />.  progress. smt(). apply drco_ll.
+ wp. skip. progress. smt. wp; skip. smt. skip. progress. admit. admit. smt. smt.
+admit. admit. admit. admit. admit.
+by skip.
+qed.
 (*  
 call (:   ={glob FL_KU_DSS, ERO.m}
        /\ ={qs}(WS.O_CMA, R_PRF_EFCMARO.O_CMA_R_PRF_EFCMARO)
@@ -1989,20 +2184,22 @@ call (:   ={glob FL_KU_DSS, ERO.m}
        /\ O_PRF_Default.b{2}
        /\ (forall (id : id_t), id \in O_PRF_Default.m{2} <=>
              id \in take (index (extr_id R_PRF_EFCMARO.O_CMA_R_PRF_EFCMARO.skfl{2}) ID.enum) ID.enum)).
-*)
+
 seq 3 4 : (   ={glob FL_KU_DSS, ERO.m, pk}
            /\ ={qs}(WS.O_CMA, R_PRF_EFCMARO.O_CMA_R_PRF_EFCMARO)
            /\ WS.O_CMA.sk{1} = R_PRF_EFCMARO.O_CMA_R_PRF_EFCMARO.skfl{2}
            /\ O_PRF_Default.b{2}
            /\ O_PRF_Default.m{2} = empty
            /\ WS.O_CMA.qs{1} = []
-           /\ R_PRF_EFCMARO.O_CMA_R_PRF_EFCMARO.qs{2} = []) => />.
+           /\ R_PRF_EFCMARO.O_CMA_R_PRF_EFCMARO.qs{2} = []
+           /\ Pr[FL_KU_DSS.keygen() @ &m : res.`2 = R_PRF_EFCMARO.O_CMA_R_PRF_EFCMARO.skfl{2}] > 0%r) => />.
 + inline *. 
-  wp; call (: true).
+  wp.
+  proc true => //.
   while (={w, ERO.m}); 1: by auto.
   wp. 
   rnd{2}.
-  by wp; skip.
+  wp; skip. progress.
 call (:   ={glob FL_KU_DSS, ERO.m}
        /\ ={qs}(WS.O_CMA, R_PRF_EFCMARO.O_CMA_R_PRF_EFCMARO)
        /\ WS.O_CMA.sk{1} = R_PRF_EFCMARO.O_CMA_R_PRF_EFCMARO.skfl{2}
@@ -2028,6 +2225,7 @@ call (:   ={glob FL_KU_DSS, ERO.m}
   rewrite get_set_sameE oget_some //.
   search dom.
   admit. admit.
+*)
 inline *.
 wp. 
 call (:   ={glob FL_KU_DSS} 
@@ -2045,4 +2243,4 @@ wp; skip => />; smt(mem_empty index_nth).
 qed.
 
 end WithPRF.
-
+*)

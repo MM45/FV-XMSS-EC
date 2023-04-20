@@ -89,7 +89,7 @@ type sigFLXMSSTW = index * sigWOTS * apFLXMSSTW.
 
 
 (* --- Distributions --- *)
-op [lossless] dmsgFLXMSSTW : msgFLXMSSTW distr.
+op [lossless full uniform] dmsgFLXMSSTW : msgFLXMSSTW distr.
 
 
 
