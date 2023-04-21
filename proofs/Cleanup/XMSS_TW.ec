@@ -6,13 +6,11 @@ require (*--*) ROM.
 
 (* -- Local -- *)
 require import FL_XMSS_TW.
-require (*--*) DigitalSignatures KeyedHashFunctions HashThenSign.
-(*--*) import WOTS_TW.
+require (*--*) DigitalSignatures DigitalSignaturesROM KeyedHashFunctions HashThenSign.
+(*---*) import WOTS_TW.
 
 type mseed.
 type mkey.
-
-op mkg : mseed -> index -> mkey.
 
 op [lossless full uniform] dmseed : mseed distr.
 
@@ -48,13 +46,12 @@ clone import FinProdType as MKeyMsgXMSSTW with
   proof *.
 
 
-clone import DigitalSignatures as SS with
+
+clone import DigitalSignatures as XMSSTW with
   type pk_t <- pkXMSSTW,
   type sk_t <- skXMSSTW,
   type msg_t <- msgXMSSTW,
   type sig_t <- sigXMSSTW
-  
-  rename [theory] "KeyUpdating" as "XMSSTW"
   
   proof *.
 
@@ -75,13 +72,68 @@ clone import MCORO.LazyEager as MCOROLE with
 
 module MCO = ERO.
 
+
+op mkg : mseed -> index -> mkey.
+op mco : mkey -> msgXMSSTW -> msgFLXMSSTW.
+
+
+clone import DigitalSignaturesROM as XMSSTW_RNDROM with
+  type pk_t <- pkXMSSTW,
+  type sk_t <- skFLXMSSTW,
+  type msg_t <- msgXMSSTW,
+  type sig_t <- sigXMSSTW,
+  
+  type in_t <- mkey * msgXMSSTW,
+  type out_t <- msgFLXMSSTW,
+  type d_in_t <- int,
+  type d_out_t <- bool,
+  
+    op doutm <- fun _ => dmsgFLXMSSTW,
+   
+  theory RO <- MCORO
+  
+  proof *.
+
+clone import DigitalSignaturesROM as XMSSTW_ROM with
+  type pk_t <- pkXMSSTW,
+  type sk_t <- skXMSSTW,
+  type msg_t <- msgXMSSTW,
+  type sig_t <- sigXMSSTW,
+  
+  type in_t <- mkey * msgXMSSTW,
+  type out_t <- msgFLXMSSTW,
+  type d_in_t <- int,
+  type d_out_t <- bool,
+  
+    op doutm <- fun _ => dmsgFLXMSSTW,
+   
+  theory RO <- MCORO
+  
+  proof *.
+
+import XMSSTW_ROM.KeyUpdatingROM.
+import DSS.
+import KeyUpdating.
+
+clone import KeyedHashFunctions as MKG with
+  type key_t <- mseed,
+  type in_t <- index,
+  type out_t <- mkey,
+  
+    op dkey <- dmseed,
+    op doutm <- fun _ => dmkey
+  
+  proof dkey_ll, doutm_ll.
+  realize dkey_ll by exact: dmseed_ll.
+  realize doutm_ll. by move=> _; apply dmkey_ll. qed.
+  
+
 (* Signature queries *)
 op qS : { int | 0 <= qS <= l } as rng_qS.
 
 (* Random oracle (hash) queries *)
 op qH : { int | 0 <= qH } as ge0_qH. 
 
-print int2bs.
 
 clone import HashThenSign as HtS with
   type pk_fl_t <- pkFLXMSSTW,
@@ -103,8 +155,10 @@ clone import HashThenSign as HtS with
   theory RCO <- MKey,
   theory MSG_AL <- MsgXMSSTW,
   theory MCORO <- MCORO,
-  theory MCOROLE <- MCOROLE
-
+  theory MCOROLE <- MCOROLE,
+  theory DSS_FL <- FLXMSSTW,
+  theory DSS_AL <- XMSSTW_RNDROM
+  
   proof *.
   realize ge0_n by smt(ge2_l).
   realize rng_qS by exact: rng_qS.
@@ -117,7 +171,7 @@ clone import HashThenSign as HtS with
   realize drco_fu by exact: dmkey_fu.
   realize MSG_FL.enum_spec.
     move=> m; rewrite count_uniq_mem 1:map_inj_in_uniq => [x y | |].
-    + rewrite ?mapP => -[i [/mem_range rng_i ->]] -[j [/mem_range rng_j ->]] eqins. 
+    + rewrite 2!mapP => -[i [/mem_range rng_i ->]] -[j [/mem_range rng_j ->]] eqins. 
       rewrite -(DigestBlock.insubdK (int2bs (8 * n) i)) 1:size_int2bs; 1: smt(ge1_n).
       rewrite -(DigestBlock.insubdK (int2bs (8 * n) j)) 1:size_int2bs; 1: smt(ge1_n). 
       by rewrite eqins. 
@@ -132,9 +186,9 @@ clone import HashThenSign as HtS with
     rewrite mem_range bs2int_ge0 /= (: 8 * n = size (DigestBlock.val m)) 1:DigestBlock.valP //. 
     by rewrite bs2intK bs2int_le2Xs.
   qed.
-   
+
 (* Scheme *)
-module XMSS_TW : XMSSTW.Scheme = {
+module XMSS_TW : XMSSTW.KeyUpdating.Scheme = {
   proc keygen() : pkXMSSTW * skXMSSTW  = {
     var ms : mseed;
     var pk : pkXMSSTW;
@@ -156,6 +210,8 @@ module XMSS_TW : XMSSTW.Scheme = {
     var idx : index;
     var mk : mkey;
     var cm : msgFLXMSSTW;
+    var sigfl: sigFLXMSSTW;
+    var sig : sigXMSSTW;
     
     ms <- sk.`1;
     skfl <- sk.`2;
@@ -163,13 +219,151 @@ module XMSS_TW : XMSSTW.Scheme = {
     idx <- skfl.`1;
     
     mk <- mkg ms idx;
+    cm <- mco mk m;
     
+    (sigfl, skfl) <@ FL_XMSS_TW.sign(skfl, cm);
     
+    sig <- (mk, sigfl);
+    sk <- (ms, skfl);
     
-    return witness;
+    return (sig, sk);
   }
   
   proc verify(pk : pkXMSSTW, m : msgXMSSTW, sig : sigXMSSTW) : bool = {
-    return witness;
+    var mk : mkey;
+    var sigfl : sigFLXMSSTW;
+    var cm : msgFLXMSSTW;
+    var ver : bool;
+    
+    mk <- sig.`1;
+    sigfl <- sig.`2;
+    
+    cm <- mco mk m;
+    
+    ver <@ FL_XMSS_TW.verify(pk, cm, sigfl);
+     
+    return ver;
   }
 }.
+
+
+(* Scheme *)
+module (XMSS_TW_RO : XMSSTW_ROM.KeyUpdatingROM.Scheme_RO) (RO : POracle) = {
+  proc keygen() : pkXMSSTW * skXMSSTW = {
+    var ms : mseed;
+    var pk : pkXMSSTW;
+    var skfl : skFLXMSSTW;
+    var sk : skXMSSTW;
+    
+    ms <$ dmseed;
+    
+    (pk, skfl) <@ FL_XMSS_TW.keygen();
+    
+    sk <- (ms, skfl);
+    
+    return (pk, sk);
+  }
+  
+  proc sign(sk : skXMSSTW, m : msgXMSSTW) : sigXMSSTW * skXMSSTW = {
+    var ms : mseed;
+    var skfl : skFLXMSSTW;
+    var idx : index;
+    var mk : mkey;
+    var cm : msgFLXMSSTW;
+    var sigfl: sigFLXMSSTW;
+    var sig : sigXMSSTW;
+    
+    ms <- sk.`1;
+    skfl <- sk.`2;
+    
+    idx <- skfl.`1;
+    
+    mk <- mkg ms idx;
+    cm <@ RO.o((mk, m));
+    
+    (sigfl, skfl) <@ FL_XMSS_TW.sign(skfl, cm);
+    
+    sig <- (mk, sigfl);
+    sk <- (ms, skfl);
+    
+    return (sig, sk);
+  }
+  
+  proc verify(pk : pkXMSSTW, m : msgXMSSTW, sig : sigXMSSTW) : bool = {
+    var mk : mkey;
+    var sigfl : sigFLXMSSTW;
+    var cm : msgFLXMSSTW;
+    var ver : bool;
+    
+    mk <- sig.`1;
+    sigfl <- sig.`2;
+    
+    cm <@ RO.o((mk, m));
+    
+    ver <@ FL_XMSS_TW.verify(pk, cm, sigfl);
+     
+    return ver;
+  }
+}.
+
+print O_Base_Default.
+(* -- Reduction Adversaries -- *)
+module (R_PRF_EFCMAROXMSSTW (A : Adv_EFCMA_RO) : Adv_PRF) (O : Oracle_PRF) = {
+  module O_CMA_R_PRF_EFCMAROXMSSTW : SOracle_CMA = {
+    include var O_Base_Default
+    
+    var skfl : skFLXMSSTW
+    
+    proc init(skfl_init : skFLXMSSTW) = {
+      skfl <- skfl_init;
+      qs <- [];
+    }
+    
+    proc sign(m : msgXMSSTW) : sigXMSSTW = {
+      var idx : index;
+      var mk : mkey;
+      var cm : msgFLXMSSTW;
+      var sigfl : sigFLXMSSTW;
+      var sig : sigXMSSTW;
+      
+      idx <- skfl.`1;
+      
+      mk <@ O.query(idx);
+      
+      cm <@ MCO.o(mk, m);
+      
+      (sigfl, skfl) <@ FL_XMSS_TW.sign(skfl, cm);
+      
+      sig <- (mk, sigfl);
+      
+      return sig;
+    }
+  }
+  
+  proc distinguish() : bool = {
+    var pk : pkXMSSTW;
+    var skfl : skFLXMSSTW; 
+    var m : msgXMSSTW;
+    var sig : sigXMSSTW;
+    var is_valid, is_fresh;
+    
+    (pk, skfl) <@ FL_XMSS_TW.keygen();
+    
+    O_CMA_R_PRF_EFCMAROXMSSTW.init(skfl);
+    
+    (m, sig) <@ A(MCO, O_CMA_R_PRF_EFCMAROXMSSTW).forge(pk);
+    
+    is_valid <@ XMSS_TW_RO(MCO).verify(pk, m, sig);
+    
+    is_fresh <@ O_CMA_R_PRF_EFCMAROXMSSTW.fresh(m);
+    
+    return is_valid /\ is_fresh;
+  }
+}.
+
+section Proof_EF_CMA_RO_XMSSTW.
+
+declare module A <: XMSSTW_ROM.KeyUpdatingROM.Adv_EFCMA_RO.
+
+
+end section Proof_EF_CMA_RO_XMSSTW.

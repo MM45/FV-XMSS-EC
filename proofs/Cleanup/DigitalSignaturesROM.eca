@@ -1,18 +1,11 @@
-(**************************************************************************)
-(* File containing everything related to (public-key/digital) signatures. *)
-(* This file is based on the material from the following references:      *)
-(* - "A Digital Signature Scheme Secure Against Adaptive                  *)
-(*    Chosen-Message Attack"                                              *)
-(*   DOI: 10.1137/0217017                                                 *)
-(* - "Digital Signatures"                                                 *) 
-(*   DOI: 10.1007/978-0-387-27712-7.                                      *)
-(**************************************************************************)
-
-
-
 (* --- Require/Import Theories --- *)
 (* -- Built-in (i.e, standard library) -- *)
 require import AllCore List.
+require (*--*) ROM.
+
+
+(* -- Local -- *)
+require (*--*) DigitalSignatures.
 
 
 
@@ -26,59 +19,68 @@ type sig_t.
 type pk_t.
 type sk_t.
 
+(* Types for input and output of the random oracle, respectively *)
+type in_t.
+type out_t.
 
-(* -- Oracles -- *)
-(* 
-  Default implementation of the shared functionality, comprised of checking for freshness
-  and computing the number of queries, shared by all oracles throughout
-*)
-module O_Base_Default = {
-  var qs : msg_t list
-  (* 
-    Check whether given message m is fresh, i.e., whether m is not contained in
-    the list of oracle queries qs 
-  *)
-  proc fresh(m : msg_t) : bool = {
-    return ! m \in qs;
-  }
+(* Types for input and output of the random oracle distinguisher, respectively *)
+type d_in_t.
+type d_out_t.
 
-  (* Get the number of oracle queries, i.e., the size of the oracle query list qs *)
-  proc nr_queries() : int = {
-    return size qs;
-  }
-}.
+
+(* -- Distributions -- *)
+(* Function mapping an oracle's input a distribution over the oracle's output *)
+op doutm : in_t -> out_t distr.
+
+
+(* -- Clones -- *)
+clone import DigitalSignatures as DSS with
+  type msg_t <- msg_t,
+  type sig_t <- sig_t,
+  type pk_t <- pk_t,
+  type sk_t <- sk_t
+  
+  proof *.
+
+clone import ROM as RO with
+  type in_t <- in_t,
+  type out_t <- out_t,
+  type d_in_t <- d_in_t,
+  type d_out_t <- d_out_t,
+  
+    op dout <- doutm
+    
+  proof *.
 
 
 
 (* --- Stateless Signature Schemes --- *)
-theory Stateless.
+theory StatelessROM.
+  (* -- Imports -- *)
+  import Stateless.
+  
   (* -- General -- *)
   (* Module type for stateless signature schemes *)
-  module type Scheme = {
-    proc keygen() : pk_t * sk_t
-    proc sign(sk : sk_t, m : msg_t) : sig_t
-    proc verify(pk : pk_t, m : msg_t, s : sig_t) : bool
+  module type Scheme_RO(RO : POracle) = {
+    include Scheme
   }.
   
   
   (* -- Correctness -- *)
   (* Probabilistic program formalizing the correctness of stateless signature schemes *)
-  module Correctness(S : Scheme) = {
+  module Correctness_RO(S : Scheme_RO, RO : Oracle) = {
     proc main(m : msg_t) : bool = {
-      var pk : pk_t;
-      var sk : sk_t;
-      var sig : sig_t;
       var is_valid : bool;
       
-      (pk, sk) <@ S.keygen();
-      sig <@ S.sign(sk, m);
-      is_valid <@ S.verify(pk, m, sig); 
+      RO.init();
+      
+      is_valid <@ Correctness(S(RO)).main(m); 
       
       return is_valid;
     }
   }.
   
-  
+(*  
   (*
     -- 
     Key-Only Attack (KOA).
@@ -578,10 +580,10 @@ theory Stateless.
       for initialization and auxiliary tasks 
     *)
     module type Oracle_RMA(S : Scheme) = {
-      proc init(sk_init : sk_t) : unit
-      proc sign() : msg_t * sig_t
-      proc fresh(m : msg_t) : bool
-      proc nr_queries() : int
+      proc init(sk_init : sk_t) : unit {}
+      proc sign() : msg_t * sig_t {S.sign}
+      proc fresh(m : msg_t) : bool {}
+      proc nr_queries() : int {}
     }.
     
     (* 
@@ -1397,7 +1399,7 @@ theory Stateless.
     Default implementation of a signing oracle including procedures for 
     initialization and auxiliary tasks 
   *)
-  module (O_CMA_Default : Oracle_CMA) (S : Scheme) = {
+  module (O_CMA_RO_Default : Oracle_CMA) (S : Scheme) = {
     include var O_Base_Default
     var sk : sk_t
     
@@ -1422,7 +1424,7 @@ theory Stateless.
     }
   }.
 
-  
+
   (* 
     - 
     Total Break under (Adaptive) Chosen-Message Attack (TB-CMA). 
@@ -1436,8 +1438,8 @@ theory Stateless.
     proc break(pk : pk_t) : sk_t
   }.
   
-  (* TB-CMA game *)
-  module TB_CMA(S : Scheme, A : Adv_TBCMA, O : Oracle_CMA) = {
+  (* TB-CMA game with Unlimited oracle queries *)
+  module TB_CMA_U(S : Scheme, A : Adv_TBCMA, O : Oracle_CMA) = {
     proc main() : bool = {
       var pk : pk_t;
       var sk, sk' : sk_t;
@@ -1477,7 +1479,7 @@ theory Stateless.
       proc forge(pk : pk_t, m : msg_t) : sig_t
     }.
 
-    (* UF-CMA game *)
+    (* UF-CMA game with Unlimited oracle queries *)
     module UF_CMA(S : Scheme, A : Adv_UFCMA, O : Oracle_CMA) = {
       proc main() : bool = {
         var pk : pk_t;
@@ -1539,7 +1541,7 @@ theory Stateless.
     proc forge(pk : pk_t) : sig_t
   }.
   
-  (* SF-CMA game *)
+  (* SF-CMA game with Unlimited oracle queries *)
   module SF_CMA(S : Scheme, A : Adv_SFCMA, O : Oracle_CMA) = {
     proc main() : bool = {
       var pk : pk_t;
@@ -1585,7 +1587,7 @@ theory Stateless.
     }
   }.
     
-
+*)
   (*
     -
     Existential Forgery under Chosen-Message Attack (EF-CMA)
@@ -1594,55 +1596,25 @@ theory Stateless.
     -
   *)
   (* Class of adversaries against EF-CMA *)
-  module type Adv_EFCMA(O : SOracle_CMA) = {
+  module type Adv_EFCMA_RO(RO : POracle, O : SOracle_CMA) = {
     proc forge(pk : pk_t) : msg_t * sig_t
   }.
 
   (* EF-CMA game *)
-  module EF_CMA(S : Scheme, A : Adv_EFCMA, O : Oracle_CMA) = {
+  module EF_CMA_RO(S : Scheme_RO, A : Adv_EFCMA_RO, O : Oracle_CMA, RO : Oracle) = {
     proc main() : bool = {
-      var pk : pk_t;
-      var sk : sk_t;
-      var m : msg_t;
-      var sig : sig_t;
-      var is_valid, is_fresh : bool;
-            
-      (* Generate a key pair using the considered signature scheme *)
-      (pk, sk) <@ S.keygen();
+      var is_validfresh : bool;
       
-      (* Initialize the signing oracle with the generated secret key *)
-      O(S).init(sk);
-
-      (*
-        Ask the adversary to forge a signature for any message (and provide both the
-        message and the signature) given the public key pk and access to a signing oracle 
-        that it can query an unlimited number of times
-      *)
-      (m, sig) <@ A(O(S)).forge(pk);
-
-      (* 
-        Verify (w.r.t. message m) the signature sig provided by the adversary 
-        using the verification algorithm of the considered signature scheme 
-      *)
-      is_valid <@ S.verify(pk, m, sig);
+      (* Initialize the random oracle *)
+      RO.init();
       
-      (* 
-        Check whether message for which the adversary forged a signature is fresh 
-        (i.e., check whether message is not included in the list of messages for which 
-        the adversary received signatures through an oracle query)
-      *)
-      is_fresh <@ O(S).fresh(m);
-     
-      (* 
-        Success iff
-        (1) "is_valid": the forged signature provided by the adversary is valid, and
-        (2) "is_fresh": the message for which the adversary forged a signature is fresh.
-      *)
-      return is_valid /\ is_fresh; 
+      is_validfresh <@ EF_CMA(S(RO), A(RO), O).main();
+      
+      return is_validfresh;
     }
   }.
 
-  
+(*  
   (*
     - 
     Strong Existential Forgery under Chosen-Message Attack (SEF-CMA).
@@ -1655,10 +1627,10 @@ theory Stateless.
     for initialization and auxiliary tasks 
   *)
   module type Oracle_SEFCMA(S : Scheme) = {
-    proc init(sk_init : sk_t) : unit
-    proc sign(m : msg_t) : sig_t
-    proc fresh(msig : msg_t * sig_t) : bool
-    proc nr_queries() : int
+    proc init(sk_init : sk_t) : unit {}
+    proc sign(m : msg_t) : sig_t {S.sign}
+    proc fresh(msig : msg_t * sig_t) : bool {}
+    proc nr_queries() : int {}
   }.
 
   (* 
@@ -1718,7 +1690,7 @@ theory Stateless.
     proc forge(pk : pk_t) : msg_t * sig_t
   }.
 
-  (* SEF-CMA game *)
+  (* SEF-CMA game with Unlimited oracle queries *)
   module SEF_CMA(S : Scheme, A : Adv_SEFCMA, O : Oracle_SEFCMA) = {
     proc main() : bool = {
       var pk : pk_t;
@@ -1761,56 +1733,52 @@ theory Stateless.
       return is_valid /\ is_fresh; 
     }
   }.
-end Stateless.
+*)
+end StatelessROM.
 
 
 
 (* --- Key-Updating (Stateful) Signature Schemes --- *)
-theory KeyUpdating.
+theory KeyUpdatingROM.
+  (* -- Imports -- *)
+  import KeyUpdating.
+  
+  
   (* -- General -- *)
   (* Module type for key-updating signature schemes *)
-  module type Scheme = {
-    proc keygen() : pk_t * sk_t
-    proc sign(sk : sk_t, m : msg_t) : sig_t * sk_t
-    proc verify(pk : pk_t, m : msg_t, sig : sig_t) : bool
+  module type Scheme_RO(RO : POracle) = {
+    include Scheme
   }.
  
   
   (* -- Correctness -- *)
-  abstract theory Correctness.
+  abstract theory CorrectnessROM.
     (* Maximum number of signatures for which the scheme should be correct *)
     const n_corr : { int | 0 <= n_corr } as ge0_ncorr.
     
+    (* Clone correctness definition from standard model *)
+    clone import Correctness as C with
+      op n_corr <- n_corr
+      
+      proof *.
+      realize ge0_ncorr by exact: ge0_ncorr.
+    
     (* Probabilistic program formalizing the correctness of key-updating signature schemes *)
-    module Correctness(S : Scheme) = {
+    module Correctness_RO(S : Scheme_RO, RO : Oracle) = {
       proc main(ml : msg_t list) : bool = {
-        var pk : pk_t;
-        var sk : sk_t;
-        var m : msg_t;
-        var sig : sig_t;
-        var i : int;
-        var is_valid, are_valid : bool;
+        var are_valid : bool;
         
-        (pk, sk) <@ S.keygen();
-
-        i <- 0;
-        are_valid <- true;
-        while (i < min (size ml) n_corr) {
-          m <- nth witness ml i;
-          
-          (sig, sk) <@ S.sign(sk, m);
-          is_valid <@ S.verify(pk, m, sig);
-          
-          are_valid <- are_valid /\ is_valid;
-          i <- i + 1;
-        }
-
+        (* Initialize the random oracle *)
+        RO.init();
+        
+        are_valid <@ Correctness(S(RO)).main(ml);
+        
         return are_valid;
       }
     }.
-  end Correctness.
+  end CorrectnessROM.
 
-  
+(*  
   (*
     -- 
     Key-Only Attack (KOA).
@@ -2310,10 +2278,10 @@ theory KeyUpdating.
       for initialization and auxiliary tasks 
     *)
     module type Oracle_RMA(S : Scheme) = {
-      proc init(sk_init : sk_t) : unit
-      proc sign() : msg_t * sig_t
-      proc fresh(m : msg_t) : bool
-      proc nr_queries() : int
+      proc init(sk_init : sk_t) : unit {}
+      proc sign() : msg_t * sig_t {S.sign}
+      proc fresh(m : msg_t) : bool {}
+      proc nr_queries() : int {}
     }.
     
     (* 
@@ -3108,10 +3076,10 @@ theory KeyUpdating.
     for initialization and auxiliary tasks 
   *)
   module type Oracle_CMA(S : Scheme) = {
-    proc init(sk_init : sk_t) : unit
-    proc sign(m : msg_t) : sig_t
-    proc fresh(m : msg_t) : bool
-    proc nr_queries() : int
+    proc init(sk_init : sk_t) : unit {}
+    proc sign(m : msg_t) : sig_t {S.sign}
+    proc fresh(m : msg_t) : bool {}
+    proc nr_queries() : int {}
   }.
 
   (* 
@@ -3165,7 +3133,7 @@ theory KeyUpdating.
     proc break(pk : pk_t) : sk_t
   }.
   
-  (* TB-CMA game *)
+  (* TB-CMA game with Unlimited oracle queries *)
   module TB_CMA(S : Scheme, A : Adv_TBCMA, O : Oracle_CMA) = {
     proc main() : bool = {
       var pk : pk_t;
@@ -3317,7 +3285,7 @@ theory KeyUpdating.
     }
   }.
 
-
+*)
   (*
     -
     Existential Forgery under Chosen-Message Attack (EF-CMA)
@@ -3326,55 +3294,25 @@ theory KeyUpdating.
     -
   *)
   (* Class of adversaries against EF-CMA *)
-  module type Adv_EFCMA(O : SOracle_CMA) = {
+  module type Adv_EFCMA_RO(RO : POracle, O : SOracle_CMA) = {
     proc forge(pk : pk_t) : msg_t * sig_t
   }.
 
   (* EF-CMA game *)
-  module EF_CMA(S : Scheme, A : Adv_EFCMA, O : Oracle_CMA) = {
+  module EF_CMA_RO(S : Scheme_RO, A : Adv_EFCMA_RO, O : Oracle_CMA, RO : Oracle) = {
     proc main() : bool = {
-      var pk : pk_t;
-      var sk : sk_t;
-      var m : msg_t;
-      var sig : sig_t;
-      var is_valid, is_fresh : bool;
+      var is_validfresh : bool;
             
-      (* Generate a key pair using the considered signature scheme *)
-      (pk, sk) <@ S.keygen();
+      (* Initialize random oracle *)
+      RO.init();
       
-      (* Initialize the signing oracle with the generated secret key *)
-      O(S).init(sk);
-
-      (*
-        Ask the adversary to forge a signature for any message (and provide both the
-        message and the signature) given the public key pk and access to a signing oracle 
-        that it can query an unlimited number of times
-      *)
-      (m, sig) <@ A(O(S)).forge(pk);
-
-      (* 
-        Verify (w.r.t. message m) the signature sig provided by the adversary 
-        using the verification algorithm of the considered signature scheme 
-      *)
-      is_valid <@ S.verify(pk, m, sig);
+      is_validfresh <@ EF_CMA(S(RO), A(RO), O).main();
       
-      (* 
-        Check whether message for which the adversary forged a signature is fresh 
-        (i.e., check whether message is not included in the list of messages for which 
-        the adversary received signatures through an oracle query)
-      *)
-      is_fresh <@ O(S).fresh(m);
-     
-      (* 
-        Success iff
-        (1) "is_valid": the forged signature provided by the adversary is valid, and
-        (2) "is_fresh": the message for which the adversary forged a signature is fresh.
-      *)
-      return is_valid /\ is_fresh; 
-    }
+      return is_validfresh;
+    } 
   }.
-  
-  
+
+(*  
   (*
     - 
     Strong Existential Forgery under Chosen-Message Attack (SEF-CMA).
@@ -3387,10 +3325,10 @@ theory KeyUpdating.
     for initialization and auxiliary tasks 
   *)
   module type Oracle_SEFCMA(S : Scheme) = {
-    proc init(sk_init : sk_t) : unit
-    proc sign(m : msg_t) : sig_t
-    proc fresh(msig : msg_t * sig_t) : bool
-    proc nr_queries() : int
+    proc init(sk_init : sk_t) : unit {}
+    proc sign(m : msg_t) : sig_t {S.sign}
+    proc fresh(msig : msg_t * sig_t) : bool {}
+    proc nr_queries() : int {}
   }.
 
   (* 
@@ -3493,4 +3431,5 @@ theory KeyUpdating.
       return is_valid /\ is_fresh; 
     }
   }.
-end KeyUpdating.
+*)
+end KeyUpdatingROM.

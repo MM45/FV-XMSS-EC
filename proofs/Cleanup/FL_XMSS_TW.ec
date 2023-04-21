@@ -4606,15 +4606,15 @@ end section Proof_EF_RMA_FLXMSSTWES.
 
 (* --- Fixed-Length XMSS-TW as standalone --- *)
 (* Import relevant definitions for key-updating signature scheme *)
-clone import DigitalSignatures as SS with
+clone import DigitalSignatures as FLXMSSTW with
   type pk_t <= pkFLXMSSTW,
   type sk_t <= skFLXMSSTW,
   type msg_t <= msgFLXMSSTW,
   type sig_t <= sigFLXMSSTW
   
-  rename [theory] "KeyUpdating" as "FLXMSSTW".
-
-clone import FLXMSSTW.EFRMA with
+  proof *.
+  
+clone import FLXMSSTW.KeyUpdating.EFRMA with
   op n_efrma <= l,
    
   op dmsg <= dmsgFLXMSSTW
@@ -4624,7 +4624,7 @@ clone import FLXMSSTW.EFRMA with
 
 
 (* -- Specification of Fixed-Length XMSS-TW as standalone -- *)
-module FL_XMSS_TW : FLXMSSTW.Scheme = {
+module FL_XMSS_TW : FLXMSSTW.KeyUpdating.Scheme = {
   proc keygen() : pkFLXMSSTW * skFLXMSSTW = {
     var ss : sseed;
     var ps : pseed;
