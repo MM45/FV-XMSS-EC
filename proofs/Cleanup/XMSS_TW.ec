@@ -12,7 +12,7 @@ require (*--*) DigitalSignatures DigitalSignaturesROM KeyedHashFunctions HashThe
 type mseed.
 type mkey.
 
-op [lossless full uniform] dmseed : mseed distr.
+op [lossless] dmseed : mseed distr.
 
 op [lossless full uniform] dmkey : mkey distr.
 
@@ -121,6 +121,8 @@ clone import KeyedHashFunctions as MKG with
   type in_t <- index,
   type out_t <- mkey,
   
+    op f <- mkg, 
+    
     op dkey <- dmseed,
     op doutm <- fun _ => dmkey
   
@@ -135,7 +137,6 @@ op qS : { int | 0 <= qS <= l } as rng_qS.
 (* Random oracle (hash) queries *)
 op qH : { int | 0 <= qH } as ge0_qH. 
 
-(*
 clone import HashThenSign as HtS with
   type pk_fl_t <- pkFLXMSSTW,
   type sk_fl_t <- skFLXMSSTW,
@@ -143,22 +144,29 @@ clone import HashThenSign as HtS with
   type sig_fl_t <- sigFLXMSSTW,
   type rco_t <- mkey,
   type msg_al_t <- msgXMSSTW,
-    
+  type WithPRF.ms_t <- mseed,
+  type WithPRF.id_t <- index,
+  
     op n <- l,
     op qS <- qS,
     op qH <- qH,
     
     op MSG_FL.enum <- map DigestBlock.insubd (map (int2bs (8 * n)) (range 0 (2 ^ (8 * n)))),
     
+    op WithPRF.mkg <- mkg,
+    op WithPRF.extr_id <- fun (skfl : skFLXMSSTW) => skfl.`1,
+    
     op dmsg_fl <- dmsgFLXMSSTW,
     op drco <- dmkey,
-
+    op WithPRF.dms <- dmseed,
+    
   theory RCO <- MKey,
   theory MSG_AL <- MsgXMSSTW,
   theory MCORO <- MCORO,
   theory MCOROLE <- MCOROLE,
   theory DSS_FL <- FLXMSSTW,
-  theory DSS_AL <- XMSSTW_RNDROM
+  theory WithPRF.MKG <- MKG,
+  theory WithPRF.DSS_AL_PRF <- XMSSTW_ROM
   
   proof *.
   realize ge0_n by smt(ge2_l).
@@ -187,7 +195,12 @@ clone import HashThenSign as HtS with
     rewrite mem_range bs2int_ge0 /= (: 8 * n = size (DigestBlock.val m)) 1:DigestBlock.valP //. 
     by rewrite bs2intK bs2int_le2Xs.
   qed.
-*)
+  realize WithPRF.dms_ll by exact: dmseed_ll.
+
+import WithPRF.
+import WS.
+import EFRMAEqv.
+import DSS_FL_EFRMA.
 
 (* Scheme *)
 module (XMSS_TW : Scheme_RO) (RO : POracle) = {
@@ -367,103 +380,94 @@ module (R_PRF_EFCMAROXMSSTW (A : Adv_EFCMA_RO) : Adv_PRF) (O : Oracle_PRF) = {
 
 section Proof_EF_CMA_RO_XMSSTW.
 
-declare module A <: Adv_EFCMA_RO.
-(*
-local clone import DigitalSignaturesROM as XMSSTW_RNDROM with
-  type pk_t <- pkXMSSTW,
-  type sk_t <- skFLXMSSTW,
-  type msg_t <- msgXMSSTW,
-  type sig_t <- sigXMSSTW,
-  
-  type in_t <- mkey * msgXMSSTW,
-  type out_t <- msgFLXMSSTW,
-  type d_in_t <- int,
-  type d_out_t <- bool,
-  
-    op doutm <- fun _ => dmsgFLXMSSTW,
-   
-  theory RO <- MCORO
-  
-  proof *.
-*)
-(*
-local module XMSS_TW_RND = {
-  proc keygen = FL_XMSS_TW.keygen
-  
-  proc sign(skfl : skFLXMSSTW, m : msgXMSSTW) : sigXMSSTW * skFLXMSSTW = {
-    var ms : mseed;
-    var idx : index;
-    var mk : mkey;
-    var cm : msgFLXMSSTW;
-    var sigfl: sigFLXMSSTW;
-    var sig : sigXMSSTW;
-    
-    mk <$ dmkey;
-    cm <@ MCO.o((mk, m));
-    
-    (sigfl, skfl) <@ FL_XMSS_TW.sign(skfl, cm);
-    
-    sig <- (mk, sigfl);
-    
-    return (sig, skfl);
-  }
-  
-  proc verify = XMSS_TW(MCO).verify
-}.
-*)
+declare op opsign : skFLXMSSTW -> msgFLXMSSTW -> sigFLXMSSTW * skFLXMSSTW.
 
+declare axiom FLXMSSTW_sign_fun (skfl : skFLXMSSTW) (cm : msgFLXMSSTW) :
+  hoare[FL_XMSS_TW.sign: arg = (skfl, cm) ==> res = opsign skfl cm].
 
-local module (XMSS_TW_RND : Scheme_RO) (RO : POracle) = {
-  proc keygen = XMSS_TW(RO).keygen
-  
-  proc sign(sk : skXMSSTW, m : msgXMSSTW) : sigXMSSTW * skXMSSTW = {
-    var ms : mseed;
-    var skfl : skFLXMSSTW;
-    var idx : index;
-    var mk : mkey;
-    var cm : msgFLXMSSTW;
-    var sigfl: sigFLXMSSTW;
-    var sig : sigXMSSTW;
-    
-    ms <- sk.`1;
-    skfl <- sk.`2;
-    
-    mk <$ dmkey;
-    cm <@ MCO.o((mk, m));
-    
-    (sigfl, skfl) <@ FL_XMSS_TW.sign(skfl, cm);
-    
-    sig <- (mk, sigfl);
-    sk <- (ms, skfl);
-    
-    return (sig, sk);
-  }
-  
-  proc verify = XMSS_TW(MCO).verify
-}.
+local lemma FLXMSSTW_sign_pfun (skfl : skFLXMSSTW) (cm : msgFLXMSSTW) :
+  phoare[FL_XMSS_TW.sign: arg = (skfl, cm) ==> res = opsign skfl cm] = 1%r.
+proof. by conseq FLXMSSTW_sign_ll (FLXMSSTW_sign_fun skfl cm). qed.
 
-print EF_CMA_RO.
-print PRF. print O_PRF_Default.
-local lemma EFCMAROXMSSTW_PRF &m :
-  `| Pr[EF_CMA_RO(XMSS_TW, A, O_CMA_Default, MCO).main() @ &m : res] -
-     Pr[EF_CMA_RO(XMSS_TW_RND, A, O_CMA_Default, MCO).main() @ &m : res] |
-  =
-  `| Pr[PRF(R_PRF_EFCMAROXMSSTW(A), O_PRF_Default).main(false) @ &m : res] -
-     Pr[PRF(R_PRF_EFCMAROXMSSTW(A), O_PRF_Default).main(true) @ &m: res] |.
+declare module A <: Adv_EFCMA_RO{-FL_XMSS_TW, -ERO, -O_CMA_Default, -O_METCR, -R_EFCMARO_CRRO, -R_EFCMARO_METCRRO, -Repro.Wrapped_Oracle, -Repro.RepO, -O_RMA_Default, -R_EFCMARO_IEFRMA, -QC_A, -Lazy.LRO, -Repro.ReproGame, -R_EFRMA_IEFRMA, -R_PRF_EFCMARO, -O_PRF_Default, -DSS_AL.DSS.KeyUpdating.O_CMA_Default}.
+
+declare axiom A_forge_ll (RO <: POracle{-A}) (SO <: SOracle_CMA{-A}) : 
+  islossless RO.o => islossless SO.sign => islossless A(RO, SO).forge.
+
+declare axiom A_forge_queries (RO <: POracle{-A, -QC_A}) (SO <: SOracle_CMA{-A, -QC_A}) : 
+  hoare[A(QC_A(A, RO, SO).QC_RO, QC_A(A, RO, SO).QC_SO).forge : 
+    QC_A.cH = 0 /\ QC_A.cS = 0 ==> QC_A.cH <= qH /\ QC_A.cS <= qS].
+    
+lemma EFCMARO_XMSSTW &m :
+  Pr[EF_CMA_RO(XMSS_TW, A, O_CMA_Default, MCO).main() @ &m : res]  
+  <=
+  `| Pr[PRF(R_PRF_EFCMARO(FL_XMSS_TW, A), O_PRF_Default).main(false) @ &m : res] -
+     Pr[PRF(R_PRF_EFCMARO(FL_XMSS_TW, A), O_PRF_Default).main(true) @ &m : res] |
+  +
+  Pr[CR_RO(R_EFCMARO_CRRO(FL_XMSS_TW, A), MCO).main() @ &m : res]
+  +
+  Pr[EF_RMA(FL_XMSS_TW, R_EFRMA_IEFRMA(R_EFCMARO_IEFRMA(A))).main() @ &m : res]
+  +
+  qS%r * (qS + qH + 1)%r * mu1 dmkey witness
+  +
+  l%r * mu1 dmsgFLXMSSTW witness.
 proof.
-do 2! congr; last congr.
+have ->:
+  Pr[EF_CMA_RO(XMSS_TW, A, O_CMA_Default, MCO).main() @ &m : res]
+  =
+  Pr[EF_CMA_RO(WithPRF.AL_KU_DSS(FL_XMSS_TW), A, O_CMA_Default, MCO).main() @ &m : res].
 + byequiv => //.
-  proc; inline{1} 2; inline{2} 2.
-  seq 4 5 : (={O_Base_Default.qs, ERO.m, sig, pk, m}); last by sim.
-  inline{1} 2.
-  seq 2 2 : (   ={glob A, ERO.m}
-             /\ ms{1} = O_PRF_Default.k{2}
-             /\ O_PRF_Default.m{2} = SmtMap.empty
-             /\ ! O_PRF_Default.b{2}).
-  + swap{1} 2 -1. 
-    inline *.  
-    while (={w, ERO.m}).
-  seq inline *.
+  proc.
+  inline{1} 2; inline{2} 2.
+  seq 5 5 : (={O_Base_Default.qs, m, is_valid}); last by sim.
+  inline{1} 5; inline{2} 5.
+  inline{1} 11; inline{2} 11.
+  wp; call(: true); 1: by sim.
+  simplify => />.
+  wp; call(: ={ERO.m}); 1: by wp.
+  simplify => />.
+  wp => />.
+  call(: ={O_Base_Default.qs, O_CMA_Default.sk, ERO.m}); first 2 by sim.
+  simplify => />.
+  inline *.
   wp.
+  while (={ss1, ss0, ps1, ps0, ms, leafl0, ad1, ad0, ERO.m}).
+  by sim.
+  simplify => />.
+  wp. rnd; rnd; rnd.
+  while (={w, ERO.m}).
+  wp.
+  rnd.
+  wp.
+  by skip.
+  by wp; skip.
+move: (ALKUDSS_EFCMARO_PRF_CRRO_EFRMA FL_XMSS_TW FLXMSSTW_sign_ll FLXMSSTW_verify_ll).
+move=> /(_ (fun (skfl : skFLXMSSTW) => skfl.`1 = Index.insubd 0) 
+           (fun (skfl : skFLXMSSTW) => (Index.insubd (Index.val skfl.`1 + 1), skfl.`2, skfl.`3, skfl.`4))
+           opsign _ FLXMSSTW_sign_fun _ _ _ _).
++ proc; inline *.
+  wp.
+  while (true).
+  - wp; while (true); 1: by wp.
+    wp; while (true); 1: by wp.
+    by wp.
+  wp. 
+  rnd; rnd.
+  by skip.
++ move=> skfl.
+  proc; inline *.
+  wp => />; while (true).
+  - wp; while (true); 1: by wp.
+    wp; while (true); 1: by wp.
+    by wp.
+  wp; while (true); 1: by wp.
+  wp; while (true); 1: by wp.
+  by wp; skip.
++ move=> i j skfl init_sk leqS_i leqS_j neqj_i.
+  admit.
++ by sim.  
++ by sim.
+by move=> /(_ A A_forge_ll A_forge_queries &m).
 qed.
+
 end section Proof_EF_CMA_RO_XMSSTW.
