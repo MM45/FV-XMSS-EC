@@ -7,7 +7,7 @@ require (*--*) ROM.
 (* -- Local -- *)
 require import FL_XMSS_TW.
 require (*--*) DigitalSignatures DigitalSignaturesROM KeyedHashFunctions HashThenSign.
-(*---*) import WOTS_TW.
+(*---*) import WOTS_TW FLXMSSTW_EFRMA.
 
 type mseed.
 type mkey.
@@ -137,6 +137,7 @@ op qS : { int | 0 <= qS <= l } as rng_qS.
 (* Random oracle (hash) queries *)
 op qH : { int | 0 <= qH } as ge0_qH. 
 
+
 clone import HashThenSign as HtS with
   type pk_fl_t <- pkFLXMSSTW,
   type sk_fl_t <- skFLXMSSTW,
@@ -165,6 +166,7 @@ clone import HashThenSign as HtS with
   theory MCORO <- MCORO,
   theory MCOROLE <- MCOROLE,
   theory DSS_FL <- FLXMSSTW,
+  theory EFRMAEqv.DSS_FL_EFRMA <- FLXMSSTW_EFRMA,
   theory WithPRF.MKG <- MKG,
   theory WithPRF.DSS_AL_PRF <- XMSSTW_ROM
   
@@ -200,7 +202,6 @@ clone import HashThenSign as HtS with
 import WithPRF.
 import WS.
 import EFRMAEqv.
-import DSS_FL_EFRMA.
 
 (* Scheme *)
 module (XMSS_TW : Scheme_RO) (RO : POracle) = {
@@ -389,7 +390,7 @@ local lemma FLXMSSTW_sign_pfun (skfl : skFLXMSSTW) (cm : msgFLXMSSTW) :
   phoare[FL_XMSS_TW.sign: arg = (skfl, cm) ==> res = opsign skfl cm] = 1%r.
 proof. by conseq FLXMSSTW_sign_ll (FLXMSSTW_sign_fun skfl cm). qed.
 
-declare module A <: Adv_EFCMA_RO{-FL_XMSS_TW, -ERO, -O_CMA_Default, -O_METCR, -R_EFCMARO_CRRO, -R_EFCMARO_METCRRO, -Repro.Wrapped_Oracle, -Repro.RepO, -O_RMA_Default, -R_EFCMARO_IEFRMA, -QC_A, -Lazy.LRO, -Repro.ReproGame, -R_EFRMA_IEFRMA, -R_PRF_EFCMARO, -O_PRF_Default, -DSS_AL.DSS.KeyUpdating.O_CMA_Default}.
+declare module A <: Adv_EFCMA_RO{-FL_XMSS_TW, -ERO, -O_CMA_Default, -O_METCR, -R_EFCMARO_CRRO, -R_EFCMARO_METCRRO, -Repro.Wrapped_Oracle, -Repro.RepO, -O_RMA_Default, -R_EFCMARO_IEFRMA, -QC_A, -Lazy.LRO, -Repro.ReproGame, -R_EFRMA_IEFRMA, -R_PRF_EFCMARO, -O_PRF_Default, -DSS_AL.DSS.KeyUpdating.O_CMA_Default, -PRF_SK.O_PRF_Default, -F.O_THFC_Default, -F.O_SMDTPRE_Default, -F.O_SMDTTCR_Default, -F.O_SMDTUD_Default, -O_MEFGCMA_WOTSTWES, -PKCO.O_THFC_Default, -PKCO.O_SMDTTCR_Default, -TRH.O_THFC_Default, -TRH.O_SMDTTCR_Default, -R_SMDTUDC_Game23WOTSTWES, -R_SMDTTCRC_Game34WOTSTWES, -R_PRF_FLXMSSTWESInlineNOPRF, -R_SMDTPREC_Game4WOTSTWES, -R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF, -R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF, -R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF, -R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF, -R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES}.
 
 declare axiom A_forge_ll (RO <: POracle{-A}) (SO <: SOracle_CMA{-A}) : 
   islossless RO.o => islossless SO.sign => islossless A(RO, SO).forge.
@@ -397,8 +398,8 @@ declare axiom A_forge_ll (RO <: POracle{-A}) (SO <: SOracle_CMA{-A}) :
 declare axiom A_forge_queries (RO <: POracle{-A, -QC_A}) (SO <: SOracle_CMA{-A, -QC_A}) : 
   hoare[A(QC_A(A, RO, SO).QC_RO, QC_A(A, RO, SO).QC_SO).forge : 
     QC_A.cH = 0 /\ QC_A.cS = 0 ==> QC_A.cH <= qH /\ QC_A.cS <= qS].
-    
-lemma EFCMARO_XMSSTW &m :
+ 
+local lemma EFCMARO_XMSSTW_EFRMA &m :
   Pr[EF_CMA_RO(XMSS_TW, A, O_CMA_Default, MCO).main() @ &m : res]  
   <=
   `| Pr[PRF(R_PRF_EFCMARO(FL_XMSS_TW, A), O_PRF_Default).main(false) @ &m : res] -
@@ -463,11 +464,72 @@ move=> /(_ (fun (skfl : skFLXMSSTW) => skfl.`1 = Index.insubd 0)
   wp; while (true); 1: by wp.
   wp; while (true); 1: by wp.
   by wp; skip.
-+ move=> i j skfl init_sk leqS_i leqS_j neqj_i.
-  admit.
++ move=> i j skfl /= init_sk [ge0i leqS_i] [ge0_j leqS_j] neqj_i.
+  have fupd_it: 
+    forall (k : int), 0 <= k => k < qS => 
+      (fold (fun (sk : skFLXMSSTW) => 
+        ((Index.insubd ((Index.val sk.`1) + 1)), sk.`2, sk.`3, sk.`4)) skfl k).`1 
+      = 
+      Index.insubd k.
+  - elim => [@/fupd | k ge0_k @/fupd ih ltqS_k1].
+    * by rewrite fold0.
+    rewrite foldS //=.
+    rewrite ih. smt().
+    rewrite Index.insubdK.
+    smt(rng_qS).
+    trivial.
+  rewrite fupd_it // fupd_it //.
+  move: neqj_i; apply contra => eqins_ij. rewrite -(Index.insubdK i) 2:-(Index.insubdK j); 1,2: smt(rng_qS).
+  by rewrite eqins_ij.
 + by sim.  
 + by sim.
 by move=> /(_ A A_forge_ll A_forge_queries &m).
+qed.
+
+lemma EFCMARO_XMSSTW &m :
+  l <= d =>
+    Pr[EF_CMA_RO(XMSS_TW, A, O_CMA_Default, MCO).main() @ &m : res]  
+    <=
+    `| Pr[PRF(R_PRF_EFCMARO(FL_XMSS_TW, A), O_PRF_Default).main(false) @ &m : res] -
+       Pr[PRF(R_PRF_EFCMARO(FL_XMSS_TW, A), O_PRF_Default).main(true) @ &m : res] |
+    +
+    Pr[CR_RO(R_EFCMARO_CRRO(FL_XMSS_TW, A), MCO).main() @ &m : res]
+    +
+    `|Pr[PRF_SK.PRF(R_PRF_FLXMSSTWESInlineNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(R_EFCMARO_IEFRMA(A)))), PRF_SK.O_PRF_Default).main(false) @ &m : res] - 
+    Pr[PRF_SK.PRF(R_PRF_FLXMSSTWESInlineNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(R_EFCMARO_IEFRMA(A)))), PRF_SK.O_PRF_Default).main(true) @ &m : res]|
+    +
+    (w - 2)%r * 
+  `|Pr[F.SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(R_EFCMARO_IEFRMA(A))))), F.O_SMDTUD_Default, F.O_THFC_Default).main(false) @ &m : res] - 
+    Pr[F.SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(R_EFCMARO_IEFRMA(A))))), F.O_SMDTUD_Default, F.O_THFC_Default).main(true) @ &m : res]| 
+    +
+    Pr[F.SM_DT_TCR_C(R_SMDTTCRC_Game34WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(R_EFCMARO_IEFRMA(A))))), F.O_SMDTTCR_Default, F.O_THFC_Default).main() @ &m : res] 
+    +
+    Pr[F.SM_DT_PRE_C(R_SMDTPREC_Game4WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(R_EFCMARO_IEFRMA(A))))), F.O_SMDTPRE_Default, F.O_THFC_Default).main() @ &m : res]
+    +
+    Pr[PKCO.SM_DT_TCR_C(R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(R_EFCMARO_IEFRMA(A)))), PKCO.O_SMDTTCR_Default, PKCO.O_THFC_Default).main() @ &m : res]
+    +
+    Pr[TRH.SM_DT_TCR_C(R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(R_EFCMARO_IEFRMA(A)))), TRH.O_SMDTTCR_Default, TRH.O_THFC_Default).main() @ &m : res]
+    +
+    qS%r * (qS + qH + 1)%r * mu1 dmkey witness
+    +
+    l%r * mu1 dmsgFLXMSSTW witness.
+proof.
+move=> led_l.
+move: (EFRMA_FLXMSSTW (R_EFRMA_IEFRMA(R_EFCMARO_IEFRMA(A))) _ &m led_l) (EFCMARO_XMSSTW_EFRMA &m); 2: smt().
+proc; inline *.
+wp; call (: true). 
++ by move=> RO SO ROll SOll; apply (A_forge_ll RO SO).
++ proc; inline *.
+  wp; rnd; skip => />.
+  by apply dmkey_ll.
++ proc; inline *.
+  by wp; skip.
+wp; while (true) (size w).
++ move=> z.
+  wp; rnd; wp; skip => /> &1 neqel_w.
+  split; 2: by apply dmsgFLXMSSTW_ll.
+  by elim: (w{1}) neqel_w => //= /#.
+by wp; skip => />; smt(size_eq0 size_ge0).
 qed.
 
 end section Proof_EF_CMA_RO_XMSSTW.

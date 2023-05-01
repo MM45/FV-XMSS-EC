@@ -91,6 +91,7 @@ clone DigitalSignatures as DSS_FL with
   
   proof *.
 
+print DSS_FL.KeyUpdating.EFRMA.
 
 clone import Reprogramming as Repro with
     type from <- rco_t * msg_al_t,
@@ -2005,25 +2006,13 @@ proof. by conseq FL_KU_DSS_sign_ll (FL_KU_DSS_sign_fun sk cm). qed.
 declare axiom FL_KU_DSS_sign_skupd (skf : sk_fl_t) :
   hoare[FL_KU_DSS.sign: arg.`1 = skf ==> res.`2 = skupd skf].
 
-  
-(*
-declare axiom FL_KU_DSS_keygen_id0:
-  hoare[FL_KU_DSS.keygen : true ==> extr_id res.`2 = nth witness ID.enum 0].
-*)
-(*
-declare axiom opsign_iter_id (sk : sk_fl_t) (cm : msg_fl_t) :
-  let idx = index (extr_id sk) ID.enum in 
-       idx < ID.card - 1
-    => extr_id (opsign sk cm).`2 = nth witness ID.enum idx.
-*)
-
 declare axiom skupd_fold_id (i j : int) (sk : sk_fl_t) :
      init_sk sk
-  => i <= qS
-  => j <= qS
+  => 0 <= i < qS
+  => 0 <= j < qS
   => i <> j
   => extr_id (fold skupd sk i) <> extr_id (fold skupd sk j).
-    
+
 declare axiom FL_KU_DSS_keygen_stateless:
   equiv[FL_KU_DSS.keygen ~ FL_KU_DSS.keygen: true ==> ={res}].
   
@@ -2211,11 +2200,20 @@ move=> RO SO SOll ROll. apply (A_forge_ll RO SO ROll SOll).
 proc; inline *.
 wp.
 rcondt{2} 5. auto.
-rcondt{2} 5. auto. progress.
-move/iffLR /contra: (H4 (extr_id (fold skupd skbc QC_A.cS{hr}))).
+sp 1 1.
+case (qS < QC_A.cS{2}).
+conseq (: _ ==> qS < QC_A.cS{1} /\ qS < QC_A.cS{2}) => //.
++ wp; sp.
+  call{1} FL_KU_DSS_sign_ll; call{2} FL_KU_DSS_sign_ll.
+  wp => /=.
+  by if{2}; auto.
+wp => />. smt().
+rcondt{2} 4.
+auto. progress.
+move/iffLR /contra: (H4 (extr_id (fold skupd skbc cS_R))).
 rewrite negb_exists /= => /(_ _) // i.
 rewrite negb_and -implybE => rng_i.
-by apply skupd_fold_id => // /#.
+apply skupd_fold_id => // /#.
 wp.
 call (:    ={glob FL_KU_DSS, arg}
         /\ 1 <= QC_A.cS{2}
@@ -2242,9 +2240,9 @@ smt().
 rewrite get_set_sameE oget_some //.
 smt().
 smt().
-move/mem_set: H10 => [/H4 /# | ->]; last by exists QC_A.cS{2} => /#.
+move/mem_set: H10 => [/H4 /# | ->]; last by exists cS_R => /#.
 rewrite mem_set.
-case (i = QC_A.cS{2}) => [-> | neqcS_i] //.
+case (i = cS_R) => [-> | neqcS_i] //.
 left. apply H4. exists i => /#.
 move=> &2 ltcS_qS.
 proc; inline *.

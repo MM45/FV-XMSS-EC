@@ -4614,7 +4614,7 @@ clone import DigitalSignatures as FLXMSSTW with
   
   proof *.
   
-clone import FLXMSSTW.KeyUpdating.EFRMA with
+clone import FLXMSSTW.KeyUpdating.EFRMA as FLXMSSTW_EFRMA with
   op n_efrma <= l,
    
   op dmsg <= dmsgFLXMSSTW
