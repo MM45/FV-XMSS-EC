@@ -1,17 +1,13 @@
 (* --- Require/Import --- *)
 (* -- Built-In (Standard Library) -- *)
-require import AllCore List Distr DList IntDiv RealExp StdOrder SmtMap BitEncoding.
+require import AllCore List Distr DList IntDiv RealExp StdOrder SmtMap BitEncoding FinType.
 require (*--*) Word Subtype.
 (*---*) import RField IntOrder RealOrder BS2Int.
 
 (* -- Local -- *)
 require import WOTS_TW.
 require (*--*) TweakableHashFunctions DigitalSignatures.
-
-import DigestBlock.
-import DBLL.
-import ChainingAddress.
-import EmsgWOTS.
+(*---*) import DigestBlock DBLL ChainingAddress EmsgWOTS.
 
 
 
@@ -51,7 +47,8 @@ qed.
 
 
 (* --- Types --- *)
-(* -- Binary trees -- *)
+(* -- General -- *)
+(* - Binary trees - *)
 type 'a bintree = [  
     Leaf of 'a
   | Node of 'a bintree & 'a bintree 
@@ -81,7 +78,7 @@ type pkFLXMSSTW = dgstblock * pseed * adrs.
 type skFLXMSSTW = index * sseed * pseed * adrs.
 
 (* Messages *)
-type msgFLXMSSTW = msgWOTS.
+type msgFLXMSSTW = msgWOTS.   
 
 (* Signatures *)
 type sigFLXMSSTW = index * sigWOTS * apFLXMSSTW.
@@ -89,6 +86,7 @@ type sigFLXMSSTW = index * sigWOTS * apFLXMSSTW.
 
 
 (* --- Distributions --- *)
+(* Proper, full, and uniform distribution over messages considered for FL-XMSS-TW *)
 op [lossless full uniform] dmsgFLXMSSTW : msgFLXMSSTW distr.
 
 
@@ -1569,7 +1567,7 @@ module (R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF (A : Adv_EFRMA_FLXMSSTWES) : TRH.Adv_
 
 
 (* -- EF-RMA for Fixed-Length XMSS-TW (in an encompassing structure) -- *)
-section EF_RMA_FLXMSSTWES.
+section Proof_EF_RMA_FLXMSSTWES.
 (* - Module declarations - *)
 declare module A <: Adv_EFRMA_FLXMSSTWES{-PRF_SK.O_PRF_Default, -F.O_THFC_Default, -F.O_SMDTPRE_Default, -F.O_SMDTTCR_Default, -F.O_SMDTUD_Default, -PKCO.O_SMDTTCR_Default, -PKCO.O_THFC_Default, -TRH.O_SMDTTCR_Default, -TRH.O_THFC_Default, -O_MEFGCMA_WOTSTWES, -R_PRF_FLXMSSTWESInlineNOPRF, -R_SMDTUDC_Game23WOTSTWES, -R_SMDTTCRC_Game34WOTSTWES, -R_SMDTPREC_Game4WOTSTWES, -R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF, -R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF, -R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF, -R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF}.
 
@@ -4600,21 +4598,21 @@ rewrite -4!addrA ler_add; first by rewrite (Step_EFRMAFLXMSSTWESInlineNOPRF_PRF 
 by rewrite !addrA thm_nprf.
 qed.
 
-end section EF_RMA_FLXMSSTWES.
+end section Proof_EF_RMA_FLXMSSTWES.
 
 
 
 (* --- Fixed-Length XMSS-TW as standalone --- *)
 (* Import relevant definitions for key-updating signature scheme *)
-clone import DigitalSignatures as SSFL with
+clone import DigitalSignatures as FLXMSSTW with
   type pk_t <= pkFLXMSSTW,
   type sk_t <= skFLXMSSTW,
   type msg_t <= msgFLXMSSTW,
   type sig_t <= sigFLXMSSTW
   
-  rename [theory] "KeyUpdating" as "FLXMSSTW".
-
-clone import FLXMSSTW.EFRMA with
+  proof *.
+  
+clone import FLXMSSTW.KeyUpdating.EFRMA as FLXMSSTW_EFRMA with
   op n_efrma <= l,
    
   op dmsg <= dmsgFLXMSSTW
@@ -4624,7 +4622,7 @@ clone import FLXMSSTW.EFRMA with
 
 
 (* -- Specification of Fixed-Length XMSS-TW as standalone -- *)
-module FL_XMSS_TW : FLXMSSTW.Scheme = {
+module FL_XMSS_TW : FLXMSSTW.KeyUpdating.Scheme = {
   proc keygen() : pkFLXMSSTW * skFLXMSSTW = {
     var ss : sseed;
     var ps : pseed;
@@ -4659,7 +4657,7 @@ module FL_XMSS_TW : FLXMSSTW.Scheme = {
   }
 }.
 
-lemma XMSS_keygen_ll: islossless FL_XMSS_TW.keygen.
+lemma FLXMSSTW_keygen_ll: islossless FL_XMSS_TW.keygen.
 proof.
 islossless; while true (l - size leafl); auto=> [|/#].
 inline *; auto.
@@ -4667,7 +4665,7 @@ while true (len - size pkWOTS0); auto; 1:smt(size_rcons).
 by while true (len - size skWOTS0); auto; smt(size_rcons).
 qed.
 
-lemma XMSS_sign_ll: islossless FL_XMSS_TW.sign.
+lemma FLXMSSTW_sign_ll: islossless FL_XMSS_TW.sign.
 proof.
 islossless.
 + while true (l - size leafl); auto=> [|/#].
@@ -4678,7 +4676,7 @@ islossless.
 + by while true (len - size skWOTS); auto; smt(size_rcons).
 qed.
 
-lemma XMSS_verify_ll: islossless FL_XMSS_TW.verify.
+lemma FLXMSSTW_verify_ll: islossless FL_XMSS_TW.verify.
 proof. by islossless; while true (len - size pkWOTS); auto; smt(size_rcons). qed.
 
 (* -- Proof of EF-RMA for Fixed-Length XMSS-TW as standalone -- *)

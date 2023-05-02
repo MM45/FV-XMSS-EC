@@ -72,12 +72,12 @@ module R_EFRMA_IEFRMA (A : Adv_I_EFRMA) : Adv_EFRMA = {
 }.
 
 section.
-declare module A <: Adv_I_EFRMA {-R_EFRMA_IEFRMA, -O_RMA_Default, -EF_RMA}.
+declare module A <: Adv_I_EFRMA {-R_EFRMA_IEFRMA, -O_RMA_Default}.
 declare axiom A_ll (O <: SOracle_RMA {-A}):
      islossless O.sign
   => islossless A(O).forge.
 
-declare module S <: Scheme {-A, -R_EFRMA_IEFRMA, -O_RMA_Default, -EF_RMA}.
+declare module S <: Scheme {-A, -R_EFRMA_IEFRMA, -O_RMA_Default}.
 declare axiom Ssign_ll: islossless S.sign.
 declare axiom Sverify_ll: islossless S.verify.
 
@@ -180,7 +180,10 @@ local module (O_RMA_Hybrid (O : RO) : Oracle_RMA) (S : Scheme) = {
     secret/signing key sk and append m to the list of oracle queries qs
   *)
   proc sign() : msg_t * sig_t = {
-    var m, sig;
+    var m : msg_t;
+    var sig: sig_t;
+    
+    (m, sig) <- witness;
 
     if (size qs < n_efrma) {
       if (size qs < j) {
@@ -197,8 +200,6 @@ local module (O_RMA_Hybrid (O : RO) : Oracle_RMA) (S : Scheme) = {
         msigl <- rcons msigl (m, sig);
       }
       qs <- rcons qs m;
-    } else {
-      (m, sig) <- witness;
     }
 
     return (m, sig);
@@ -278,10 +279,10 @@ conseq (: ((nrqs{1} <= n_efrma) <=> (nrqs{2} <= n_efrma))
            => ={is_valid, is_fresh})).
 + by move=> /> + + nrqsL + + nrqsR; case: (nrqsL <= n_efrma)=> />.
 seq  3  3:
-  (   ((size BaseOracle.qs <= n_efrma){1} <=> !O_RMA_Lazy.bad{2})
+  (   ((size ClassDS.O_Base_Default.qs <= n_efrma){1} <=> !O_RMA_Lazy.bad{2})
    /\ (   !O_RMA_Lazy.bad{2}
        => (   ={pk, m', sig'}
-           /\ ={qs}(BaseOracle, O_RMA_Lazy)))); first last.
+           /\ ={qs}(ClassDS.O_Base_Default, O_RMA_Lazy)))); first last.
 + case: (O_RMA_Lazy.bad{2}).
   + inline *; auto.
     call {1} Sverify_ll.
@@ -289,10 +290,10 @@ seq  3  3:
     by auto=> /#.
   by inline *; auto; call Sverify_stateless; auto=> /#.
 call (: O_RMA_Lazy.bad
-      , ={qs}(BaseOracle, O_RMA_Lazy)
+      , ={qs}(ClassDS.O_Base_Default, O_RMA_Lazy)
      /\ ={sk}(O_RMA_Default, O_RMA_Lazy)
      /\ (size O_RMA_Lazy.qs <= n_efrma){2}
-      , (n_efrma < size BaseOracle.qs){1}
+      , (n_efrma < size ClassDS.O_Base_Default.qs){1}
      /\ (size O_RMA_Lazy.qs = n_efrma){2}).
 + exact: A_ll.
 + proc.
@@ -411,17 +412,17 @@ seq  5  5:
        /\ (O_RMA_Hybrid.j = 0){2}
        /\ (O_RMA_Hybrid.j < size O_RMA_Hybrid.qs <=> () \in RO.m){2}
        /\ (O_RMA_Lazy.bad => n_efrma <= size O_RMA_Lazy.qs){1}).
-  + proc; if=> //.
+  + proc; sp; if=> //.
     + rcondf {2} 1; 1:by auto; smt(size_ge0).
       if {2}.
       + inline *.
         rcondf {2} 7; 1:by auto=> /#.
         rcondt {2} 3; 1:by auto=> /#.
-        auto=> /> &1 &2 + + + + m _.
+        auto=> /> &1 &2 + + + + + m _.
         by rewrite !domE !get_set_sameE !size_rcons /#.
       rcondt {2} 1; 1:by auto; smt(size_ge0).
-      by auto=> /> &1 &2 + + + + m _; rewrite size_rcons /#.
-    by auto=> /#.
+      by auto=> /> &1 &2 + + + + + m _; rewrite size_rcons /#.
+    by auto => /#.
   inline *.
   rcondf {2} 8; 1:by auto; call (: true); auto.
   auto; call Skeygen_stateless; auto=> />.
@@ -435,16 +436,16 @@ while (={q}
     /\ ={qs, sk}(O_RMA_Lazy, O_RMA_Hybrid)
     /\ (O_RMA_Hybrid.j = 0){2}
     /\ (O_RMA_Hybrid.j < size O_RMA_Hybrid.qs <=> () \in RO.m){2}).
-+ inline *; if=> //; 2:by auto.
++ inline *; sp; if=> //; 2:by auto.
   rcondf {2} 1; 1:by auto; smt(size_ge0).
   if {2}.
   + inline *.
     rcondf {2} 7; 1:by auto=> /#.
     rcondt {2} 3; 1:by auto=> /#.
-    auto=> /> &1 &2 + + + m _.
+    auto=> /> &1 &2 + + + + m _.
     by rewrite !domE !get_set_sameE !size_rcons /#.
   rcondt {2} 1; 1:by auto; smt(size_ge0).
-  by auto=> /> &1 &2 + + + m _; rewrite size_rcons /#.
+  by auto=> /> &1 &2 + + + + m _; rewrite size_rcons /#.
 by auto=> /#.
 qed.
 
@@ -466,13 +467,13 @@ seq  6  6:
        /\ (size O_RMA_Hybrid.qs <= n_efrma){1}
        /\ (size O_RMA_Hybrid.msigl = n_efrma){1}).
   + proc.
-    if {1}.
+    sp 1 0; if {1}.
     + rcondt {1} 1; 1:by auto.
       rcondf {1} 2; 1:by auto=> /#.
       rcondf {1} 2; 1:by auto=> /#.
       by auto=> /> &0; rewrite size_rcons /#.
-    auto=> /> &0 qs_le_n msigl_n /lezNgt n_le_qs.
-    by rewrite (nth_default witness) 1:/#.
+    auto=> /> &0 &2 eqwt qs_le_n msigl_n /lezNgt n_le_qs.
+    by rewrite (nth_default witness) /#.
   wp; rnd {1}; wp.
   while (={msigl, sk}(O_RMA_Hybrid, O_RMA_Eager)
       /\ (O_RMA_Hybrid.j = n_efrma){1}
@@ -487,7 +488,8 @@ while (={q}
     /\ (q = size O_RMA_Hybrid.qs){1}
     /\ (size O_RMA_Hybrid.qs <= n_efrma){1}
     /\ (size O_RMA_Hybrid.msigl = n_efrma){1}).
-+ rcondt {1} 1; 1:by auto=> /#.
++ sp 1 0.
+  rcondt {1} 1; 1:by auto=> /#.
   rcondt {1} 1; 1:by auto=> /#.
   rcondf {1} 2; 1:by auto=> /#.
   rcondf {1} 2; 1:by auto=> /#.
@@ -528,7 +530,7 @@ local lemma hybrid_mid_oracle j:
 proof.
 move=> [] ge0_j j_le_n.
 proc.
-if=> //; 2:by auto.
+sp; if=> //; 2: by auto => /#.
 case: (size O_RMA_Hybrid.qs{1} < j).
 + rcondt {1} 1; 1:by auto=> /#.
   rcondf {1} 2; 1:by auto=> /#.
@@ -537,7 +539,7 @@ case: (size O_RMA_Hybrid.qs{1} < j).
   rcondf {2} 2; 1:by auto=> /#.
   rcondf {2} 2; 1:by auto=> /#.
   auto=> /> &1 &2.
-  move=> dom_m2 pre_inv post_inv qs_lt_n qs_lt_j.
+  move=> eqwt2 eqwt1 dom_m2 pre_inv post_inv qs_lt_n qs_lt_j.
   move: (pre_inv _); 1:smt().
   move=> /> size_rel m_j m1_tt.
   case _: (opsign O_RMA_Hybrid.sk{1} m_j)=> /> sig_j sig_jP msiglRP.
@@ -552,7 +554,7 @@ case: (size O_RMA_Hybrid.qs{1} = j).
   rcondf {2} 2; 1:by auto=> /#.
   rcondf {2} 2; 1:by auto=> /#.
   auto=> /> &1 &2.
-  move=> dom_m2 pre_inv qs_lt_n qs_eq_j m _.
+  move=> eqwt2 eqwt1 dom_m2 pre_inv qs_lt_n qs_eq_j m _.
   move: pre_inv=> /> msigl1_qs msigl2_Sqs m_j m1_tt.
   case _: (opsign O_RMA_Hybrid.sk{1} m_j)=> /> sig_j sig_jP msiglRP.
   smt(nth_rcons size_rcons).
@@ -565,13 +567,13 @@ case: (size O_RMA_Hybrid.qs{1} = j + 1).
   rcondt {2} 3; 1:by auto=> /#.
   rcondf {2} 7; 1:by auto=> /#.
   auto=> /> &1 &2.
-  move=> dom_m2 _ post_inv qs_lt_n _ _ qs_Sj m _.
+  move=> eqwt2 eqwt1 dom_m2 _ post_inv qs_lt_n _ _ qs_Sj m _.
   move: (post_inv _); 1:smt().
   rewrite !domE size_rcons !get_set_sameE=> /= />.
   by rewrite !size_rcons /#.
 rcondf {2} 1; 1:by auto=> /#.
 rcondt {2} 1; 1:by auto=> /#.  
-auto=> /> &1 &2 dom_m2 _ post_inv qs_lt_n /lezNgt j_le_qs j_neq_qs Sj_neq_qs m _.
+auto=> /> &1 &2 eqwt2 eqwt1 dom_m2 _ post_inv qs_lt_n /lezNgt j_le_qs j_neq_qs Sj_neq_qs m _.
 move: (post_inv _); 1:smt().
 by rewrite size_rcons /#.
 qed.

@@ -5,7 +5,7 @@
 (* - "The SPHINCS+ Signature Framework."                                  *)
 (*   DOI: 10.1145/3319535.3363229                                         *)
 (* - "Recovering the Tight Security Proof of SPHINCS+"                    *)
-(*   DOI:`                                                                *)
+(*   DOI: 10.1007/978-3-031-22972-5_1                                     *)
 (**************************************************************************)
 
 (* --- Require/Import Theories --- *)

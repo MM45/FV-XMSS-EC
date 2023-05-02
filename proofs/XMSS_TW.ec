@@ -1,256 +1,473 @@
-require import AllCore Distr List.
+(* --- Require/Import --- *)
+(* -- Built-In (Standard Library) -- *)
+require import AllCore List Distr FinType BitEncoding.
+require (*--*) ROM.
+(*---*) import BS2Int.
 
-require FL_XMSS_TW EFRMA_Interactive_Equiv QDigitalSignaturesStateful_Proofs.
+(* -- Local -- *)
+require import FL_XMSS_TW.
+require (*--*) DigitalSignatures DigitalSignaturesROM KeyedHashFunctions HashThenSign.
+(*---*) import WOTS_TW FLXMSSTW_EFRMA.
 
-theory Glue.
-clone include FL_XMSS_TW.
-import EFRMA WOTS_TW.
 
-clone import QDigitalSignaturesStateful_Proofs as QDSSP with
-  type QDSP.msg_s  <- msgFLXMSSTW,
-  type QDSP.sig_s  <- sigFLXMSSTW,
-  type pk_s        <- pkFLXMSSTW,
-  type sk_s        <- skFLXMSSTW,
-  op   QDSP.dmsg_s <- dmsgFLXMSSTW,
-  type root_s      <- WOTS_TW.dgstblock,
-  op   get_root_pk (pk : _ *_ *_ ) <- pk.`1,
-  op   QDSP.qS     <- n_efrma,
-  lemma QDSP.dmsg_s_ll <- dmsg_ll,
-  lemma QDSP.ge0_qS <- ge0_nefrma.
+(* --- Parameters --- *)
+(* -- Proof-specific -- *)
+(* Number of allowed signature queries *)
+op qS : { int | 0 <= qS <= l } as rng_qS.
 
-import QDSP.
-import ROM_PROOF.
+(* Number of allowed random oracle (hash) queries *)
+op qH : { int | 0 <= qH } as ge0_qH.
 
-(** We give XMSS an oracle it ignores to fit the expected type **)
-module (FL_XMSS_TW_RO : Scheme_RO_C) (R : SS1.RO.ROM_.POracle) = {
-  proc keygen = FL_XMSS_TW.keygen
-  proc sign = FL_XMSS_TW.sign
-  proc verify = FL_XMSS_TW.verify
-}.
 
-module ReductionL (RO2 : SS2.RO.QRO_i) (A0 : SS2.LI.Adv_EFCMA_RO)
-                  (RO1 : QRO_s_t) (SO : SS1.KeyUpdating.SOracle_RMA) = {
-  proc forge(pk : pkFLXMSSTW): msgFLXMSSTW * sigFLXMSSTW = {
-     var r;
-     SS1.RO.QRO.init();
-     r <@Reduction(RO2,A0,RO1,SO).forge(pk);
-     return r;
+
+(* --- Types --- *)
+(* -- General -- *)
+(* 
+  Seeds (i.e., indexing keys) for PRF that produces (pseudo)randomness 
+  (i.e., indexing keys) for message compression 
+*)
+type mseed.
+
+(* Indexing keys used for message compression (assumed to be finite) *)
+type mkey.
+
+clone import FinType as MKey with
+  type t <= mkey.
+
+
+(* -- XMSS-TW specific -- *)
+(* Authentication paths in XMSS-TW binary hash tree *)
+type apXMSSTW = apFLXMSSTW.
+
+(* Public keys *)
+type pkXMSSTW = pkFLXMSSTW.
+
+(* Secret keys *)
+type skXMSSTW = mseed * skFLXMSSTW.
+
+(* Messages (assumed to be finite) *)
+type msgXMSSTW.
+
+clone import FinType as MsgXMSSTW with
+  type t <= msgXMSSTW.
+  
+(* Signatures *)
+type sigXMSSTW = mkey * sigFLXMSSTW.
+
+
+(* -- Miscellaneous -- *)
+(* Product type of indexing keys used for message compression and messages *)
+clone import FinProdType as MKeyMsgXMSSTW with
+  type t1 <- mkey,
+  type t2 <- msgXMSSTW,
+  theory FT1 <- MKey,
+  theory FT2 <- MsgXMSSTW
+  
+  proof *.
+
+
+    
+(* --- Distributions --- *)
+(* Proper distribution over seeds used for PRF that generates (pseudo)randomness for message compression *)
+op [lossless] dmseed : mseed distr.
+
+(* Proper, full, and uniform distribution over indexing keys used for message compression *)
+op [lossless full uniform] dmkey : mkey distr.
+
+
+
+(* --- Operators --- *)
+(* PRF that generates indexing keys for message compression given a seed and an index *)  
+op mkg : mseed -> index -> mkey.
+
+clone import KeyedHashFunctions as MKG with
+  type key_t <- mseed,
+  type in_t <- index,
+  type out_t <- mkey,
+  
+    op f <- mkg, 
+    
+    op dkey <- dmseed,
+    op doutm <- fun _ => dmkey
+  
+  proof dkey_ll, doutm_ll.
+  realize dkey_ll by exact: dmseed_ll.
+  realize doutm_ll. by move=> _; apply dmkey_ll. qed.
+
+
+
+(* --- Clones and imports --- *)
+(* -- Model -- *)
+(* Random oracle *)
+clone import ROM as MCORO with
+  type in_t <- mkey * msgXMSSTW,
+  type out_t <- msgFLXMSSTW,
+    op dout <- fun _ => dmsgFLXMSSTW,
+  type d_in_t <- int,
+  type d_out_t <- bool
+  
+  proof *.
+
+clone import MCORO.LazyEager as MCOROLE with
+  theory FinType <- MKeyMsgXMSSTW
+  
+  proof *. 
+
+module MCO = ERO.
+
+
+(* -- Scheme specification and security notions -- *)
+(* XMSS-TW (where the message compression function is considered to be an RO) *)
+clone import DigitalSignaturesROM as XMSSTW_ROM with
+  type pk_t <- pkXMSSTW,
+  type sk_t <- skXMSSTW,
+  type msg_t <- msgXMSSTW,
+  type sig_t <- sigXMSSTW,
+  
+  type in_t <- mkey * msgXMSSTW,
+  type out_t <- msgFLXMSSTW,
+  type d_in_t <- int,
+  type d_out_t <- bool,
+  
+    op doutm <- fun _ => dmsgFLXMSSTW,
+   
+  theory RO <- MCORO
+  
+  proof *.
+
+import XMSSTW_ROM.KeyUpdatingROM.
+import DSS.
+import KeyUpdating.
+
+
+(* -- Proof-specific -- *)
+(* Hash-then-sign proof technique *)
+clone import HashThenSign as HtS with
+  type pk_fl_t <= pkFLXMSSTW,
+  type sk_fl_t <= skFLXMSSTW,
+  type msg_fl_t <= msgFLXMSSTW,
+  type sig_fl_t <= sigFLXMSSTW,
+  type rco_t <= mkey,
+  type msg_al_t <= msgXMSSTW,
+  type WithPRF.ms_t <= mseed,
+  type WithPRF.id_t <= index,
+  
+    op n <- l,
+    op qS <- qS,
+    op qH <- qH,
+    
+    op WithPRF.mkg <= mkg,
+    op WithPRF.extr_id <= fun (skfl : skFLXMSSTW) => skfl.`1,
+    
+    op dmsg_fl <= dmsgFLXMSSTW,
+    op drco <= dmkey,
+    op WithPRF.dms <= dmseed,
+    
+  theory RCO <= MKey,
+  theory MSG_FL <= DigestBlockFT,
+  theory MSG_AL <= MsgXMSSTW,
+  theory MCORO <= MCORO,
+  theory MCOROLE <= MCOROLE,
+  theory DSS_FL <= FLXMSSTW,
+  theory EFRMAEqv.DSS_FL_EFRMA <= FLXMSSTW_EFRMA,
+  theory WithPRF.MKG <= MKG,
+  theory WithPRF.DSS_AL_PRF <= XMSSTW_ROM
+  
+  proof *.
+  realize ge0_n by smt(ge2_l).
+  realize rng_qS by exact: rng_qS.
+  realize ge0_qH by exact: ge0_qH.
+  realize dmsg_fl_ll by exact: dmsgFLXMSSTW_ll.
+  realize dmsg_fl_uni by exact: dmsgFLXMSSTW_uni.
+  realize dmsg_fl_fu by exact: dmsgFLXMSSTW_fu.
+  realize drco_ll by exact: dmkey_ll.
+  realize drco_uni by exact: dmkey_uni.
+  realize drco_fu by exact: dmkey_fu.
+  realize WithPRF.dms_ll by exact: dmseed_ll.
+
+import WithPRF.
+import WS.
+import EFRMAEqv.
+  
+
+(* --- XMSS-TW --- *)
+(* Specification of XMSS-TW (assuming the message compression function is an RO) *)
+module (XMSS_TW : Scheme_RO) (RO : POracle) = {
+  proc keygen() : pkXMSSTW * skXMSSTW  = {
+    var ms : mseed;
+    var pk : pkXMSSTW;
+    var skfl : skFLXMSSTW;
+    var sk : skXMSSTW;
+    
+    ms <$ dmseed;
+    
+    (pk, skfl) <@ FL_XMSS_TW.keygen();
+    
+    sk <- (ms, skfl);
+    
+    return (pk, sk);
+  }
+  
+  proc sign(sk : skXMSSTW, m : msgXMSSTW) : sigXMSSTW * skXMSSTW = {
+    var ms : mseed;
+    var skfl : skFLXMSSTW;
+    var idx : index;
+    var mk : mkey;
+    var cm : msgFLXMSSTW;
+    var sigfl: sigFLXMSSTW;
+    var sig : sigXMSSTW;
+    
+    ms <- sk.`1;
+    skfl <- sk.`2;
+    
+    idx <- skfl.`1;
+    
+    mk <- mkg ms idx;
+    cm <@ RO.o((mk, m));
+    
+    (sigfl, skfl) <@ FL_XMSS_TW.sign(skfl, cm);
+    
+    sig <- (mk, sigfl);
+    sk <- (ms, skfl);
+    
+    return (sig, sk);
+  }
+  
+  proc verify(pk : pkXMSSTW, m : msgXMSSTW, sig : sigXMSSTW) : bool = {
+    var mk : mkey;
+    var sigfl : sigFLXMSSTW;
+    var cm : msgFLXMSSTW;
+    var ver : bool;
+    
+    mk <- sig.`1;
+    sigfl <- sig.`2;
+    
+    cm <@ RO.o((mk, m));
+    
+    ver <@ FL_XMSS_TW.verify(pk, cm, sigfl);
+     
+    return ver;
   }
 }.
 
-(* Reproduce this here to allow local clone
-— ideally, we'd merge reductions as we go up the instantiation chain *)
-module R_EFRMA_IEFRMA (A : Adv_I_EFRMA) : Adv_EFRMA = {
-  module O_R : SOracle_RMA = {
-    var q : int
-    var msigl : (msgFLXMSSTW * sigFLXMSSTW) list
-    
-    proc init(msigl_init : (msgFLXMSSTW * sigFLXMSSTW) list) = {
-      q <- 0;
-      msigl <- msigl_init;
-    }
-    
-    proc sign() : msgFLXMSSTW * sigFLXMSSTW = {
-      var q_old : int;
 
-      q_old <- q;
-      q <- q + 1;
+(* -- Reduction adversaries -- *)
+module (R_PRF_EFCMAROXMSSTW (A : Adv_EFCMA_RO) : Adv_PRF) (O : Oracle_PRF) = {
+  module O_CMA_R_PRF_EFCMAROXMSSTW : SOracle_CMA = {
+    include var O_Base_Default
+    
+    var skfl : skFLXMSSTW
+    
+    proc init(skfl_init : skFLXMSSTW) = {
+      skfl <- skfl_init;
+      qs <- [];
+    }
+    
+    proc sign(m : msgXMSSTW) : sigXMSSTW = {
+      var idx : index;
+      var mk : mkey;
+      var cm : msgFLXMSSTW;
+      var sigfl : sigFLXMSSTW;
+      var sig : sigXMSSTW;
       
-      return nth witness msigl q_old;
-    }
-    
-    proc fresh(m : msgFLXMSSTW) : bool = {
-     return ! m \in unzip1 (take q msigl); 
-    }
-    
-    proc nr_queries() : int = {
-      return q;
+      idx <- skfl.`1;
+      
+      mk <@ O.query(idx);
+      
+      cm <@ MCO.o(mk, m);
+      
+      (sigfl, skfl) <@ FL_XMSS_TW.sign(skfl, cm);
+      
+      sig <- (mk, sigfl);
+      
+      return sig;
     }
   }
   
-  proc forge(pk : pkFLXMSSTW, msigl : (msgFLXMSSTW * sigFLXMSSTW) list) : msgFLXMSSTW * sigFLXMSSTW = {
-    var m', sig';
+  proc distinguish() : bool = {
+    var pk : pkXMSSTW;
+    var skfl : skFLXMSSTW; 
+    var m : msgXMSSTW;
+    var sig : sigXMSSTW;
+    var is_valid, is_fresh;
     
-    O_R.init(msigl);
+    MCO.init();
     
-    (m', sig') <@ A(O_R).forge(pk);
-
-    return (m', sig');
+    (pk, skfl) <@ FL_XMSS_TW.keygen();
+    
+    O_CMA_R_PRF_EFCMAROXMSSTW.init(skfl);
+    
+    (m, sig) <@ A(MCO, O_CMA_R_PRF_EFCMAROXMSSTW).forge(pk);
+    
+    is_valid <@ XMSS_TW(MCO).verify(pk, m, sig);
+    
+    is_fresh <@ O_CMA_R_PRF_EFCMAROXMSSTW.fresh(m);
+    
+    return is_valid /\ is_fresh;
   }
 }.
 
-section.
-declare module A <: QDSSP.ROM_PROOF.Adv_EFCMA_RO_C_Idx {-SS1.KeyUpdating.O_RMA_Default, -SS2.KeyUpdating.O_CMA_Default, -R_QRO.Wrapped_QRO, -R_QRO.RepO, -R_QRO.QROM.QRO, -OverwriteByQRO_s, -QRO_l, -QRO_s, -QROmsg, -O_CMA_Repro, -Reduction, -O_CMA_Coll, -O_CMA_Game3, -O_CMA_Game3_red, -Game4, -PseudoRF.PRF, -RF.RF, -HS_idx, -SSSt.KeyUpdating.O_CMA_Default, -R_QRO.QROM.LE.ERO, -SS1.RO.LE.ERO, -QROm.ROM_.Lazy.LRO, -QROm.LE.ERO,-R_QRO.CLASSICAL.Wrapped_Oracle, -R_QRO.CLASSICAL.RepO,  -O_CMA_Coll_Simplified, -CountingA, -SS2.RO.ROM_.Lazy.LRO, -SS2.RO.LE.ERO, -O_RMA_Default, -WOTS_TW.PRF_SK.O_PRF_Default, -WOTS_TW.F.O_THFC_Default, -WOTS_TW.F.O_SMDTPRE_Default, -WOTS_TW.F.O_SMDTTCR_Default, -WOTS_TW.F.O_SMDTUD_Default, -WOTS_TW.O_MEFGCMA_WOTSTWES, -PKCO.O_THFC_Default, -PKCO.O_SMDTTCR_Default, -TRH.O_THFC_Default, -TRH.O_SMDTTCR_Default, -R_SMDTUDC_Game23WOTSTWES, -R_SMDTTCRC_Game34WOTSTWES, -R_SMDTPREC_Game4WOTSTWES, -R_PRF_FLXMSSTWESInlineNOPRF, -R_SMDTPREC_Game4WOTSTWES, -R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF, -R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF, -R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF, -R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF, -R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES, -R_EFRMA_IEFRMA}.
 
-declare axiom forge_q (O <: SS2.KeyUpdating.SOracle_CMA {-CountingA_C, -QDSSP.ROM_PROOF.B2_C(A)})
-                      (H0 <: SS2.RO.QRO {-CountingA_C, -QDSSP.ROM_PROOF.B2_C(A)}):
-  hoare[ AWrap(QDSSP.ROM_PROOF.B2_C(A), CountingA(AWrap(QDSSP.ROM_PROOF.B2_C(A)), H0, O).Ho, CountingA(AWrap(QDSSP.ROM_PROOF.B2_C(A)), H0, O).S).forge :
-          CountingA.cS = 0 /\ CountingA.cH = 0 ==> CountingA.cS <= n_efrma /\ CountingA.cH <= qH].
+(* -- Proofs of EF-CMA property for XMSS-TW (assuming message compression is a RO) -- *) 
+section Proofs_EF_CMA_RO_XMSSTW.
+(* - Declarations - *)
+(* Models the signing procedure of FL-XMSS-TW *)
+declare op opsign : skFLXMSSTW -> msgFLXMSSTW -> sigFLXMSSTW * skFLXMSSTW.
 
-declare axiom forge_q_C (O <: SS2.KeyUpdating.SOracle_CMA {-CountingA_C, -QDSSP.ROM_PROOF.B2_C(A)})
-                        (H0 <: SS2.RO.ROM_.POracle {-CountingA_C, -QDSSP.ROM_PROOF.B2_C(A)}):
-  hoare[ QDSSP.ROM_PROOF.B2_C(A, CountingA_C(QDSSP.ROM_PROOF.B2_C(A), H0, O).Ho, CountingA_C(QDSSP.ROM_PROOF.B2_C(A), H0, O).S).forge :
-          CountingA.cS = 0 /\ CountingA.cH = 0 ==> CountingA.cS <= n_efrma /\ CountingA.cH <= qH].
+(* Opsign precisely captures the semantics of the signing procedure of FL-XMSS-TW *)
+declare axiom FLXMSSTW_sign_fun (skfl : skFLXMSSTW) (cm : msgFLXMSSTW) :
+  hoare[FL_XMSS_TW.sign: arg = (skfl, cm) ==> res = opsign skfl cm].
 
-declare axiom A_ll (RO <: SS2.RO.ROM_.POracle {-A}) (O <: SSSt.KeyUpdating.SOracle_CMA {-A}) : 
-   islossless RO.o => islossless O.sign => islossless A(RO,O).forge.
+(* The signing procedure of FL-XMSS-TW is lossless (and captured by opsign) *)
+local lemma FLXMSSTW_sign_pfun (skfl : skFLXMSSTW) (cm : msgFLXMSSTW) :
+  phoare[FL_XMSS_TW.sign: arg = (skfl, cm) ==> res = opsign skfl cm] = 1%r.
+proof. by conseq FLXMSSTW_sign_ll (FLXMSSTW_sign_fun skfl cm). qed.
 
-declare op prGuess : { real | forall m, mu1 dmsgFLXMSSTW m <= prGuess } as prGuessP.
+(* Adversary against EF-CMA in the ROM *)
+declare module A <: Adv_EFCMA_RO{-FL_XMSS_TW, -ERO, -O_CMA_Default, -O_METCR, -R_EFCMARO_CRRO, -R_EFCMARO_METCRRO, -Repro.Wrapped_Oracle, -Repro.RepO, -O_RMA_Default, -R_EFCMARO_IEFRMA, -QC_A, -Lazy.LRO, -Repro.ReproGame, -R_EFRMA_IEFRMA, -R_PRF_EFCMARO, -O_PRF_Default, -DSS_AL.DSS.KeyUpdating.O_CMA_Default, -PRF_SK.O_PRF_Default, -F.O_THFC_Default, -F.O_SMDTPRE_Default, -F.O_SMDTTCR_Default, -F.O_SMDTUD_Default, -O_MEFGCMA_WOTSTWES, -PKCO.O_THFC_Default, -PKCO.O_SMDTTCR_Default, -TRH.O_THFC_Default, -TRH.O_SMDTTCR_Default, -R_SMDTUDC_Game23WOTSTWES, -R_SMDTTCRC_Game34WOTSTWES, -R_PRF_FLXMSSTWESInlineNOPRF, -R_SMDTPREC_Game4WOTSTWES, -R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF, -R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF, -R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF, -R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF, -R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES}.
 
-declare op opsign : skFLXMSSTW -> msgFLXMSSTW -> (sigFLXMSSTW * skFLXMSSTW).
-declare axiom FL_XMSS_TW_fun sk m:
-  hoare [ FL_XMSS_TW.sign: arg = (sk, m) ==> res = opsign sk m ].
+(* The adversary always terminates if the oracle procedures it can call terminate *)
+declare axiom A_forge_ll (RO <: POracle{-A}) (SO <: SOracle_CMA{-A}) : 
+  islossless RO.o => islossless SO.sign => islossless A(RO, SO).forge.
 
-local lemma restate_rma &m : Pr[I_EF_RMA(FL_XMSS_TW, ReductionL(SS2.RO.QRO, AWrap(QDSSP.ROM_PROOF.B2_C(A)),SS1.RO.QRO), O_RMA_Default).main() @ &m : res] = 
-    Pr[SS1.SI.I_EF_RMA_RO(SWrap(FL_XMSS_TW_RO), Reduction(SS2.RO.QRO, AWrap(QDSSP.ROM_PROOF.B2_C(A))), SS1.KeyUpdating.O_RMA_Default, SS1.RO.QRO).main() @ &m : res].
-proof. 
-byequiv => //.
-proc.
-inline {2} 2.
-wp;call(_: (glob O_RMA_Default){1} =  (glob SS1.KeyUpdating.O_RMA_Default){2}); 1: by sim.
-wp;call(_: (glob O_RMA_Default){1} =  (glob SS1.KeyUpdating.O_RMA_Default){2}); 1: by sim.
-call(_: true); 1: by inline *;sim. 
-inline {1} 3. inline{1} 5. inline {2} 4.
-wp;conseq />. sim 9 8.
-inline {1} 9. inline {2} 8.
-inline {1} 10. inline {2} 9.
-wp;conseq />;call(_: ={glob SSSt.KeyUpdating.O_CMA_Default, glob HS_idx, glob O_CMA_Repro, glob SS2.RO.QRO, glob R_QRO.Wrapped_QRO, glob HS_idx, glob SS1.RO.QRO} /\  (glob O_RMA_Default){1} =  (glob SS1.KeyUpdating.O_RMA_Default){2}); last by swap {1} 4 -3; inline *;conseq />;sim; auto => />; sim. 
-proc;inline *.
-sp; if=> [/>||]; auto.
-+ wp; conseq (: _ ==> ={r,idx,sigWOTS,leafl0,ps,ad,i,glob O_CMA_Repro, m0,tmp,m1, idx,ss} /\  (glob O_RMA_Default){1} =  (glob SS1.KeyUpdating.O_RMA_Default){2}); 1: smt().
-by sim; auto => />.
-by proc; inline *; auto => />.
-qed.
+(* The adversary makes a limited number of queries to the given random (hash) oracle and signing oracle *)
+declare axiom A_forge_queries (RO <: POracle{-A, -QC_A}) (SO <: SOracle_CMA{-A, -QC_A}) : 
+  hoare[A(QC_A(A, RO, SO).QC_RO, QC_A(A, RO, SO).QC_SO).forge : 
+    QC_A.cH = 0 /\ QC_A.cS = 0 ==> QC_A.cH <= qH /\ QC_A.cS <= qS].
 
-local lemma XMSS_from_FL_XMSS &m : 
-     n_efrma = IDX.card
-  => Pr[SSSt.LIS.EF_CMA_RO(HS_idx(SWrap(FL_XMSS_TW_RO), PseudoRF.PseudoRF), QDSSP.ROM_PROOF.AWrap_Idx(A), SS2.RO.QRO, SSSt.KeyUpdating.O_CMA_Default).main() @ &m : res]
-     <= `|Pr[PRF_.IND(PseudoRF.PRF, B1(SWrap(FL_XMSS_TW_RO), QDSSP.ROM_PROOF.AWrap_Idx(A))).main() @ &m : res]
-          - Pr[PRF_.IND(RF.RF, B1(SWrap(FL_XMSS_TW_RO), QDSSP.ROM_PROOF.AWrap_Idx(A))).main() @ &m : res]|
-      + Pr[I_EF_RMA(FL_XMSS_TW, ReductionL(SS2.RO.QRO, AWrap(QDSSP.ROM_PROOF.B2_C(A)),SS1.RO.QRO), O_RMA_Default).main() @ &m : res]
-      + n_efrma%r * ((n_efrma + qH + 1)%r * (mu1 dr_t witness))
-      + ((qH + n_efrma + 3) * (qH + n_efrma + 2))%r / 2%r * (mu1 dmsg witness).
+
+(* - Security theorems - *)
+(* 
+  High-level security theorem (based on EF-RMA of FL-XMSS-TW):
+  XMSS-TW is EF-CMA secure in the ROM if mkg (i.e., the function that generates
+  indexing keys for the message compression function) is a PRF, MCO (i.e., the message
+  compression function) is a collision-resistant random oracle, and FL-XMSS-TW is EF-RMA
+  secure
+*)
+lemma EFCMARO_XMSSTW_EFRMA &m :
+  Pr[EF_CMA_RO(XMSS_TW, A, O_CMA_Default, MCO).main() @ &m : res]  
+  <=
+  `| Pr[PRF(R_PRF_EFCMARO(FL_XMSS_TW, A), O_PRF_Default).main(false) @ &m : res] -
+     Pr[PRF(R_PRF_EFCMARO(FL_XMSS_TW, A), O_PRF_Default).main(true) @ &m : res] |
+  +
+  Pr[CR_RO(R_EFCMARO_CRRO(FL_XMSS_TW, A), MCO).main() @ &m : res]
+  +
+  Pr[EF_RMA(FL_XMSS_TW, R_EFRMA_IEFRMA(R_EFCMARO_IEFRMA(A))).main() @ &m : res]
+  +
+  qS%r * (qS + qH + 1)%r * mu1 dmkey witness
+  +
+  l%r * mu1 dmsgFLXMSSTW witness.
 proof.
-move=> H_n.
-rewrite restate_rma.
-print QDSSP.ROM_PROOF.final_statement_C_idx.
-apply (QDSSP.ROM_PROOF.final_statement_C_idx A FL_XMSS_TW_RO forge_q forge_q_C _ _ _ A_ll &m H_n _).
-+ by move=> O _; apply: XMSS_keygen_ll.
-+ by move=> O _; apply: XMSS_sign_ll.
-+ by move=> O _; apply: XMSS_verify_ll.
-+ by move=> O _; apply: XMSS_verify_ll.
-qed.
-
-local clone import EFRMA_Interactive_Equiv as Bridging with
-  type msg_t       <- msgFLXMSSTW,
-  type sig_t       <- sigFLXMSSTW,
-  type pk_t        <- pkFLXMSSTW,
-  type sk_t        <- skFLXMSSTW,
-  op   dmsg        <- dmsgFLXMSSTW,
-  op   n_efrma     <- l,
-  lemma dmsg_ll    <- dmsgFLXMSSTW_ll,
-  lemma ge0_nefrma <- ge0_nefrma
-proof *.
-
-module B = ReductionL(SS2.RO.QRO, AWrap(QDSSP.ROM_PROOF.B2_C(A)),SS1.RO.QRO).
-
-local lemma XMSS_Interactive &m:
-     l <= d
-  => Pr[I_EF_RMA(FL_XMSS_TW, B, O_RMA_Default).main() @ &m : res]
-     <= `|Pr[PRF_SK.PRF(R_PRF_FLXMSSTWESInlineNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(B))), PRF_SK.O_PRF_Default).main(false) @ &m : res] -
-         Pr[PRF_SK.PRF(R_PRF_FLXMSSTWESInlineNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(B))), PRF_SK.O_PRF_Default).main(true) @ &m : res]|
-     + (w - 2)%r
-       * `|Pr[F.SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(B)))), WOTS_TW.F.O_SMDTUD_Default, WOTS_TW.F.O_THFC_Default).main(false) @ &m : res]
-           - Pr[F.SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(B)))), WOTS_TW.F.O_SMDTUD_Default, WOTS_TW.F.O_THFC_Default).main(true) @ &m : res]| 
-     + Pr[F.SM_DT_TCR_C(R_SMDTTCRC_Game34WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(B)))), WOTS_TW.F.O_SMDTTCR_Default, WOTS_TW.F.O_THFC_Default).main() @ &m : res] 
-     + Pr[F.SM_DT_PRE_C(R_SMDTPREC_Game4WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(B)))), F.O_SMDTPRE_Default, F.O_THFC_Default).main() @ &m : res]
-     + Pr[PKCO.SM_DT_TCR_C(R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(B))), PKCO.O_SMDTTCR_Default, PKCO.O_THFC_Default).main() @ &m : res]
-     + Pr[TRH.SM_DT_TCR_C(R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(B))), TRH.O_SMDTTCR_Default, TRH.O_THFC_Default).main() @ &m : res]
-     + l%r * prGuess.
-proof.
-move=> l_le_d.
-move: (EFRMA_FLXMSSTW (R_EFRMA_IEFRMA(B)) _ &m _)=> //.
-+ islossless.
-  apply: (A_ll (<: AWrap(QDSSP.ROM_PROOF.B2_C(A), OverwriteByQRO_s(SS1.RO.QRO, R_QRO.Wrapped_QRO(SS2.RO.QRO)), O_CMA_Repro(R_QRO.Wrapped_QRO(SS2.RO.QRO), R_EFRMA_IEFRMA(ReductionL(SS2.RO.QRO, AWrap(QDSSP.ROM_PROOF.B2_C(A)), SS1.RO.QRO)).O_R)).OC) 
-               (<: SSSt.KeyUpdating.O_CMA_Default(QDSSP.ROM_PROOF.B2_C(A, AWrap(QDSSP.ROM_PROOF.B2_C(A), OverwriteByQRO_s(SS1.RO.QRO, R_QRO.Wrapped_QRO(SS2.RO.QRO)), O_CMA_Repro(R_QRO.Wrapped_QRO(SS2.RO.QRO), R_EFRMA_IEFRMA(ReductionL(SS2.RO.QRO, AWrap(QDSSP.ROM_PROOF.B2_C(A)), SS1.RO.QRO)).O_R)).OC, O_CMA_Repro(R_QRO.Wrapped_QRO(SS2.RO.QRO), R_EFRMA_IEFRMA(ReductionL(SS2.RO.QRO, AWrap(QDSSP.ROM_PROOF.B2_C(A)), SS1.RO.QRO)).O_R)).HS_idx_Red2))).
-  + by islossless.
-  + by islossless.
-move=> H.
-apply: (StdOrder.RealOrder.ler_trans (Pr[EF_RMA(FL_XMSS_TW, R_EFRMA_IEFRMA(B)).main() @ &m : res] + l%r * prGuess)).
-+ have ->: Pr[I_EF_RMA(FL_XMSS_TW, B, O_RMA_Default).main() @ &m : res]
-         = Pr[Class_EFRMA.I_EF_RMA(FL_XMSS_TW, B, Class_EFRMA.O_RMA_Default).main() @ &m : res].
-  + by byequiv=> //; sim.
-  have ->: Pr[EF_RMA(FL_XMSS_TW, R_EFRMA_IEFRMA(B)).main() @ &m : res]
-         = Pr[Class_EFRMA.EF_RMA(FL_XMSS_TW, R_EFRMA_IEFRMA(B)).main() @ &m : res].
-  + by byequiv=> //; sim.
-  apply: (I_EFRMA_le_EF_RMA B _ FL_XMSS_TW _ _ opsign FL_XMSS_TW_fun _ _ prGuess &m _).
-  + move=> O O_sign_ll; islossless.
-    apply: (A_ll (<: AWrap(QDSSP.ROM_PROOF.B2_C(A), OverwriteByQRO_s(SS1.RO.QRO, R_QRO.Wrapped_QRO(SS2.RO.QRO)), O_CMA_Repro(R_QRO.Wrapped_QRO(SS2.RO.QRO), O)).OC)
-                 (<: SSSt.KeyUpdating.O_CMA_Default(QDSSP.ROM_PROOF.B2_C(A, AWrap(QDSSP.ROM_PROOF.B2_C(A), OverwriteByQRO_s(SS1.RO.QRO, R_QRO.Wrapped_QRO(SS2.RO.QRO)), O_CMA_Repro(R_QRO.Wrapped_QRO(SS2.RO.QRO), O)).OC, O_CMA_Repro(R_QRO.Wrapped_QRO(SS2.RO.QRO), O)).HS_idx_Red2))).
-    + by islossless.
-    + by islossless.
-  + exact: XMSS_sign_ll.
-  + exact: XMSS_verify_ll.
-  + by sim.
-  + by sim.
-  + exact: prGuessP.
-smt().
-qed.
-
-lemma XMSS_Final &m:
-     n_efrma = IDX.card
-  => l <= d
-  => Pr[SSSt.LIS.EF_CMA_RO(HS_idx(SWrap(FL_XMSS_TW_RO), PseudoRF.PseudoRF), QDSSP.ROM_PROOF.AWrap_Idx(A), SS2.RO.QRO, SSSt.KeyUpdating.O_CMA_Default).main() @ &m : res]
-     <= `|Pr[PRF_.IND(PseudoRF.PRF, B1(SWrap(FL_XMSS_TW_RO), QDSSP.ROM_PROOF.AWrap_Idx(A))).main() @ &m : res]
-          - Pr[PRF_.IND(RF.RF, B1(SWrap(FL_XMSS_TW_RO), QDSSP.ROM_PROOF.AWrap_Idx(A))).main() @ &m : res]|
-      + `|Pr[PRF_SK.PRF(R_PRF_FLXMSSTWESInlineNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(Glue.R_EFRMA_IEFRMA(B))), PRF_SK.O_PRF_Default).main(false) @ &m : res] -
-         Pr[PRF_SK.PRF(R_PRF_FLXMSSTWESInlineNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(Glue.R_EFRMA_IEFRMA(B))), PRF_SK.O_PRF_Default).main(true) @ &m : res]|
-      + (w - 2)%r
-        * `|Pr[F.SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(Glue.R_EFRMA_IEFRMA(B)))), WOTS_TW.F.O_SMDTUD_Default, WOTS_TW.F.O_THFC_Default).main(false) @ &m : res]
-            - Pr[F.SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(Glue.R_EFRMA_IEFRMA(B)))), WOTS_TW.F.O_SMDTUD_Default, WOTS_TW.F.O_THFC_Default).main(true) @ &m : res]| 
-      + Pr[F.SM_DT_TCR_C(R_SMDTTCRC_Game34WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(Glue.R_EFRMA_IEFRMA(B)))), WOTS_TW.F.O_SMDTTCR_Default, WOTS_TW.F.O_THFC_Default).main() @ &m : res] 
-      + Pr[F.SM_DT_PRE_C(R_SMDTPREC_Game4WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(Glue.R_EFRMA_IEFRMA(B)))), F.O_SMDTPRE_Default, F.O_THFC_Default).main() @ &m : res]
-      + Pr[PKCO.SM_DT_TCR_C(R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(Glue.R_EFRMA_IEFRMA(B))), PKCO.O_SMDTTCR_Default, PKCO.O_THFC_Default).main() @ &m : res]
-      + Pr[TRH.SM_DT_TCR_C(R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(Glue.R_EFRMA_IEFRMA(B))), TRH.O_SMDTTCR_Default, TRH.O_THFC_Default).main() @ &m : res]
-      + n_efrma%r * prGuess
-      + n_efrma%r * ((n_efrma + qH + 1)%r * (mu1 dr_t witness))
-      + ((qH + n_efrma + 3) * (qH + n_efrma + 2))%r / 2%r * (mu1 dmsg witness).
-proof.
-move=> n_idx l_le_d.
-move: (XMSS_Interactive &m _)=> // H.
-move: (XMSS_from_FL_XMSS &m _)=> //.
-have ^ -> ->: 
-  forall b,
-    Pr[F.SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(Glue.R_EFRMA_IEFRMA(B)))), WOTS_TW.F.O_SMDTUD_Default, WOTS_TW.F.O_THFC_Default).main(b) @ &m : res]
-  = Pr[F.SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(B)))), WOTS_TW.F.O_SMDTUD_Default, WOTS_TW.F.O_THFC_Default).main(b) @ &m : res].
-+ by move=> b; byequiv=> //; sim.
 have ->:
-  Pr[F.SM_DT_TCR_C(R_SMDTTCRC_Game34WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(Glue.R_EFRMA_IEFRMA(B)))), WOTS_TW.F.O_SMDTTCR_Default, WOTS_TW.F.O_THFC_Default).main() @ &m : res]
+  Pr[EF_CMA_RO(XMSS_TW, A, O_CMA_Default, MCO).main() @ &m : res]
   =
-  Pr[F.SM_DT_TCR_C(R_SMDTTCRC_Game34WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(B)))), WOTS_TW.F.O_SMDTTCR_Default, WOTS_TW.F.O_THFC_Default).main() @ &m : res].
-+ by byequiv=> //; sim.
-have ->:
-  Pr[F.SM_DT_PRE_C(R_SMDTPREC_Game4WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(Glue.R_EFRMA_IEFRMA(B)))), F.O_SMDTPRE_Default, F.O_THFC_Default).main() @ &m : res]
-  =
-  Pr[F.SM_DT_PRE_C(R_SMDTPREC_Game4WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(B)))), F.O_SMDTPRE_Default, F.O_THFC_Default).main() @ &m : res].
-+ by byequiv=> //; sim.
-have ^ -> ->:
-  forall b,
-    Pr[PRF_SK.PRF(R_PRF_FLXMSSTWESInlineNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(Glue.R_EFRMA_IEFRMA(B))), PRF_SK.O_PRF_Default).main(b) @ &m : res]
-  =
-    Pr[PRF_SK.PRF(R_PRF_FLXMSSTWESInlineNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(B))), PRF_SK.O_PRF_Default).main(b) @ &m : res].
-+ by move=> b; byequiv=> //; sim.
-have ->: 
- Pr[PKCO.SM_DT_TCR_C(R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(Glue.R_EFRMA_IEFRMA(B))), PKCO.O_SMDTTCR_Default, PKCO.O_THFC_Default).main() @ &m : res]
- =
- Pr[PKCO.SM_DT_TCR_C(R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(B))), PKCO.O_SMDTTCR_Default, PKCO.O_THFC_Default).main() @ &m : res].
-+ by byequiv=> //; sim.
-have ->: 
- Pr[TRH.SM_DT_TCR_C(R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(Glue.R_EFRMA_IEFRMA(B))), TRH.O_SMDTTCR_Default, TRH.O_THFC_Default).main() @ &m : res]
- =
- Pr[TRH.SM_DT_TCR_C(R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(B))), TRH.O_SMDTTCR_Default, TRH.O_THFC_Default).main() @ &m : res].
-+ by byequiv=> //; sim.
-smt().
+  Pr[EF_CMA_RO(WithPRF.AL_KU_DSS(FL_XMSS_TW), A, O_CMA_Default, MCO).main() @ &m : res].
++ byequiv => //.
+  proc; inline{1} 2; inline{2} 2.
+  seq 5 5 : (={O_Base_Default.qs, m, is_valid}); last by sim.
+  inline{1} 5; inline{2} 5.
+  inline{1} 11; inline{2} 11.
+  wp; call(: true); 1: by sim.
+  wp; call(: ={ERO.m}); 1: by wp.
+  wp; call(: ={O_Base_Default.qs, O_CMA_Default.sk, ERO.m}); first 2 by sim.
+  inline *.
+  wp; while (={ss1, ss0, ps1, ps0, ms, leafl0, ad1, ad0, ERO.m}); 1: by sim.
+  wp; do 3! rnd.
+  while (={w, ERO.m}); 1: by wp; rnd; wp; skip.
+  by wp; skip.
+move: (ALKUDSS_EFCMARO_PRF_CRRO_EFRMA FL_XMSS_TW FLXMSSTW_sign_ll FLXMSSTW_verify_ll).
+move=> /(_ (fun (skfl : skFLXMSSTW) => skfl.`1 = Index.insubd 0) 
+           (fun (skfl : skFLXMSSTW) => (Index.insubd (Index.val skfl.`1 + 1), skfl.`2, skfl.`3, skfl.`4))
+           opsign _ FLXMSSTW_sign_fun _ _ _ _).
++ proc; inline *.
+  wp; while (true).
+  - wp; while (true); 1: by wp.
+    wp; while (true); 1: by wp.
+    by wp.
+  by wp; do 2! rnd; skip.
++ move=> skfl.
+  proc; inline *.
+  wp => />; while (true).
+  - wp; while (true); 1: by wp.
+    wp; while (true); 1: by wp.
+    by wp.
+  wp; while (true); 1: by wp.
+  wp; while (true); 1: by wp.
+  by wp; skip.
++ move=> i j skfl /= init_sk [ge0i leqS_i] [ge0_j leqS_j] neqj_i.
+  have fupd_it: 
+    forall (k : int), 0 <= k => k < qS => 
+      (fold (fun (sk : skFLXMSSTW) => 
+        ((Index.insubd ((Index.val sk.`1) + 1)), sk.`2, sk.`3, sk.`4)) skfl k).`1 
+      = 
+      Index.insubd k.
+  - elim => [@/fupd | k ge0_k @/fupd ih ltqS_k1].
+    * by rewrite fold0.
+    rewrite foldS //= ih 2:Index.insubdK //; smt(rng_qS).
+  rewrite fupd_it // fupd_it //.
+  move: neqj_i; apply contra => eqins_ij. 
+  by rewrite -(Index.insubdK i) 2:-(Index.insubdK j) 3:eqins_ij; 1,2: smt(rng_qS).
++ by sim.  
++ by sim.
+by move=> /(_ A A_forge_ll A_forge_queries &m).
 qed.
-end section.
-end Glue.
+
+
+(*
+  Low-level security theorem (based on properties of KHFs and THFs)
+  XMSS-TW is EF-CMA secure in the ROM if mkg (i.e., the function that generates
+  indexing keys for the message compression function) is a PRF; MCO (i.e., the message
+  compression function) is a collision-resistant random oracle; prf_sk (i.e., the
+  function used to generate WOTS-TW secret keys) is a PRF; f (i.e., the function used
+  in the WOTS-TW chains) has SM-DT-UD-C, SM-DT-TCR-C, and SM-DT-PRE-C; pkco (i.e., the
+  fucntion used to compress WOTS-TW public keys to leaves of the binary hash tree) has 
+  SM-DT-TCR-C; and trh (i.e., the function used to construct the full binary hash tree from
+  the leaves) has SM-DT-TCR-C.
+*)
+lemma EFCMARO_XMSSTW &m :
+  l <= d =>
+    Pr[EF_CMA_RO(XMSS_TW, A, O_CMA_Default, MCO).main() @ &m : res]  
+    <=
+    `| Pr[MKG.PRF(R_PRF_EFCMARO(FL_XMSS_TW, A), O_PRF_Default).main(false) @ &m : res] -
+       Pr[MKG.PRF(R_PRF_EFCMARO(FL_XMSS_TW, A), O_PRF_Default).main(true) @ &m : res] |
+    +
+    Pr[CR_RO(R_EFCMARO_CRRO(FL_XMSS_TW, A), MCO).main() @ &m : res]
+    +
+    `|Pr[PRF_SK.PRF(R_PRF_FLXMSSTWESInlineNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(R_EFCMARO_IEFRMA(A)))), PRF_SK.O_PRF_Default).main(false) @ &m : res] - 
+    Pr[PRF_SK.PRF(R_PRF_FLXMSSTWESInlineNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(R_EFCMARO_IEFRMA(A)))), PRF_SK.O_PRF_Default).main(true) @ &m : res]|
+    +
+    (w - 2)%r * 
+  `|Pr[F.SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(R_EFCMARO_IEFRMA(A))))), F.O_SMDTUD_Default, F.O_THFC_Default).main(false) @ &m : res] - 
+    Pr[F.SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(R_EFCMARO_IEFRMA(A))))), F.O_SMDTUD_Default, F.O_THFC_Default).main(true) @ &m : res]| 
+    +
+    Pr[F.SM_DT_TCR_C(R_SMDTTCRC_Game34WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(R_EFCMARO_IEFRMA(A))))), F.O_SMDTTCR_Default, F.O_THFC_Default).main() @ &m : res] 
+    +
+    Pr[F.SM_DT_PRE_C(R_SMDTPREC_Game4WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(R_EFCMARO_IEFRMA(A))))), F.O_SMDTPRE_Default, F.O_THFC_Default).main() @ &m : res]
+    +
+    Pr[PKCO.SM_DT_TCR_C(R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(R_EFCMARO_IEFRMA(A)))), PKCO.O_SMDTTCR_Default, PKCO.O_THFC_Default).main() @ &m : res]
+    +
+    Pr[TRH.SM_DT_TCR_C(R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(R_EFCMARO_IEFRMA(A)))), TRH.O_SMDTTCR_Default, TRH.O_THFC_Default).main() @ &m : res]
+    +
+    qS%r * (qS + qH + 1)%r * mu1 dmkey witness
+    +
+    l%r * mu1 dmsgFLXMSSTW witness.
+proof.
+move=> led_l.
+move: (EFRMA_FLXMSSTW (R_EFRMA_IEFRMA(R_EFCMARO_IEFRMA(A))) _ &m led_l) (EFCMARO_XMSSTW_EFRMA &m); 2: smt().
+proc; inline *.
+wp; call (: true). 
++ by move=> RO SO ROll SOll; apply (A_forge_ll RO SO).
++ proc; inline *.
+  wp; rnd; skip => />.
+  by apply dmkey_ll.
++ proc; inline *.
+  by wp; skip.
+wp; while (true) (size w).
++ move=> z.
+  wp; rnd; wp; skip => /> &1 neqel_w.
+  split; 2: by apply dmsgFLXMSSTW_ll.
+  by elim: (w{1}) neqel_w => //= /#.
+by wp; skip => />; smt(size_eq0 size_ge0).
+qed.
+
+end section Proofs_EF_CMA_RO_XMSSTW.
