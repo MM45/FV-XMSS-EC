@@ -10,6 +10,7 @@ require (*--*) DigitalSignatures DigitalSignaturesROM KeyedHashFunctions HashThe
 (*---*) import WOTS_TW FLXMSSTW_EFRMA.
 
 
+
 (* --- Parameters --- *)
 (* -- Proof-specific -- *)
 (* Number of allowed signature queries *)
@@ -85,12 +86,15 @@ clone import KeyedHashFunctions as MKG with
   type in_t <- index,
   type out_t <- mkey,
   
-    op f <- mkg, 
+    op f <- mkg
     
-    op dkey <- dmseed,
-    op doutm <- fun _ => dmkey
+  proof *.
   
-  proof dkey_ll, doutm_ll.
+clone import PRF as MKG_PRF with  
+  op dkey <- dmseed,
+  op doutm <- fun _ => dmkey
+  
+  proof *.
   realize dkey_ll by exact: dmseed_ll.
   realize doutm_ll. by move=> _; apply dmkey_ll. qed.
 
@@ -171,6 +175,7 @@ clone import HashThenSign as HtS with
   theory DSS_FL <= FLXMSSTW,
   theory EFRMAEqv.DSS_FL_EFRMA <= FLXMSSTW_EFRMA,
   theory WithPRF.MKG <= MKG,
+  theory WithPRF.MKG_PRF <= MKG_PRF,
   theory WithPRF.DSS_AL_PRF <= XMSSTW_ROM
   
   proof *.
@@ -251,7 +256,7 @@ module (XMSS_TW : Scheme_RO) (RO : POracle) = {
 }.
 
 
-(* -- Reduction adversaries -- *)
+(* --- Reduction adversaries --- *)
 module (R_PRF_EFCMAROXMSSTW (A : Adv_EFCMA_RO) : Adv_PRF) (O : Oracle_PRF) = {
   module O_CMA_R_PRF_EFCMAROXMSSTW : SOracle_CMA = {
     include var O_Base_Default
@@ -308,13 +313,13 @@ module (R_PRF_EFCMAROXMSSTW (A : Adv_EFCMA_RO) : Adv_PRF) (O : Oracle_PRF) = {
 }.
 
 
-(* -- Proofs of EF-CMA property for XMSS-TW (assuming message compression is a RO) -- *) 
+(* --- Proofs of EF-CMA property for XMSS-TW (assuming message compression is a RO) --- *) 
 section Proofs_EF_CMA_RO_XMSSTW.
-(* - Declarations - *)
+(* -- Declarations -- *)
 (* Models the signing procedure of FL-XMSS-TW *)
 declare op opsign : skFLXMSSTW -> msgFLXMSSTW -> sigFLXMSSTW * skFLXMSSTW.
 
-(* Opsign precisely captures the semantics of the signing procedure of FL-XMSS-TW *)
+(* opsign precisely captures the semantics of the signing procedure of FL-XMSS-TW *)
 declare axiom FLXMSSTW_sign_fun (skfl : skFLXMSSTW) (cm : msgFLXMSSTW) :
   hoare[FL_XMSS_TW.sign: arg = (skfl, cm) ==> res = opsign skfl cm].
 
@@ -324,7 +329,7 @@ local lemma FLXMSSTW_sign_pfun (skfl : skFLXMSSTW) (cm : msgFLXMSSTW) :
 proof. by conseq FLXMSSTW_sign_ll (FLXMSSTW_sign_fun skfl cm). qed.
 
 (* Adversary against EF-CMA in the ROM *)
-declare module A <: Adv_EFCMA_RO{-FL_XMSS_TW, -ERO, -O_CMA_Default, -O_METCR, -R_EFCMARO_CRRO, -R_EFCMARO_METCRRO, -Repro.Wrapped_Oracle, -Repro.RepO, -O_RMA_Default, -R_EFCMARO_IEFRMA, -QC_A, -Lazy.LRO, -Repro.ReproGame, -R_EFRMA_IEFRMA, -R_PRF_EFCMARO, -O_PRF_Default, -DSS_AL.DSS.KeyUpdating.O_CMA_Default, -PRF_SK.O_PRF_Default, -F.O_THFC_Default, -F.O_SMDTPRE_Default, -F.O_SMDTTCR_Default, -F.O_SMDTUD_Default, -O_MEFGCMA_WOTSTWES, -PKCO.O_THFC_Default, -PKCO.O_SMDTTCR_Default, -TRH.O_THFC_Default, -TRH.O_SMDTTCR_Default, -R_SMDTUDC_Game23WOTSTWES, -R_SMDTTCRC_Game34WOTSTWES, -R_PRF_FLXMSSTWESInlineNOPRF, -R_SMDTPREC_Game4WOTSTWES, -R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF, -R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF, -R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF, -R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF, -R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES}.
+declare module A <: Adv_EFCMA_RO{-FL_XMSS_TW, -ERO, -O_CMA_Default, -O_METCR, -R_EFCMARO_CRRO, -R_EFCMARO_METCRRO, -Repro.Wrapped_Oracle, -Repro.RepO, -O_RMA_Default, -R_EFCMARO_IEFRMA, -QC_A, -Lazy.LRO, -Repro.ReproGame, -R_EFRMA_IEFRMA, -R_PRF_EFCMARO, -O_PRF_Default, -DSS_AL.DSS.KeyUpdating.O_CMA_Default, -PRF_SK_PRF.O_PRF_Default, -FC.O_THFC_Default, -FC_PRE.O_SMDTPRE_Default, -FC_TCR.O_SMDTTCR_Default, -FC_UD.O_SMDTUD_Default, -O_MEFGCMA_WOTSTWES, -PKCOC.O_THFC_Default, -PKCOC_TCR.O_SMDTTCR_Default, -TRHC.O_THFC_Default, -TRHC_TCR.O_SMDTTCR_Default, -R_SMDTUDC_Game23WOTSTWES, -R_SMDTTCRC_Game34WOTSTWES, -R_PRF_FLXMSSTWESInlineNOPRF, -R_SMDTPREC_Game4WOTSTWES, -R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF, -R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF, -R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF, -R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF, -R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES}.
 
 (* The adversary always terminates if the oracle procedures it can call terminate *)
 declare axiom A_forge_ll (RO <: POracle{-A}) (SO <: SOracle_CMA{-A}) : 
@@ -336,7 +341,7 @@ declare axiom A_forge_queries (RO <: POracle{-A, -QC_A}) (SO <: SOracle_CMA{-A, 
     QC_A.cH = 0 /\ QC_A.cS = 0 ==> QC_A.cH <= qH /\ QC_A.cS <= qS].
 
 
-(* - Security theorems - *)
+(* -- Security theorems -- *)
 (* 
   High-level security theorem (based on EF-RMA of FL-XMSS-TW):
   XMSS-TW is EF-CMA secure in the ROM if mkg (i.e., the function that generates
@@ -428,25 +433,25 @@ lemma EFCMARO_XMSSTW &m :
   l <= d =>
     Pr[EF_CMA_RO(XMSS_TW, A, O_CMA_Default, MCO).main() @ &m : res]  
     <=
-    `| Pr[MKG.PRF(R_PRF_EFCMARO(FL_XMSS_TW, A), O_PRF_Default).main(false) @ &m : res] -
-       Pr[MKG.PRF(R_PRF_EFCMARO(FL_XMSS_TW, A), O_PRF_Default).main(true) @ &m : res] |
+    `| Pr[MKG_PRF.PRF(R_PRF_EFCMARO(FL_XMSS_TW, A), O_PRF_Default).main(false) @ &m : res] -
+       Pr[MKG_PRF.PRF(R_PRF_EFCMARO(FL_XMSS_TW, A), O_PRF_Default).main(true) @ &m : res] |
     +
     Pr[CR_RO(R_EFCMARO_CRRO(FL_XMSS_TW, A), MCO).main() @ &m : res]
     +
-    `|Pr[PRF_SK.PRF(R_PRF_FLXMSSTWESInlineNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(R_EFCMARO_IEFRMA(A)))), PRF_SK.O_PRF_Default).main(false) @ &m : res] - 
-    Pr[PRF_SK.PRF(R_PRF_FLXMSSTWESInlineNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(R_EFCMARO_IEFRMA(A)))), PRF_SK.O_PRF_Default).main(true) @ &m : res]|
+    `|Pr[PRF_SK_PRF.PRF(R_PRF_FLXMSSTWESInlineNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(R_EFCMARO_IEFRMA(A)))), PRF_SK_PRF.O_PRF_Default).main(false) @ &m : res] - 
+    Pr[PRF_SK_PRF.PRF(R_PRF_FLXMSSTWESInlineNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(R_EFCMARO_IEFRMA(A)))), PRF_SK_PRF.O_PRF_Default).main(true) @ &m : res]|
     +
     (w - 2)%r * 
-  `|Pr[F.SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(R_EFCMARO_IEFRMA(A))))), F.O_SMDTUD_Default, F.O_THFC_Default).main(false) @ &m : res] - 
-    Pr[F.SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(R_EFCMARO_IEFRMA(A))))), F.O_SMDTUD_Default, F.O_THFC_Default).main(true) @ &m : res]| 
+  `|Pr[FC_UD.SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(R_EFCMARO_IEFRMA(A))))), FC_UD.O_SMDTUD_Default, FC.O_THFC_Default).main(false) @ &m : res] - 
+    Pr[FC_UD.SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(R_EFCMARO_IEFRMA(A))))), FC_UD.O_SMDTUD_Default, FC.O_THFC_Default).main(true) @ &m : res]| 
     +
-    Pr[F.SM_DT_TCR_C(R_SMDTTCRC_Game34WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(R_EFCMARO_IEFRMA(A))))), F.O_SMDTTCR_Default, F.O_THFC_Default).main() @ &m : res] 
+    Pr[FC_TCR.SM_DT_TCR_C(R_SMDTTCRC_Game34WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(R_EFCMARO_IEFRMA(A))))), FC_TCR.O_SMDTTCR_Default, FC.O_THFC_Default).main() @ &m : res] 
     +
-    Pr[F.SM_DT_PRE_C(R_SMDTPREC_Game4WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(R_EFCMARO_IEFRMA(A))))), F.O_SMDTPRE_Default, F.O_THFC_Default).main() @ &m : res]
+    Pr[FC_PRE.SM_DT_PRE_C(R_SMDTPREC_Game4WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(R_EFCMARO_IEFRMA(A))))), FC_PRE.O_SMDTPRE_Default, FC.O_THFC_Default).main() @ &m : res]
     +
-    Pr[PKCO.SM_DT_TCR_C(R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(R_EFCMARO_IEFRMA(A)))), PKCO.O_SMDTTCR_Default, PKCO.O_THFC_Default).main() @ &m : res]
+    Pr[PKCOC_TCR.SM_DT_TCR_C(R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(R_EFCMARO_IEFRMA(A)))), PKCOC_TCR.O_SMDTTCR_Default, PKCOC.O_THFC_Default).main() @ &m : res]
     +
-    Pr[TRH.SM_DT_TCR_C(R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(R_EFCMARO_IEFRMA(A)))), TRH.O_SMDTTCR_Default, TRH.O_THFC_Default).main() @ &m : res]
+    Pr[TRHC_TCR.SM_DT_TCR_C(R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(R_EFRMA_IEFRMA(R_EFCMARO_IEFRMA(A)))), TRHC_TCR.O_SMDTTCR_Default, TRHC.O_THFC_Default).main() @ &m : res]
     +
     qS%r * (qS + qH + 1)%r * mu1 dmkey witness
     +

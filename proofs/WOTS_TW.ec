@@ -1062,15 +1062,17 @@ clone import KeyedHashFunctions as PRF_SK with
   type out_t <- dgstblock,
   type key_t <- sseed,
   
-    op f <- prf_sk,
+    op f <- prf_sk
     
-    op dout <- ddgstblock,
-    op dkey <- dsseed,
-    op doutm <- fun x => ddgstblock
+  proof *.
+  
+clone import PRF as PRF_SK_PRF with
+  op dkey <- dsseed,
+  op doutm <- fun x => ddgstblock
     
-    proof dkey_ll by exact: dsseed_ll
-    proof dout_ll by exact: ddgstblock_ll
-    proof doutm_ll by rewrite ddgstblock_ll.
+  proof *.
+  realize dkey_ll by exact: dsseed_ll.
+  realize doutm_ll by rewrite ddgstblock_ll.
 
     
 (* -- Tweakable hash functions -- *)
@@ -1089,27 +1091,49 @@ clone import TweakableHashFunctions as F with
   type tw_t <- adrs,
   type in_t <- dgst,
   type out_t <- dgstblock,
+
+  op f <- f,
+
+  op dpp <- dpseed
+
+  proof *.
+  realize dpp_ll by exact: dpseed_ll.
+
+clone import Collection as FC with
   type diff <- int,
   
-  op get_diff <- size,
-  op f <- f,
-  op fc <- thfc,
+    op get_diff <- size,
   
-  op dpp <- dpseed,
+    op fc <- thfc
+    
+  proof *.
+  realize in_collection by exists (8 * n).
+  
+clone import FC.SMDTUDC as FC_UD with
+  op t_smdtud <- d * len,
+
   op din <- ddgstblocklift,
-  op dout <- ddgstblock,
+  op dout <- ddgstblock
   
-  op t_pre <- d * len,
-  op t_cr <- d * len * w,
-  op t_ud <- d * len
+  proof *.
+  realize ge0_tsmdtud by smt(IntOrder.mulr_ge0 ge1_d ge2_len val_w).
+  realize din_ll by exact: ddgstblocklift_ll.
+  realize dout_ll by exact: ddgstblock_ll.
   
-  proof in_collection by exists (8 * n)
-  proof dpp_ll by exact: dpseed_ll
-  proof din_ll by exact: ddgstblocklift_ll
-  proof dout_ll by exact: ddgstblock_ll
-  proof ge0_tpre by smt(IntOrder.mulr_ge0 ge1_d ge2_len)
-  proof ge0_tcr by smt(IntOrder.mulr_ge0 ge1_d ge2_len val_w)
-  proof ge0_tud by smt(IntOrder.mulr_ge0 ge1_d ge2_len).
+clone import FC.SMDTTCRC as FC_TCR with
+  op t_smdttcr <- d * len * w
+
+  proof *.
+  realize ge0_tsmdttcr by smt(IntOrder.mulr_ge0 ge1_d ge2_len val_w).
+    
+clone import FC.SMDTPREC as FC_PRE with
+  op t_smdtpre <- d * len,
+  
+  op din <- ddgstblocklift
+  
+  proof *.
+  realize ge0_tsmdtpre by smt(IntOrder.mulr_ge0 ge1_d ge2_len).
+  realize din_ll by exact: ddgstblocklift_ll.
   
   
 (* - (Tweakable hash) Function chains - *)

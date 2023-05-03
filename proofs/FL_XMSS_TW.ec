@@ -101,48 +101,67 @@ op pkco : pseed -> adrs -> dgst -> dgstblock = thfc (8 * n * len).
   
 (* Import and instantiate tweakable hash function definitions for pkco *)
 clone TweakableHashFunctions as PKCO with
-  type pp_t <= pseed,
-  type tw_t <= adrs,
-  type in_t <= dgst,
-  type out_t <= dgstblock,
-  type diff <= int,
+  type pp_t <- pseed,
+  type tw_t <- adrs,
+  type in_t <- dgst,
+  type out_t <- dgstblock,
+
+  op f <- pkco,
   
-  op get_diff <= size,
-  op f <= pkco,
-  op fc <= thfc,
+  op dpp <- dpseed
   
-  op dpp <= dpseed,
+  proof *. 
+  realize dpp_ll by exact: dpseed_ll.
+
+clone PKCO.Collection as PKCOC with
+  type diff <- int,
   
-  op t_cr <= l
-   
-  proof in_collection by exists (8 * n * len)
-  proof dpp_ll by exact: dpseed_ll
-  proof ge0_tcr by smt(ge2_l).
+    op get_diff <- size,
+    
+    op fc <- thfc
+  
+  proof *.
+  realize in_collection by exists (8 * n * len).
+
+clone PKCOC.SMDTTCRC as PKCOC_TCR with
+  op t_smdttcr <- l
+  
+  proof *.
+  realize ge0_tsmdttcr by smt(ge2_l).  
 
 (* 
   Tweakable hash function used for the hashing operations of the binary hash tree of XMSS.
 *)
 op trh : pseed -> adrs -> dgst -> dgstblock = thfc (8 * n * 2).
-  
-(* Import and instantiate tweakable hash function definitions for trh *)
+
 clone TweakableHashFunctions as TRH with
-  type pp_t <= pseed,
-  type tw_t <= adrs,
-  type in_t <= dgst,
-  type out_t <= dgstblock,
-  type diff <= int,
+  type pp_t <- pseed,
+  type tw_t <- adrs,
+  type in_t <- dgst,
+  type out_t <- dgstblock,
+
+  op f <- trh,
   
-  op get_diff <= size,   
-  op f <= trh,
-  op fc <= thfc,
+  op dpp <- dpseed
   
-  op dpp <= dpseed,
+  proof *. 
+  realize dpp_ll by exact: dpseed_ll.
+
+clone import TRH.Collection as TRHC with
+  type diff <- int,
   
-  op t_cr <= l - 1
-   
-  proof in_collection by exists (8 * n * 2)
-  proof dpp_ll by exact: dpseed_ll
-  proof ge0_tcr by smt(ge2_l).
+    op get_diff <- size,
+    
+    op fc <- thfc
+  
+  proof *.
+  realize in_collection by exists (8 * n * 2).
+
+clone TRHC.SMDTTCRC as TRHC_TCR with
+  op t_smdttcr <- l - 1
+  
+  proof *.
+  realize ge0_tsmdttcr by smt(ge2_l).  
 
 
 (* -- Binary (hash) tree -- *)
@@ -1128,7 +1147,7 @@ module EF_RMA_FLXMSSTWES_NOPRF(A : Adv_EFRMA_FLXMSSTWES) = {
 
 
 (* -- Reduction Adversaries -- *)
-module (R_PRF_FLXMSSTWESInlineNOPRF (A : Adv_EFRMA_FLXMSSTWES) : PRF_SK.Adv_PRF) (O : PRF_SK.Oracle_PRF) = {
+module (R_PRF_FLXMSSTWESInlineNOPRF (A : Adv_EFRMA_FLXMSSTWES) : PRF_SK_PRF.Adv_PRF) (O : PRF_SK_PRF.Oracle_PRF) = {
   proc distinguish() : bool = {
     var ss : sseed;
     var ps : pseed;
@@ -1243,7 +1262,7 @@ module (R_PRF_FLXMSSTWESInlineNOPRF (A : Adv_EFRMA_FLXMSSTWES) : PRF_SK.Adv_PRF)
   }
 }. 
 
-module (R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF (A : Adv_EFRMA_FLXMSSTWES) : Adv_MEFGCMA_WOTSTWES) (O : Oracle_MEFGCMA_WOTSTWES, OC : F.Oracle_THFC) = {
+module (R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF (A : Adv_EFRMA_FLXMSSTWES) : Adv_MEFGCMA_WOTSTWES) (O : Oracle_MEFGCMA_WOTSTWES, OC : FC.Oracle_THFC) = {
   var ad : adrs
   var ml : msgFLXMSSTW list
   var pkWOTSl : dgstblock list list
@@ -1322,7 +1341,7 @@ module (R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF (A : Adv_EFRMA_FLXMSSTWES) : Adv_
   }
 }.
 
-module (R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF (A : Adv_EFRMA_FLXMSSTWES) : PKCO.Adv_SMDTTCRC) (O : PKCO.Oracle_SMDTTCR, OC : PKCO.Oracle_THFC) = {
+module (R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF (A : Adv_EFRMA_FLXMSSTWES) : PKCOC_TCR.Adv_SMDTTCRC) (O : PKCOC_TCR.Oracle_SMDTTCR, OC : PKCOC.Oracle_THFC) = {
   var ad : adrs
   var skWOTSl : dgstblock list list
   var leafl : dgstblock list
@@ -1424,7 +1443,7 @@ module (R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF (A : Adv_EFRMA_FLXMSSTWES) : PKCO.Ad
   }
 }.
 
-module (R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF (A : Adv_EFRMA_FLXMSSTWES) : TRH.Adv_SMDTTCRC) (O : TRH.Oracle_SMDTTCR, OC : TRH.Oracle_THFC) = {
+module (R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF (A : Adv_EFRMA_FLXMSSTWES) : TRHC_TCR.Adv_SMDTTCRC) (O : TRHC_TCR.Oracle_SMDTTCR, OC : TRHC.Oracle_THFC) = {
   var ad : adrs
   var skWOTSl : dgstblock list list
   var leafl : dgstblock list
@@ -1569,7 +1588,7 @@ module (R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF (A : Adv_EFRMA_FLXMSSTWES) : TRH.Adv_
 (* -- EF-RMA for Fixed-Length XMSS-TW (in an encompassing structure) -- *)
 section Proof_EF_RMA_FLXMSSTWES.
 (* - Module declarations - *)
-declare module A <: Adv_EFRMA_FLXMSSTWES{-PRF_SK.O_PRF_Default, -F.O_THFC_Default, -F.O_SMDTPRE_Default, -F.O_SMDTTCR_Default, -F.O_SMDTUD_Default, -PKCO.O_SMDTTCR_Default, -PKCO.O_THFC_Default, -TRH.O_SMDTTCR_Default, -TRH.O_THFC_Default, -O_MEFGCMA_WOTSTWES, -R_PRF_FLXMSSTWESInlineNOPRF, -R_SMDTUDC_Game23WOTSTWES, -R_SMDTTCRC_Game34WOTSTWES, -R_SMDTPREC_Game4WOTSTWES, -R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF, -R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF, -R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF, -R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF}.
+declare module A <: Adv_EFRMA_FLXMSSTWES{-PRF_SK_PRF.O_PRF_Default, -FC.O_THFC_Default, -FC_PRE.O_SMDTPRE_Default, -FC_TCR.O_SMDTTCR_Default, -FC_UD.O_SMDTUD_Default, -PKCOC_TCR.O_SMDTTCR_Default, -PKCOC.O_THFC_Default, -TRHC_TCR.O_SMDTTCR_Default, -TRHC.O_THFC_Default, -O_MEFGCMA_WOTSTWES, -R_PRF_FLXMSSTWESInlineNOPRF, -R_SMDTUDC_Game23WOTSTWES, -R_SMDTTCRC_Game34WOTSTWES, -R_SMDTPREC_Game4WOTSTWES, -R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF, -R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF, -R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF, -R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF}.
 
 declare axiom A_choose_ll : islossless A.choose.
 declare axiom A_forge_ll : islossless A.forge.
@@ -3619,7 +3638,7 @@ qed.
 local lemma Step_EFRMAFLXMSSTWESInlineNOPRF_PRF &m :
   `|Pr[EF_RMA_FLXMSSTWES_Inline.main() @ &m : res] - Pr[EF_RMA_FLXMSSTWES_NOPRF(A).main() @ &m : res]|
   =
-  `|Pr[PRF_SK.PRF(R_PRF_FLXMSSTWESInlineNOPRF(A), PRF_SK.O_PRF_Default).main(false) @ &m : res] - Pr[PRF_SK.PRF(R_PRF_FLXMSSTWESInlineNOPRF(A), PRF_SK.O_PRF_Default).main(true) @ &m : res]|.
+  `|Pr[PRF_SK_PRF.PRF(R_PRF_FLXMSSTWESInlineNOPRF(A), PRF_SK_PRF.O_PRF_Default).main(false) @ &m : res] - Pr[PRF_SK_PRF.PRF(R_PRF_FLXMSSTWESInlineNOPRF(A), PRF_SK_PRF.O_PRF_Default).main(true) @ &m : res]|.
 proof.
 do 2! congr; last congr.
 + byequiv => //.
@@ -3627,8 +3646,8 @@ do 2! congr; last congr.
   wp 22 23.
   seq 7 7 : (={glob A, ps, ad, skWOTSl, leafl}).
   - while(   #post
-          /\ ss{1} = PRF_SK.O_PRF_Default.k{2}
-          /\ PRF_SK.O_PRF_Default.b{2} = false  
+          /\ ss{1} = PRF_SK_PRF.O_PRF_Default.k{2}
+          /\ PRF_SK_PRF.O_PRF_Default.b{2} = false  
           /\ size skWOTSl{1} = size leafl{1}
           /\ 0 <= size leafl{1} <= l).
     * wp.
@@ -3639,8 +3658,8 @@ do 2! congr; last congr.
       + by wp; skip => />; smt(size_rcons).
       wp.
       while(   ={ps, ad, skWOTS, leafl}
-            /\ ss{1} = PRF_SK.O_PRF_Default.k{2}
-            /\ PRF_SK.O_PRF_Default.b{2} = false
+            /\ ss{1} = PRF_SK_PRF.O_PRF_Default.k{2}
+            /\ PRF_SK_PRF.O_PRF_Default.b{2} = false
             /\ 0 <= size leafl{1} < l
             /\ 0 <= size skWOTS{1} <= len).
       + inline{2} 1.
@@ -3661,11 +3680,11 @@ proc; inline{2} 2.
 wp 20 22.
 seq 5 7 : (={glob A, ps, ad, skWOTSl, leafl}).
 - while(   #post
-        /\ PRF_SK.O_PRF_Default.b{2} = true  
+        /\ PRF_SK_PRF.O_PRF_Default.b{2} = true  
         /\ size skWOTSl{1} = size leafl{1}
         /\ 0 <= size leafl{1} <= l
         /\ (forall (psad : pseed * adrs),
-             (psad \in PRF_SK.O_PRF_Default.m{2}
+             (psad \in PRF_SK_PRF.O_PRF_Default.m{2}
               <=>
               (exists (i j : int), 
                   0 <= i < size leafl{2} /\ 0 <= j < len /\
@@ -3678,11 +3697,11 @@ seq 5 7 : (={glob A, ps, ad, skWOTSl, leafl}).
     + by wp; skip => />; smt(size_rcons).
     wp.
     while(   ={ps, ad, skWOTS, leafl}
-          /\ PRF_SK.O_PRF_Default.b{2} = true
+          /\ PRF_SK_PRF.O_PRF_Default.b{2} = true
           /\ 0 <= size leafl{1} < l
           /\ 0 <= size skWOTS{1} <= len
           /\ (forall (psad : pseed * adrs),
-                (psad \in PRF_SK.O_PRF_Default.m{2}
+                (psad \in PRF_SK_PRF.O_PRF_Default.m{2}
                  <=>
                  ((exists (i j : int), 
                     0 <= i < size leafl{2} /\ 0 <= j < len /\
@@ -3757,16 +3776,16 @@ lemma EFRMA_FLXMSSTWES_NOPRF &m:
     Pr[EF_RMA_FLXMSSTWES_NOPRF(A).main() @ &m : res]
     <=
     (w - 2)%r * 
-  `|Pr[F.SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(A)), F.O_SMDTUD_Default, F.O_THFC_Default).main(false) @ &m : res] - 
-    Pr[F.SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(A)), F.O_SMDTUD_Default, F.O_THFC_Default).main(true) @ &m : res]| 
+  `|Pr[FC_UD.SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(A)), FC_UD.O_SMDTUD_Default, FC.O_THFC_Default).main(false) @ &m : res] - 
+    Pr[FC_UD.SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(A)), FC_UD.O_SMDTUD_Default, FC.O_THFC_Default).main(true) @ &m : res]| 
     +
-    Pr[F.SM_DT_TCR_C(R_SMDTTCRC_Game34WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(A)), F.O_SMDTTCR_Default, F.O_THFC_Default).main() @ &m : res] 
+    Pr[FC_TCR.SM_DT_TCR_C(R_SMDTTCRC_Game34WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(A)), FC_TCR.O_SMDTTCR_Default, FC.O_THFC_Default).main() @ &m : res] 
     +
-    Pr[F.SM_DT_PRE_C(R_SMDTPREC_Game4WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(A)), F.O_SMDTPRE_Default, F.O_THFC_Default).main() @ &m : res]
+    Pr[FC_PRE.SM_DT_PRE_C(R_SMDTPREC_Game4WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(A)), FC_PRE.O_SMDTPRE_Default, FC.O_THFC_Default).main() @ &m : res]
     +
-    Pr[PKCO.SM_DT_TCR_C(R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF(A), PKCO.O_SMDTTCR_Default, PKCO.O_THFC_Default).main() @ &m : res]
+    Pr[PKCOC_TCR.SM_DT_TCR_C(R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF(A), PKCOC_TCR.O_SMDTTCR_Default, PKCOC.O_THFC_Default).main() @ &m : res]
     +
-    Pr[TRH.SM_DT_TCR_C(R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF(A), TRH.O_SMDTTCR_Default, TRH.O_THFC_Default).main() @ &m : res].
+    Pr[TRHC_TCR.SM_DT_TCR_C(R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF(A), TRHC_TCR.O_SMDTTCR_Default, TRHC.O_THFC_Default).main() @ &m : res].
 proof.
 move=> gel_d.
 move: (MEFGCMA_WOTSTWES_NOPRF (R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(A)) _ _ &m).
@@ -3799,7 +3818,7 @@ have ->:
 rewrite Pr[mu_split EF_RMA_FLXMSSTWES_NOPRF_Conditions.valid_WOTSTWES] addrC.
 rewrite Pr[mu_split EF_RMA_FLXMSSTWES_NOPRF_Conditions.coll_pkco] addrC -2!andbA.
 rewrite -addrA ler_add 2:ler_add. 
-+ apply (ler_trans Pr[M_EF_GCMA_WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(A), O_MEFGCMA_WOTSTWES_NOPRF, F.O_THFC_Default).main() @ &m : res]); last by apply thm_defgcma_wotstw_noprf.
++ apply (ler_trans Pr[M_EF_GCMA_WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(A), O_MEFGCMA_WOTSTWES_NOPRF, FC.O_THFC_Default).main() @ &m : res]); last by apply thm_defgcma_wotstw_noprf.
   have ->:
     Pr[EF_RMA_FLXMSSTWES_NOPRF_Conditions.main() @ &m : res /\ EF_RMA_FLXMSSTWES_NOPRF_Conditions.valid_WOTSTWES]
     =
@@ -3816,7 +3835,7 @@ rewrite -addrA ler_add 2:ler_add.
                /\ pkWOTSl{1} = R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF.pkWOTSl{2}
                /\ sigWOTSl{1} = R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF.sigWOTSl{2}
                /\ ml{1} = unzip1 msigl{1}
-               /\ F.O_THFC_Default.tws{2} = []
+               /\ FC.O_THFC_Default.tws{2} = []
                /\ uniq_preffour (map (fun (q : adrs * msgWOTS * pkWOTS * sigWOTS) => q.`1) O_MEFGCMA_WOTSTWES.qs{2})
                /\ size ml{1} = l
                /\ size leafl{1} = l
@@ -3968,43 +3987,43 @@ rewrite -addrA ler_add 2:ler_add.
     * by wp; skip => />; smt(size_rcons).
     by wp; rnd; skip => />; smt(ge2_len size_rcons).
   wp => /=.
-  while (   ps{1} = PKCO.O_SMDTTCR_Default.pp{2}
-         /\ ps{1} = PKCO.O_THFC_Default.pp{2}
+  while (   ps{1} = PKCOC_TCR.O_SMDTTCR_Default.pp{2}
+         /\ ps{1} = PKCOC.O_THFC_Default.pp{2}
          /\ ad{1} = R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF.ad{2}
          /\ skWOTSl{1} = R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF.skWOTSl{2}
-         /\ map (flatten \o map DigestBlock.val) pkWOTSl{1} = unzip2 PKCO.O_SMDTTCR_Default.ts{2}
+         /\ map (flatten \o map DigestBlock.val) pkWOTSl{1} = unzip2 PKCOC_TCR.O_SMDTTCR_Default.ts{2}
          /\ leafl{1} = R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF.leafl{2}
-         /\ (forall (i : int), 0 <= i < size PKCO.O_SMDTTCR_Default.ts{2} =>
-               (nth witness PKCO.O_SMDTTCR_Default.ts{2} i).`1
+         /\ (forall (i : int), 0 <= i < size PKCOC_TCR.O_SMDTTCR_Default.ts{2} =>
+               (nth witness PKCOC_TCR.O_SMDTTCR_Default.ts{2} i).`1
                =
                set_kpidx (set_typeidx R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF.ad{2} pkcotype) i)
-         /\ uniq (unzip1 PKCO.O_SMDTTCR_Default.ts{2})
-         /\ all is_chtype PKCO.O_THFC_Default.tws{2}
-         /\ PKCO.disj_lists (unzip1 PKCO.O_SMDTTCR_Default.ts{2}) PKCO.O_THFC_Default.tws{2} 
+         /\ uniq (unzip1 PKCOC_TCR.O_SMDTTCR_Default.ts{2})
+         /\ all is_chtype PKCOC.O_THFC_Default.tws{2}
+         /\ PKCOC.disj_lists (unzip1 PKCOC_TCR.O_SMDTTCR_Default.ts{2}) PKCOC.O_THFC_Default.tws{2} 
          /\ size leafl{1} = size skWOTSl{1}
          /\ size leafl{1} = size pkWOTSl{1}
-         /\ size leafl{1} = size PKCO.O_SMDTTCR_Default.ts{2}
+         /\ size leafl{1} = size PKCOC_TCR.O_SMDTTCR_Default.ts{2}
          /\ 0 <= size leafl{1} <= l).
   - wp => /=.
     while (   ={skWOTS, pkWOTS}
-           /\ ps{1} = PKCO.O_THFC_Default.pp{2}
+           /\ ps{1} = PKCOC.O_THFC_Default.pp{2}
            /\ ad{1} = R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF.ad{2}
            /\ size skWOTS{2} = len
            /\ size leafl{1} = size R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF.leafl{2}
-           /\ size R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF.leafl{2} = size PKCO.O_SMDTTCR_Default.ts{2}
-            /\ (forall (i : int), 0 <= i < size PKCO.O_SMDTTCR_Default.ts{2} =>
-               (nth witness PKCO.O_SMDTTCR_Default.ts{2} i).`1
+           /\ size R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF.leafl{2} = size PKCOC_TCR.O_SMDTTCR_Default.ts{2}
+            /\ (forall (i : int), 0 <= i < size PKCOC_TCR.O_SMDTTCR_Default.ts{2} =>
+               (nth witness PKCOC_TCR.O_SMDTTCR_Default.ts{2} i).`1
                =
                set_kpidx (set_typeidx R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF.ad{2} pkcotype) i)
-           /\ all is_chtype PKCO.O_THFC_Default.tws{2}
-           /\ PKCO.disj_lists (unzip1 PKCO.O_SMDTTCR_Default.ts{2}) PKCO.O_THFC_Default.tws{2}
+           /\ all is_chtype PKCOC.O_THFC_Default.tws{2}
+           /\ PKCOC.disj_lists (unzip1 PKCOC_TCR.O_SMDTTCR_Default.ts{2}) PKCOC.O_THFC_Default.tws{2}
            /\ 0 <= size leafl{1} < l
            /\ 0 <= size pkWOTS{1} <= len).
     * wp => /=.
       while{2} (   pkWOTS_ele{2} 
                    = 
-                   cf PKCO.O_THFC_Default.pp{2} (set_chthidx (set_kpidx (set_typeidx R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF.ad{2} chtype) (size R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF.leafl{2})) (size pkWOTS{2})) 0 i0{2} (val (nth witness skWOTS{2} (size pkWOTS{2})))
-                /\ all is_chtype PKCO.O_THFC_Default.tws{2}
+                   cf PKCOC.O_THFC_Default.pp{2} (set_chthidx (set_kpidx (set_typeidx R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF.ad{2} chtype) (size R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF.leafl{2})) (size pkWOTS{2})) 0 i0{2} (val (nth witness skWOTS{2} (size pkWOTS{2})))
+                /\ all is_chtype PKCOC.O_THFC_Default.tws{2}
                 /\ 0 <= i0{2} <= w - 1
                 /\ 0 <= size R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF.leafl{2} < l
                 /\ 0 <= size pkWOTS{2} < len)
@@ -4064,10 +4083,10 @@ rewrite -addrA ler_add 2:ler_add.
   split => [| pkwp /lezNgt gelen_szpkwp _ _ lelen_szpkwp valap msig_nin neqnth_pkw coll coll_img]; first by smt(ge2_len).
   split => [/# |].
   have ->:
-    (nth witness ts (val msig.`2.`1)).`2
+    (nth witness tws (val msig.`2.`1)).`2
     =
     flatten (map DigestBlock.val (nth witness pkwl (val msig.`2.`1))).
-  - rewrite (: (nth witness ts (val msig.`2.`1)).`2 = (nth witness (unzip2 ts) (val msig.`2.`1))) 1:(nth_map witness witness); first 2 by smt(Index.valP).
+  - rewrite (: (nth witness tws (val msig.`2.`1)).`2 = (nth witness (unzip2 tws) (val msig.`2.`1))) 1:(nth_map witness witness); first 2 by smt(Index.valP).
     by rewrite -rel_pkwl_ts /(\o) (nth_map witness witness); first by smt(Index.valP).
   rewrite eq_sym coll /=; smt(Index.valP).
 byequiv => //=.
@@ -4075,13 +4094,13 @@ proc.
 inline{2} 5; inline{2} 4; inline{2} 3; inline{2} 2.
 seq 6 11 : (   ={glob A}
             /\ ps{1} = pp{2}
-            /\ ps{1} = TRH.O_THFC_Default.pp{2}
-            /\ ps{1} = TRH.O_SMDTTCR_Default.pp{2}
+            /\ ps{1} = TRHC.O_THFC_Default.pp{2}
+            /\ ps{1} = TRHC_TCR.O_SMDTTCR_Default.pp{2}
             /\ ad{1} = R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.ad{2}
             /\ skWOTSl{1} = R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.skWOTSl{2}
             /\ leafl{1} = R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.leafl{2}
-            /\ TRH.O_SMDTTCR_Default.ts{2} = []
-            /\ all (fun (adrs : adrs) => ! is_trhtype adrs) TRH.O_THFC_Default.tws{2}
+            /\ TRHC_TCR.O_SMDTTCR_Default.ts{2} = []
+            /\ all (fun (adrs : adrs) => ! is_trhtype adrs) TRHC.O_THFC_Default.tws{2}
             /\ all (support ddgstblockl) skWOTSl{1}
             /\ all ((=) len \o size) pkWOTSl{1}
             /\ size skWOTSl{1} = l
@@ -4097,13 +4116,13 @@ seq 6 11 : (   ={glob A}
                   pkco ps{1} (set_kpidx (set_typeidx ad{1} pkcotype) j) (flatten (map DigestBlock.val (nth witness pkWOTSl{1} j))))).
 + while (   ={glob A} 
          /\ ps{1} = pp{2} 
-         /\ ps{1} = TRH.O_THFC_Default.pp{2} 
-         /\ ps{1} = TRH.O_SMDTTCR_Default.pp{2} 
+         /\ ps{1} = TRHC.O_THFC_Default.pp{2} 
+         /\ ps{1} = TRHC_TCR.O_SMDTTCR_Default.pp{2} 
          /\ ad{1} = R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.ad{2} 
          /\ skWOTSl{1} = R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.skWOTSl{2} 
          /\ leafl{1} = R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.leafl{2} 
-         /\ TRH.O_SMDTTCR_Default.ts{2} = [] 
-         /\ all (fun (adrs : adrs) => ! is_trhtype adrs) TRH.O_THFC_Default.tws{2} 
+         /\ TRHC_TCR.O_SMDTTCR_Default.ts{2} = [] 
+         /\ all (fun (adrs : adrs) => ! is_trhtype adrs) TRHC.O_THFC_Default.tws{2} 
          /\ all (support ddgstblockl) skWOTSl{1} 
          /\ all ((=) len \o size) pkWOTSl{1} 
          /\ size skWOTSl{1} = size leafl{1} 
@@ -4123,23 +4142,23 @@ seq 6 11 : (   ={glob A}
     wp => /=.
     while (   ={pkWOTS}
            /\ ps{1} = pp{2} 
-           /\ ps{1} = TRH.O_THFC_Default.pp{2} 
-           /\ ps{1} = TRH.O_SMDTTCR_Default.pp{2} 
+           /\ ps{1} = TRHC.O_THFC_Default.pp{2} 
+           /\ ps{1} = TRHC_TCR.O_SMDTTCR_Default.pp{2} 
            /\ ad{1} = R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.ad{2}  
            /\ leafl{1} = R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.leafl{2}
            /\ skWOTS{1} = skWOTS0{2}
            /\ support ddgstblockl skWOTS{1}
-           /\ all (fun (adrs : adrs) => ! is_trhtype adrs) TRH.O_THFC_Default.tws{2}
+           /\ all (fun (adrs : adrs) => ! is_trhtype adrs) TRHC.O_THFC_Default.tws{2}
            /\ 0 <= size leafl{1} < l
            /\ 0 <= size pkWOTS{1} <= len
            /\ (forall (j : int), 0 <= j < size pkWOTS{1} =>
                  nth witness pkWOTS{1} j
                  =
-                 cf TRH.O_THFC_Default.pp{2} (set_chthidx (set_kpidx (set_typeidx R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.ad{2} chtype) (size R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.leafl{2})) j) 0 (w - 1) (val (nth witness skWOTS0{2} j)))).
+                 cf TRHC.O_THFC_Default.pp{2} (set_chthidx (set_kpidx (set_typeidx R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.ad{2} chtype) (size R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.leafl{2})) j) 0 (w - 1) (val (nth witness skWOTS0{2} j)))).
     * wp => /=.
-      while{2} (   pkWOTS_ele{2} = cf TRH.O_THFC_Default.pp{2} (set_chthidx (set_kpidx (set_typeidx R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.ad{2} chtype) (size R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.leafl{2})) (size pkWOTS{2})) 0 i0{2} (val (nth witness skWOTS0{2} (size pkWOTS{2})))
+      while{2} (   pkWOTS_ele{2} = cf TRHC.O_THFC_Default.pp{2} (set_chthidx (set_kpidx (set_typeidx R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.ad{2} chtype) (size R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.leafl{2})) (size pkWOTS{2})) 0 i0{2} (val (nth witness skWOTS0{2} (size pkWOTS{2})))
                 /\ support ddgstblockl skWOTS0{2}
-                /\ all (fun (adrs : adrs) => ! is_trhtype adrs) TRH.O_THFC_Default.tws{2}
+                /\ all (fun (adrs : adrs) => ! is_trhtype adrs) TRHC.O_THFC_Default.tws{2}
                 /\ 0 <= size R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.leafl{2} < l 
                 /\ 0 <= size pkWOTS{2} < len
                 /\ 0 <= i0{2} <= w - 1)
@@ -4190,18 +4209,18 @@ inline{2} 24; inline{2} 23; inline{2} 22; inline{2} 21; inline{2} 20.
 wp => /=.
 seq 5 10 : (   ={m', sig', ps}
             /\ ps{1} = pp{2}
-            /\ ps{1} = TRH.O_THFC_Default.pp{2}
-            /\ ps{1} = TRH.O_SMDTTCR_Default.pp{2}
+            /\ ps{1} = TRHC.O_THFC_Default.pp{2}
+            /\ ps{1} = TRHC_TCR.O_SMDTTCR_Default.pp{2}
             /\ ad{1} = R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.ad{2}
             /\ skWOTSl{1} = R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.skWOTSl{2}
             /\ leafl{1} = R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.leafl{2}
             /\ root{1} = val_bt_trh (list2tree leafl{1}) ps{1} (set_typeidx ad{1} trhtype) h 0
-            /\ all (fun (adrs : adrs) => ! is_trhtype adrs) TRH.O_THFC_Default.tws{2}
+            /\ all (fun (adrs : adrs) => ! is_trhtype adrs) TRHC.O_THFC_Default.tws{2}
             /\ all (support ddgstblockl) skWOTSl{1}
             /\ all ((=) len \o size) pkWOTSl{1}
-            /\ TRH.disj_lists (unzip1 TRH.O_SMDTTCR_Default.ts{2}) TRH.O_THFC_Default.tws{2}
-            /\ unzip1 TRH.O_SMDTTCR_Default.ts{2} = flatten R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.adrsll{2}
-            /\ unzip2 TRH.O_SMDTTCR_Default.ts{2} = flatten R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.inpll{2}
+            /\ TRHC.disj_lists (unzip1 TRHC_TCR.O_SMDTTCR_Default.ts{2}) TRHC.O_THFC_Default.tws{2}
+            /\ unzip1 TRHC_TCR.O_SMDTTCR_Default.ts{2} = flatten R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.adrsll{2}
+            /\ unzip2 TRHC_TCR.O_SMDTTCR_Default.ts{2} = flatten R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.inpll{2}
             /\ size R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.nodell{2} = h
             /\ size R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.adrsll{2} = h 
             /\ size R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.inpll{2} = h
@@ -4229,11 +4248,11 @@ seq 5 10 : (   ={m', sig', ps}
             /\ (forall (n : int), 1 <= size R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.nodell{2} => 0 <= n < 2 ^ (h - 1) =>
                   nth witness (nth witness R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.nodell{2} 0) n
                   =
-                  trh TRH.O_SMDTTCR_Default.pp{2} (set_thtbidx (set_typeidx R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.ad{2} trhtype) 1 n) (val (nth witness R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.leafl{2} (2 * n)) ++ val (nth witness R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.leafl{2} (2 * n + 1))))
+                  trh TRHC_TCR.O_SMDTTCR_Default.pp{2} (set_thtbidx (set_typeidx R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.ad{2} trhtype) 1 n) (val (nth witness R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.leafl{2} (2 * n)) ++ val (nth witness R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.leafl{2} (2 * n + 1))))
             /\ (forall (j n : int), 1 <= j < size R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.nodell{2} => 0 <= n < 2 ^ (h - j - 1) =>
                   nth witness (nth witness R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.nodell{2} j) n
                   =
-                  trh TRH.O_SMDTTCR_Default.pp{2} (set_thtbidx (set_typeidx R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.ad{2} trhtype) (j + 1) n) (val (nth witness (nth witness R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.nodell{2} (j - 1)) (2 * n)) ++ val (nth witness (nth witness R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.nodell{2} (j - 1)) (2 * n + 1))))
+                  trh TRHC_TCR.O_SMDTTCR_Default.pp{2} (set_thtbidx (set_typeidx R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.ad{2} trhtype) (j + 1) n) (val (nth witness (nth witness R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.nodell{2} (j - 1)) (2 * n)) ++ val (nth witness (nth witness R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.nodell{2} (j - 1)) (2 * n + 1))))
             /\ (forall (j n : int), 0 <= j < size R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.adrsll{2} => 0 <= n < 2 ^ (h - j - 1) =>
                   nth witness (nth witness R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.adrsll{2} j) n
                   =
@@ -4249,7 +4268,7 @@ seq 5 10 : (   ={m', sig', ps}
             /\ (forall (j n : int), 0 <= j < size R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.nodell{2} => 0 <= n < 2 ^ (h - j - 1) =>
                   nth witness (nth witness R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.nodell{2} j) n
                   =
-                  val_bt_trh (oget (sub_bt (list2tree R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.leafl{2}) (rev (int2bs (h - j - 1) n)))) TRH.O_SMDTTCR_Default.pp{2} (set_typeidx R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.ad{2} trhtype) (j + 1) n)).          
+                  val_bt_trh (oget (sub_bt (list2tree R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.leafl{2}) (rev (int2bs (h - j - 1) n)))) TRHC_TCR.O_SMDTTCR_Default.pp{2} (set_typeidx R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.ad{2} trhtype) (j + 1) n)).          
 + call (: true).
   while (   ={ps, msigl}
          /\ ad{1} = R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.ad{2}
@@ -4264,10 +4283,10 @@ seq 5 10 : (   ={m', sig', ps}
     * by wp; skip => />; smt(size_rcons).
     by wp; rnd; skip => />; smt(ge2_len size_rcons).
   wp => /=.  
-  while{2} (   TRH.disj_lists (unzip1 TRH.O_SMDTTCR_Default.ts{2}) TRH.O_THFC_Default.tws{2}
-            /\ all (fun (adrs : adrs) => ! is_trhtype adrs) TRH.O_THFC_Default.tws{2}
-            /\ unzip1 TRH.O_SMDTTCR_Default.ts{2} = flatten R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.adrsll{2}
-            /\ unzip2 TRH.O_SMDTTCR_Default.ts{2} = flatten R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.inpll{2}
+  while{2} (   TRHC.disj_lists (unzip1 TRHC_TCR.O_SMDTTCR_Default.ts{2}) TRHC.O_THFC_Default.tws{2}
+            /\ all (fun (adrs : adrs) => ! is_trhtype adrs) TRHC.O_THFC_Default.tws{2}
+            /\ unzip1 TRHC_TCR.O_SMDTTCR_Default.ts{2} = flatten R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.adrsll{2}
+            /\ unzip2 TRHC_TCR.O_SMDTTCR_Default.ts{2} = flatten R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.inpll{2}
             /\ size R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.adrsll{2} = size R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.nodell{2}
             /\ size R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.inpll{2} = size R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.nodell{2}
             /\ size R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.leafl{2} = l
@@ -4285,11 +4304,11 @@ seq 5 10 : (   ={m', sig', ps}
             /\ (forall (n : int), 1 <= size R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.nodell{2} => 0 <= n < 2 ^ (h - 1) =>
                   nth witness (nth witness R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.nodell{2} 0) n
                   =
-                  trh TRH.O_SMDTTCR_Default.pp{2} (set_thtbidx (set_typeidx R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.ad{2} trhtype) 1 n) (val (nth witness R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.leafl{2} (2 * n)) ++ val (nth witness R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.leafl{2} (2 * n + 1))))
+                  trh TRHC_TCR.O_SMDTTCR_Default.pp{2} (set_thtbidx (set_typeidx R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.ad{2} trhtype) 1 n) (val (nth witness R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.leafl{2} (2 * n)) ++ val (nth witness R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.leafl{2} (2 * n + 1))))
             /\ (forall (j n : int), 1 <= j < size R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.nodell{2} => 0 <= n < 2 ^ (h - j - 1) =>
                   nth witness (nth witness R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.nodell{2} j) n
                   =
-                  trh TRH.O_SMDTTCR_Default.pp{2} (set_thtbidx (set_typeidx R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.ad{2} trhtype) (j + 1) n) (val (nth witness (nth witness R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.nodell{2} (j - 1)) (2 * n)) ++ val (nth witness (nth witness R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.nodell{2} (j - 1)) (2 * n + 1))))
+                  trh TRHC_TCR.O_SMDTTCR_Default.pp{2} (set_thtbidx (set_typeidx R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.ad{2} trhtype) (j + 1) n) (val (nth witness (nth witness R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.nodell{2} (j - 1)) (2 * n)) ++ val (nth witness (nth witness R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.nodell{2} (j - 1)) (2 * n + 1))))
             /\ (forall (j n : int), 0 <= j < size R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.adrsll{2} => 0 <= n < 2 ^ (h - j - 1) =>
                   nth witness (nth witness R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.adrsll{2} j) n
                   =
@@ -4305,12 +4324,12 @@ seq 5 10 : (   ={m', sig', ps}
             /\ (forall (j n : int), 0 <= j < size R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.nodell{2} => 0 <= n < 2 ^ (h - j - 1) =>
                   nth witness (nth witness R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.nodell{2} j) n
                   =
-                  val_bt_trh (oget (sub_bt (list2tree R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.leafl{2}) (rev (int2bs (h - j - 1) n)))) TRH.O_SMDTTCR_Default.pp{2} (set_typeidx R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.ad{2} trhtype) (j + 1) n))
+                  val_bt_trh (oget (sub_bt (list2tree R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.leafl{2}) (rev (int2bs (h - j - 1) n)))) TRHC_TCR.O_SMDTTCR_Default.pp{2} (set_typeidx R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.ad{2} trhtype) (j + 1) n))
            (h - size R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.nodell{2}).
   - move=> _ z.
     inline *; wp => /=.
-    while (   unzip1 TRH.O_SMDTTCR_Default.ts = flatten (rcons R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.adrsll adrsl)
-           /\ unzip2 TRH.O_SMDTTCR_Default.ts = flatten (rcons R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.inpll inpl)
+    while (   unzip1 TRHC_TCR.O_SMDTTCR_Default.ts = flatten (rcons R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.adrsll adrsl)
+           /\ unzip2 TRHC_TCR.O_SMDTTCR_Default.ts = flatten (rcons R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.inpll inpl)
            /\ size adrsl = size nodel
            /\ size inpl = size nodel
            /\ 0 <= size nodel <= 2 ^ (h - size R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.nodell - 1)
@@ -4325,7 +4344,7 @@ seq 5 10 : (   ={m', sig', ps}
            /\ (forall (j : int), 0 <= j < size nodel =>
                  nth witness nodel j
                  =
-                 trh TRH.O_SMDTTCR_Default.pp (nth witness adrsl j) (nth witness inpl j)))   
+                 trh TRHC_TCR.O_SMDTTCR_Default.pp (nth witness adrsl j) (nth witness inpl j)))   
           (2 ^ (h - size R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.nodell - 1) - size nodel).
     * move=> z'.
       wp; skip => /> &2 equnz1ts_fladl equnz2ts_flinpl eqszad_sznl eqszinpl_sznl ge0_dznl _ adl_def inpl_def nl_def lt2h1_sznl.
@@ -4456,7 +4475,7 @@ move/negb_and => /= [ | neq_leafs].
   by rewrite 2!valP.
 split.
 + split => [| _]; first by rewrite size_ge0.
-  rewrite (: size TRH.O_SMDTTCR_Default.ts{2} = size (unzip1 TRH.O_SMDTTCR_Default.ts{2})); first by rewrite size_map.
+  rewrite (: size TRHC_TCR.O_SMDTTCR_Default.ts{2} = size (unzip1 TRHC_TCR.O_SMDTTCR_Default.ts{2})); first by rewrite size_map.
   rewrite equnz1ts_fladl (: size (flatten R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.adrsll{2}) = size (flatten R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.nodell{2})).
   - rewrite 2!size_flatten 2!StdBigop.Bigint.sumzE 2!StdBigop.Bigint.BIA.big_mapT /(\o) /=.
     rewrite (StdBigop.Bigint.BIA.big_nth witness) /(\o) /predT /= -/predT.
@@ -4501,9 +4520,9 @@ move: (extract_coll_bt_ap_Ph0
         (list2tree R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.leafl{2})
          sig'{2}.`3
          sig'{2}.`1
-        (pkco TRH.O_SMDTTCR_Default.pp{2} (set_kpidx (set_typeidx R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.ad{2} pkcotype) (val sig'{2}.`1)) (flatten (map DigestBlock.val pkwp)))
-        (pkco TRH.O_SMDTTCR_Default.pp{2} (set_kpidx (set_typeidx R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.ad{2} pkcotype) (val sig'{2}.`1)) (flatten (map DigestBlock.val ((nth witness pkWOTSl{1} (val sig'{2}.`1))))))
-         TRH.O_SMDTTCR_Default.pp{2}
+        (pkco TRHC_TCR.O_SMDTTCR_Default.pp{2} (set_kpidx (set_typeidx R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.ad{2} pkcotype) (val sig'{2}.`1)) (flatten (map DigestBlock.val pkwp)))
+        (pkco TRHC_TCR.O_SMDTTCR_Default.pp{2} (set_kpidx (set_typeidx R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.ad{2} pkcotype) (val sig'{2}.`1)) (flatten (map DigestBlock.val ((nth witness pkWOTSl{1} (val sig'{2}.`1))))))
+         TRHC_TCR.O_SMDTTCR_Default.pp{2}
         (set_typeidx R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.ad{2} trhtype)).
 rewrite istrhtype_settypeidx /= => /(_ _ _ _ _ _); 1,4: smt().
 + by apply (list2tree_fullybalanced _ h); smt(ge1_h).
@@ -4513,14 +4532,14 @@ pose extr_coll := extract_coll_bt_ap _ _ _ _ _ _ _ _.
 move=> -[x x' i j] [#] coll_val.
 rewrite coll_val oget_some /= => eq8n2_szx eq8n2_szxp xval vali vali1 valij vali12j vali12j1 ge1_i leh_i jval neqx_xp eq_trhxxp.
 have nthxval:
-  x = (nth witness TRH.O_SMDTTCR_Default.ts{2} (sumz (map size (take (i - 1) R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.inpll{2})) + j)).`2.
+  x = (nth witness TRHC_TCR.O_SMDTTCR_Default.ts{2} (sumz (map size (take (i - 1) R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.inpll{2})) + j)).`2.
 + have ->:
-    (nth witness TRH.O_SMDTTCR_Default.ts{2} (sumz (map size (take (i - 1) R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.inpll{2})) + j)).`2
+    (nth witness TRHC_TCR.O_SMDTTCR_Default.ts{2} (sumz (map size (take (i - 1) R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.inpll{2})) + j)).`2
     =
-    nth witness (unzip2 TRH.O_SMDTTCR_Default.ts{2}) (sumz (map size (take (i - 1) R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.inpll{2})) + j).
+    nth witness (unzip2 TRHC_TCR.O_SMDTTCR_Default.ts{2}) (sumz (map size (take (i - 1) R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.inpll{2})) + j).
   - rewrite (nth_map witness) => //=. 
     split => [| _]; first by rewrite addz_ge0 2:/# sumz_ge0 allP => xt /mapP [? [? ->]]; rewrite size_ge0.
-    rewrite (: size TRH.O_SMDTTCR_Default.ts{2} = size (unzip2 TRH.O_SMDTTCR_Default.ts{2})) 1:size_map // -size_flatten equnz2ts_flinpl.
+    rewrite (: size TRHC_TCR.O_SMDTTCR_Default.ts{2} = size (unzip2 TRHC_TCR.O_SMDTTCR_Default.ts{2})) 1:size_map // -size_flatten equnz2ts_flinpl.
     suff /#:
       size (flatten (take (i - 1) R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.inpll{2})) + j < size (flatten (take i R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.inpll{2})) <= size (flatten R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.inpll{2}).
     split=> [| _].
@@ -4536,12 +4555,12 @@ have nthxval:
   by congr; rewrite nl_valbt /#.
 split; first by rewrite -nthxval.
 have -> //=:
-  (nth witness TRH.O_SMDTTCR_Default.ts{2} (sumz (map size (take (i - 1) R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.inpll{2})) + j)).`1
+  (nth witness TRHC_TCR.O_SMDTTCR_Default.ts{2} (sumz (map size (take (i - 1) R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.inpll{2})) + j)).`1
   =
-  nth witness (unzip1 TRH.O_SMDTTCR_Default.ts{2}) (sumz (map size (take (i - 1) R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.adrsll{2})) + j).
+  nth witness (unzip1 TRHC_TCR.O_SMDTTCR_Default.ts{2}) (sumz (map size (take (i - 1) R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.adrsll{2})) + j).
 + rewrite (nth_map witness) => //=. 
   - split => [| _]; first by rewrite addz_ge0 2:/# sumz_ge0 allP => xt /mapP [? [? ->]]; rewrite size_ge0.
-    rewrite (: size TRH.O_SMDTTCR_Default.ts{2} = size (unzip1 TRH.O_SMDTTCR_Default.ts{2})) 1:size_map // -size_flatten equnz1ts_fladl.
+    rewrite (: size TRHC_TCR.O_SMDTTCR_Default.ts{2} = size (unzip1 TRHC_TCR.O_SMDTTCR_Default.ts{2})) 1:size_map // -size_flatten equnz1ts_fladl.
     suff /#:
       size (flatten (take (i - 1) R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.adrsll{2})) + j < size (flatten (take i R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.adrsll{2})) <= size (flatten R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF.adrsll{2}).
     split=> [| _].
@@ -4565,20 +4584,20 @@ lemma EFRMA_FLXMSSTWES &m :
   l <= WOTS_TW.d =>
     Pr[EF_RMA_FLXMSSTWES(A).main() @ &m : res]
     <=
-  `|Pr[PRF_SK.PRF(R_PRF_FLXMSSTWESInlineNOPRF(A), PRF_SK.O_PRF_Default).main(false) @ &m : res] - 
-    Pr[PRF_SK.PRF(R_PRF_FLXMSSTWESInlineNOPRF(A), PRF_SK.O_PRF_Default).main(true) @ &m : res]|
+  `|Pr[PRF_SK_PRF.PRF(R_PRF_FLXMSSTWESInlineNOPRF(A), PRF_SK_PRF.O_PRF_Default).main(false) @ &m : res] - 
+    Pr[PRF_SK_PRF.PRF(R_PRF_FLXMSSTWESInlineNOPRF(A), PRF_SK_PRF.O_PRF_Default).main(true) @ &m : res]|
     +
     (w - 2)%r * 
-  `|Pr[F.SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(A)), F.O_SMDTUD_Default, F.O_THFC_Default).main(false) @ &m : res] - 
-    Pr[F.SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(A)), F.O_SMDTUD_Default, F.O_THFC_Default).main(true) @ &m : res]| 
+  `|Pr[FC_UD.SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(A)), FC_UD.O_SMDTUD_Default, FC.O_THFC_Default).main(false) @ &m : res] - 
+    Pr[FC_UD.SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(A)), FC_UD.O_SMDTUD_Default, FC.O_THFC_Default).main(true) @ &m : res]| 
     +
-    Pr[F.SM_DT_TCR_C(R_SMDTTCRC_Game34WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(A)), F.O_SMDTTCR_Default, F.O_THFC_Default).main() @ &m : res] 
+    Pr[FC_TCR.SM_DT_TCR_C(R_SMDTTCRC_Game34WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(A)), FC_TCR.O_SMDTTCR_Default, FC.O_THFC_Default).main() @ &m : res] 
     +
-    Pr[F.SM_DT_PRE_C(R_SMDTPREC_Game4WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(A)), F.O_SMDTPRE_Default, F.O_THFC_Default).main() @ &m : res]
+    Pr[FC_PRE.SM_DT_PRE_C(R_SMDTPREC_Game4WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(A)), FC_PRE.O_SMDTPRE_Default, FC.O_THFC_Default).main() @ &m : res]
     +
-    Pr[PKCO.SM_DT_TCR_C(R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF(A), PKCO.O_SMDTTCR_Default, PKCO.O_THFC_Default).main() @ &m : res]
+    Pr[PKCOC_TCR.SM_DT_TCR_C(R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF(A), PKCOC_TCR.O_SMDTTCR_Default, PKCOC.O_THFC_Default).main() @ &m : res]
     +
-    Pr[TRH.SM_DT_TCR_C(R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF(A), TRH.O_SMDTTCR_Default, TRH.O_THFC_Default).main() @ &m : res].
+    Pr[TRHC_TCR.SM_DT_TCR_C(R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF(A), TRHC_TCR.O_SMDTTCR_Default, TRHC.O_THFC_Default).main() @ &m : res].
 proof.
 move=> gel_d.
 move/(EFRMA_FLXMSSTWES_NOPRF &m): gel_d => thm_nprf.
@@ -4702,7 +4721,7 @@ module R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES (A : Adv_EFRMA) : Adv_EFRMA_FLXMSSTWES = 
 
 section Proof_EF_RMA_FLXMSSTW.
 (* - Module declarations - *)
-declare module A <: Adv_EFRMA{-PRF_SK.O_PRF_Default, -F.O_THFC_Default, -F.O_SMDTPRE_Default, -F.O_SMDTTCR_Default, -F.O_SMDTUD_Default, -O_MEFGCMA_WOTSTWES, -PKCO.O_THFC_Default, -PKCO.O_SMDTTCR_Default, -TRH.O_THFC_Default, -TRH.O_SMDTTCR_Default, -R_SMDTUDC_Game23WOTSTWES, -R_SMDTTCRC_Game34WOTSTWES, -R_PRF_FLXMSSTWESInlineNOPRF, -R_SMDTPREC_Game4WOTSTWES, -R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF, -R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF, -R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF, -R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF, -R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES}.
+declare module A <: Adv_EFRMA{-PRF_SK_PRF.O_PRF_Default, -FC.O_THFC_Default, -FC_PRE.O_SMDTPRE_Default, -FC_TCR.O_SMDTTCR_Default, -FC_UD.O_SMDTUD_Default, -O_MEFGCMA_WOTSTWES, -PKCOC.O_THFC_Default, -PKCOC_TCR.O_SMDTTCR_Default, -TRHC.O_THFC_Default, -TRHC_TCR.O_SMDTTCR_Default, -R_SMDTUDC_Game23WOTSTWES, -R_SMDTTCRC_Game34WOTSTWES, -R_PRF_FLXMSSTWESInlineNOPRF, -R_SMDTPREC_Game4WOTSTWES, -R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF, -R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF, -R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF, -R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF, -R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES}.
 
 declare axiom A_forge_ll : islossless A.forge.
 
@@ -4736,20 +4755,20 @@ lemma EFRMA_FLXMSSTW &m :
   l <= WOTS_TW.d =>
     Pr[EF_RMA(FL_XMSS_TW, A).main() @ &m : res]
     <=
-  `|Pr[PRF_SK.PRF(R_PRF_FLXMSSTWESInlineNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(A)), PRF_SK.O_PRF_Default).main(false) @ &m : res] - 
-    Pr[PRF_SK.PRF(R_PRF_FLXMSSTWESInlineNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(A)), PRF_SK.O_PRF_Default).main(true) @ &m : res]|
+  `|Pr[PRF_SK_PRF.PRF(R_PRF_FLXMSSTWESInlineNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(A)), PRF_SK_PRF.O_PRF_Default).main(false) @ &m : res] - 
+    Pr[PRF_SK_PRF.PRF(R_PRF_FLXMSSTWESInlineNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(A)), PRF_SK_PRF.O_PRF_Default).main(true) @ &m : res]|
     +
     (w - 2)%r * 
-  `|Pr[F.SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(A))), F.O_SMDTUD_Default, F.O_THFC_Default).main(false) @ &m : res] - 
-    Pr[F.SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(A))), F.O_SMDTUD_Default, F.O_THFC_Default).main(true) @ &m : res]| 
+  `|Pr[FC_UD.SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(A))), FC_UD.O_SMDTUD_Default, FC.O_THFC_Default).main(false) @ &m : res] - 
+    Pr[FC_UD.SM_DT_UD_C(R_SMDTUDC_Game23WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(A))), FC_UD.O_SMDTUD_Default, FC.O_THFC_Default).main(true) @ &m : res]| 
     +
-    Pr[F.SM_DT_TCR_C(R_SMDTTCRC_Game34WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(A))), F.O_SMDTTCR_Default, F.O_THFC_Default).main() @ &m : res] 
+    Pr[FC_TCR.SM_DT_TCR_C(R_SMDTTCRC_Game34WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(A))), FC_TCR.O_SMDTTCR_Default, FC.O_THFC_Default).main() @ &m : res] 
     +
-    Pr[F.SM_DT_PRE_C(R_SMDTPREC_Game4WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(A))), F.O_SMDTPRE_Default, F.O_THFC_Default).main() @ &m : res]
+    Pr[FC_PRE.SM_DT_PRE_C(R_SMDTPREC_Game4WOTSTWES(R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(A))), FC_PRE.O_SMDTPRE_Default, FC.O_THFC_Default).main() @ &m : res]
     +
-    Pr[PKCO.SM_DT_TCR_C(R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(A)), PKCO.O_SMDTTCR_Default, PKCO.O_THFC_Default).main() @ &m : res]
+    Pr[PKCOC_TCR.SM_DT_TCR_C(R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(A)), PKCOC_TCR.O_SMDTTCR_Default, PKCOC.O_THFC_Default).main() @ &m : res]
     +
-    Pr[TRH.SM_DT_TCR_C(R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(A)), TRH.O_SMDTTCR_Default, TRH.O_THFC_Default).main() @ &m : res].
+    Pr[TRHC_TCR.SM_DT_TCR_C(R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF(R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(A)), TRHC_TCR.O_SMDTTCR_Default, TRHC.O_THFC_Default).main() @ &m : res].
 proof.
 move=> gel_d.
 rewrite Step_EFRMA_FLXMSSTW_FLXMSSTWES &(EFRMA_FLXMSSTWES (R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES(A))) //.
