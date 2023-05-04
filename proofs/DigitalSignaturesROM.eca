@@ -33,7 +33,7 @@ type d_out_t.
 op doutm : in_t -> out_t distr.
 
 
-(* -- Clones -- *)
+(* -- Clones and imports -- *)
 clone import DigitalSignatures as DSS with
   type msg_t <- msg_t,
   type sig_t <- sig_t,

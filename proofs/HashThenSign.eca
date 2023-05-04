@@ -29,7 +29,7 @@ op qH : { int | 0 <= qH } as ge0_qH.
 type rco_t.
 
 clone import FinType as RCO with
-  type t <- rco_t.
+  type t <= rco_t.
 
   
 (* -- Fixed-length digital signature scheme -- *)
@@ -1520,7 +1520,9 @@ end WithSampling.
 theory WithPRF.
   (* -- Clones and imports (1/2) -- *)
   (* Hash-then-sign paradigm with sampling; used as basis *)
-  clone import WithSampling as WS.
+  clone import WithSampling as WS
+    
+    proof *.
 
   
   (* -- Types -- *)

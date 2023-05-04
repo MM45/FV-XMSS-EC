@@ -4201,8 +4201,9 @@ clone import FLXMSSTW.KeyUpdating.EFRMA as FLXMSSTW_EFRMA with
    
   op dmsg <= dmsgFLXMSSTW
   
-  proof ge0_nefrma by smt(IntOrder.expr_ge0 ge1_h)
-  proof dmsg_ll by rewrite /dmsgFLXMSSTW dmsgFLXMSSTW_ll.
+  proof *. 
+  realize ge0_nefrma by smt(IntOrder.expr_ge0 ge1_h).
+  realize dmsg_ll by rewrite /dmsgFLXMSSTW dmsgFLXMSSTW_ll.
 
 
 (* -- Specification of Fixed-Length XMSS-TW as standalone -- *)

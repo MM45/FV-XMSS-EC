@@ -36,11 +36,15 @@ clone import ROM as ROM_ with
   type out_t <- hash,
   op dout <- fun _ => dhash,
   type d_in_t <- int,
-  type d_out_t <- bool.
+  type d_out_t <- bool
+  
+  proof *.
 
   
 clone import ROM_.LazyEager as LE with 
-  theory FinType <- MUFF.FinT.
+  theory FinType <- MUFF.FinT
+  
+  proof *.
   
   
 module type Oracle_r = {

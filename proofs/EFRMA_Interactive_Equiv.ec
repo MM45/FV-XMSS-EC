@@ -21,7 +21,10 @@ clone DigitalSignatures as ClassDS with
   type msg_t <= msg_t,
   type sig_t <= sig_t,
   type pk_t  <= pk_t,
-  type sk_t  <= sk_t.
+  type sk_t  <= sk_t
+  
+  proof *.
+  
 import ClassDS.KeyUpdating.
 
 clone import EFRMA as Class_EFRMA with
@@ -29,7 +32,8 @@ clone import EFRMA as Class_EFRMA with
   op n_efrma <= n_efrma,
   lemma dmsg_ll <- dmsg_ll,
   lemma ge0_nefrma <- ge0_nefrma
-proof *.
+  
+  proof *.
 
 module R_EFRMA_IEFRMA (A : Adv_I_EFRMA) : Adv_EFRMA = {
   module O_R : SOracle_RMA = {
@@ -148,7 +152,9 @@ local clone import PROM.FullRO with
   type out_t   <- msg_t,
   op   dout _  <- dmsg,
   type d_in_t  <- unit,
-  type d_out_t <- bool.
+  type d_out_t <- bool
+  
+  proof *.
 
 local module (O_RMA_Hybrid (O : RO) : Oracle_RMA) (S : Scheme) = {
   var j     : int
@@ -645,8 +651,10 @@ local module D (O : RO) = {
   proc distinguish = I_EF_RMA0(S, A, O_RMA_Hybrid(O)).main
 }.
 
-local clone FullEager.
+local clone FullEager
 
+  proof *.
+  
 local equiv hybrid_mid_nop:
   I_EF_RMA0(S, A, O_RMA_Hybrid(LRO)).main ~ I_EF_RMA0(S, A, O_RMA_Hybrid(RO)).main:
     ={glob D, RO.m} ==> ={res}.
