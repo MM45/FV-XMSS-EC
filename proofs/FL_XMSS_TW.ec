@@ -4,6 +4,7 @@ require import AllCore List Distr DList IntDiv RealExp StdOrder SmtMap BitEncodi
 require (*--*) Word Subtype.
 (*---*) import RField IntOrder RealOrder BS2Int.
 
+
 (* -- Local -- *)
 require import WOTS_TW.
 require (*--*) TweakableHashFunctions DigitalSignatures.
@@ -11,7 +12,7 @@ require (*--*) TweakableHashFunctions DigitalSignatures.
 
 
 
-(* --- Generic Auxiliary Properties --- *)
+(* --- Generic auxiliary properties --- *)
 lemma take_rev_int2bs (i j n : int):
   0 <= j <= i =>
   take j (rev (int2bs i n)) = rev (int2bs j (n %/ 2 ^ (i - j))).
@@ -247,7 +248,6 @@ lemma extr_vallf_Node ['a] (t1 t2 : 'a bintree) b bs:
   extr_vallf (Node t1 t2) (b :: bs) =
     if b then extr_vallf t2 bs else extr_vallf t1 bs.
 proof. by case: b. qed.
-
 
 (* Conversion operator between lists and binary trees *)
 op list2tree_pred ['a] (s : 'a list) (t : 'a bintree) =
@@ -1585,7 +1585,7 @@ module (R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF (A : Adv_EFRMA_FLXMSSTWES) : TRHC_TCR
 }.
 
 
-(* -- EF-RMA for Fixed-Length XMSS-TW (in an encompassing structure) -- *)
+(* -- Proof of EF-RMA for Fixed-Length XMSS-TW (in an encompassing structure) -- *)
 section Proof_EF_RMA_FLXMSSTWES.
 (* - Module declarations - *)
 declare module A <: Adv_EFRMA_FLXMSSTWES{-PRF_SK_PRF.O_PRF_Default, -FC.O_THFC_Default, -FC_PRE.O_SMDTPRE_Default, -FC_TCR.O_SMDTTCR_Default, -FC_UD.O_SMDTUD_Default, -PKCOC_TCR.O_SMDTTCR_Default, -PKCOC.O_THFC_Default, -TRHC_TCR.O_SMDTTCR_Default, -TRHC.O_THFC_Default, -O_MEFGCMA_WOTSTWES, -R_PRF_FLXMSSTWESInlineNOPRF, -R_SMDTUDC_Game23WOTSTWES, -R_SMDTTCRC_Game34WOTSTWES, -R_SMDTPREC_Game4WOTSTWES, -R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF, -R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF, -R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF, -R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF}.
@@ -2932,450 +2932,12 @@ transitivity EF_RMA_FLXMSSTWES_NOPRF_Conditions_SSampling.main
 by apply EF_RMA_FLXMSSTWES_NOPRF_Conditions_SSampling_Mono_Validity.
 qed.
 
-(*
-local module (R_PRF_FLXMSSTWESInlineNOPRF : PRF_SK.Adv_PRF) (O : PRF_SK.Oracle_PRF) = {
-  proc distinguish() : bool = {
-    var ss : sseed;
-    var ps : pseed;
-    var ad : adrs;    
-    var root : dgstblock;
-    var pkWOTS_ele, pkWOTS_ele' : dgstblock;
-    var skWOTS_ele : dgstblock;
-    var sigWOTS_ele, sigWOTS_ele' : dgstblock;
-    var em_ele : int;
-    var pkWOTS, pkWOTS' : dgstblock list;
-    var skWOTS : dgstblock list;
-    var sigWOTS, sigWOTS' : dgstblock list;
-    var pk : pkFLXMSSTW;
-    var sk : skFLXMSSTW;
-    var m, m' : msgFLXMSSTW;
-    var em : emsgWOTS;
-    var sig, sig' : sigFLXMSSTW;
-    var idx' : index;
-    var leaf, leaf' : dgstblock;
-    var root' : dgstblock;
-    var ap, ap' : apFLXMSSTW;
-    var msig : msgFLXMSSTW * sigFLXMSSTW;
-    var skWOTSl : dgstblock list list;
-    var pkWOTSl : dgstblock list list;
-    var leafl : dgstblock list;
-    var msigl : (msgFLXMSSTW * sigFLXMSSTW) list;
-    var is_valid, is_fresh : bool;
-    
-    ps <$ dpseed;
 
-    ad <@ A.choose();
-    
-    (* (pk, sk) <@ FL_XMSS_TW_ES.keygen(ss, ps, ad); *)
-    skWOTSl <- [];
-    pkWOTSl <- [];
-    leafl <- [];
-    while (size leafl < l) {
-      (* skWOTS <@ WOTS_TW_ES.gen_skWOTS(ss, ps, set_kpidx (set_typeidx ad chtype) (size leafl)); *)
-      skWOTS <- [];
-      while (size skWOTS < len){
-        skWOTS_ele <@ O.query((ps, set_htbidx (set_chthidx (set_kpidx (set_typeidx ad chtype) (size leafl)) (size skWOTS)) 0));
-        skWOTS <- rcons skWOTS skWOTS_ele;
-      }
-    
-      (* pkWOTS <@ WOTS_TW_ES.pkWOTS_from_skWOTS(skWOTS, ps, set_kpidx (set_typeidx ad chtype) (size leafl)); *)
-      pkWOTS <- [];
-      while (size pkWOTS < len) {
-        skWOTS_ele <- nth witness skWOTS (size pkWOTS);
-        pkWOTS_ele <- cf ps (set_chthidx (set_kpidx (set_typeidx ad chtype) (size leafl)) (size pkWOTS)) 0 (w - 1) (val skWOTS_ele);
-        pkWOTS <- rcons pkWOTS pkWOTS_ele;
-      }
-      
-      leaf <- pkco ps (set_kpidx (set_typeidx ad pkcotype) (size leafl)) (flatten (map DigestBlock.val pkWOTS));
-      
-      skWOTSl <- rcons skWOTSl skWOTS;
-      pkWOTSl <- rcons pkWOTSl pkWOTS;
-      leafl <- rcons leafl leaf;
-    }
-    
-    root <- val_bt_trh (list2tree leafl) ps (set_typeidx ad trhtype) h 0;
-    pk <- (root, ps, ad);
-    
-    msigl <- [];
-    while (size msigl < l) {
-      m <$ dmsgFLXMSSTW;
-      
-      (* (sig, sk) <@ FL_XMSS_TW_ES.sign(sk, m); *)
-      (* sigWOTS <@ WOTS_TW_ES.sign((ss, ps, set_kpidx (set_typeidx ad chtype) (size msigl)), m); *)
-      em <- encode_msgWOTS m;
-      skWOTS <- nth witness skWOTSl (size msigl);
-      sigWOTS <- [];
-      while (size sigWOTS < len){
-        skWOTS_ele <- nth witness skWOTS (size sigWOTS);
-        em_ele <- BaseW.val (em.[size sigWOTS]);
-        sigWOTS_ele <- cf ps (set_chthidx (set_kpidx (set_typeidx ad chtype) (size msigl)) (size sigWOTS)) 0 em_ele (val skWOTS_ele);
-        sigWOTS <- rcons sigWOTS sigWOTS_ele;
-      }
-      
-      ap <- cons_ap_trh (list2tree leafl) (insubd (size msigl)) ps (set_typeidx ad trhtype);
-      sig <- (insubd (size msigl), DBLL.insubd sigWOTS, ap);
-    
-      msig <- (m, sig);
-      msigl <- rcons msigl msig;
-    }
-    
-    (m', sig') <@ A.forge(pk, msigl);
-    
-    (* is_valid <@ FL_XMSS_TW_ES.verify(pk, m', sig'); *)
-    idx' <- sig'.`1;
-    sigWOTS' <- val sig'.`2;
-    ap' <- sig'.`3;
-    
-    (* pkWOTS' <@ WOTS_TW_ES.pkWOTS_from_sigWOTS(m', sigWOTS', ps, set_kpidx (set_typeidx ad chtype) idx'); *)
-    em <- encode_msgWOTS m';
-    pkWOTS' <- [];
-    while (size pkWOTS' < len) {
-      sigWOTS_ele' <- nth witness sigWOTS' (size pkWOTS');
-      em_ele <- BaseW.val em.[size pkWOTS'];
-      pkWOTS_ele' <- cf ps (set_chthidx (set_kpidx (set_typeidx ad chtype) (val idx')) (size pkWOTS')) em_ele (w - 1 - em_ele) (val sigWOTS_ele');
-      pkWOTS' <- rcons pkWOTS' pkWOTS_ele';
-    }
-    
-    leaf' <- pkco ps (set_kpidx (set_typeidx ad pkcotype) (val idx')) (flatten (map DigestBlock.val pkWOTS'));
-    
-    root' <- val_ap_trh ap' idx' leaf' ps (set_typeidx ad trhtype);
-    
-    is_valid <- root' = root;
-    
-    is_fresh <- ! m' \in unzip1 msigl; 
-    
-    return is_valid /\ is_fresh;
-  }
-}. 
+(* - Game-Playing Proof - *)
+(* 
+  Zeroeth step: 
+  Show equivalence between EF_RMA_FLXMSSTWES and EF_RMA_FLXMSSTWES_Inline 
 *)
-
-(*
-local module (R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF_local : Adv_MEFGCMA_WOTSTWES) (O : Oracle_MEFGCMA_WOTSTWES, OC : F.Oracle_THFC) = {
-  var ad : adrs
-  var ml : msgFLXMSSTW list
-  var pkWOTSl : dgstblock list list
-  var sigWOTSl : dgstblock list list
-  
-  proc choose() : unit = {
-    var m : msgFLXMSSTW;
-    var pkWOTS : pkWOTS;
-    var sigWOTS : sigWOTS;
-    var i : int;
-    
-    ad <@ A.choose();
-    
-    ml <- [];
-    pkWOTSl <- [];
-    sigWOTSl <- [];
-    i <- 0;
-    while (i < l) {
-      m <$ dmsgFLXMSSTW;
-      
-      (pkWOTS, sigWOTS) <@ O.query(ChainingAddress.insubd (set_kpidx (set_typeidx ad chtype) i), m);
-      
-      ml <- rcons ml m;
-      pkWOTSl <- rcons pkWOTSl (val pkWOTS);
-      sigWOTSl <- rcons sigWOTSl (val sigWOTS);
-      i <- i + 1;
-    }
-  }
-  
-  proc forge(ps : pseed) : int * msgWOTS * sigWOTS = {
-    var leaf : dgstblock;
-    var leafl : dgstblock list;
-    var ap : apFLXMSSTW;
-    var root : dgstblock;
-    var pk : pkFLXMSSTW;
-    var sig, sig' : sigFLXMSSTW;
-    var msig : msgFLXMSSTW * sigFLXMSSTW;
-    var msigl : (msgFLXMSSTW * sigFLXMSSTW) list;
-    var idx, idx' : index;
-    var m, m' : msgFLXMSSTW;
-    var pkWOTS : dgstblock list;
-    var sigWOTS : dgstblock list;
-    var sigWOTS' : sigWOTS;
-    
-    leafl <- [];
-    while (size leafl < l) {
-      pkWOTS <- nth witness pkWOTSl (size leafl);
-      
-      leaf <- pkco ps (set_kpidx (set_typeidx ad pkcotype) (size leafl)) (flatten (map DigestBlock.val pkWOTS)); 
-      leafl <- rcons leafl leaf;
-    }
-    
-    root <- val_bt_trh (list2tree leafl) ps (set_typeidx ad trhtype) h 0;
-    pk <- (root, ps, ad);
-    
-    msigl <- [];
-    while (size msigl < l) {
-      idx <- insubd (size msigl);
-      
-      sigWOTS <- nth witness sigWOTSl (val idx);
-      ap <- cons_ap_trh (list2tree leafl) idx ps (set_typeidx ad trhtype);
-    
-      m <- nth witness ml (val idx);
-      sig <- (idx, DBLL.insubd sigWOTS, ap);
-      
-      msig <- (m, sig);
-      msigl <- rcons msigl msig;
-    }
-    
-    (m', sig') <@ A.forge(pk, msigl);
-    
-    idx' <- sig'.`1;
-    sigWOTS' <- sig'.`2;
-    
-    return (val idx', m', sigWOTS');
-  }
-}.
-*)
-(*
-local module (R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF : PKCO.Adv_SMDTTCRC) (O : PKCO.Oracle_SMDTTCR, OC : PKCO.Oracle_THFC) = {
-  var ad : adrs
-  var skWOTSl : dgstblock list list
-  var leafl : dgstblock list
-  
-  proc pick() : unit = {
-    var skWOTS : dgstblock list;
-    var pkWOTS : dgstblock list;
-    var leaf : dgstblock;
-    var pkWOTS_ele : dgstblock;
-    var i : int;
-    
-    ad <@ A.choose();
-    
-    skWOTSl <- [];
-    leafl <- [];
-    while (size leafl < l) {
-      skWOTS <$ ddgstblockl;
-    
-      pkWOTS <- [];
-      while (size pkWOTS < len) {
-        pkWOTS_ele <- nth witness skWOTS (size pkWOTS);
-        
-        i <- 0;
-        while (i < w - 1) {
-          pkWOTS_ele <@ OC.query(set_htbidx (set_chthidx (set_kpidx (set_typeidx ad chtype) (size leafl)) (size pkWOTS)) i, val pkWOTS_ele);
-          i <- i + 1;
-        }
-        
-        pkWOTS <- rcons pkWOTS pkWOTS_ele;
-      }
-      
-      leaf <@ O.query(set_kpidx (set_typeidx ad pkcotype) (size leafl), flatten (map DigestBlock.val pkWOTS));
-      
-      skWOTSl <- rcons skWOTSl skWOTS;
-      leafl <- rcons leafl leaf;
-    }
-  }
-  
-  proc find(ps : pseed) : int * dgst = {
-    var skWOTS : dgstblock list;
-    var pkWOTS' : dgstblock list;
-    var sigWOTS, sigWOTS' : dgstblock list;
-    var m, m' : msgFLXMSSTW;
-    var em : emsgWOTS;
-    var sig, sig' : sigFLXMSSTW;
-    var root : dgstblock;
-    var ap, ap' : apFLXMSSTW;
-    var pk : pkFLXMSSTW;
-    var msig : msgFLXMSSTW * sigFLXMSSTW;
-    var msigl : (msgFLXMSSTW * sigFLXMSSTW) list;
-    var skWOTS_ele : dgstblock;
-    var pkWOTS_ele' : dgstblock;
-    var sigWOTS_ele, sigWOTS_ele' : dgstblock;
-    var em_ele : int;
-    var idx' : index;
-    
-    root <- val_bt_trh (list2tree leafl) ps (set_typeidx ad trhtype) h 0;
-    pk <- (root, ps, ad);
-    
-    msigl <- [];
-    while (size msigl < l) {
-      m <$ dmsgFLXMSSTW;
-      
-      (* (sig, sk) <@ FL_XMSS_TW_ES.sign(sk, m); *)
-      (* sigWOTS <@ WOTS_TW_ES.sign((ss, ps, set_kpidx (set_typeidx ad chtype) (size msigl)), m); *)
-      em <- encode_msgWOTS m;
-      skWOTS <- nth witness skWOTSl (size msigl);
-      sigWOTS <- [];
-      while (size sigWOTS < len){
-        skWOTS_ele <- nth witness skWOTS (size sigWOTS);
-        em_ele <- BaseW.val (em.[size sigWOTS]);
-        sigWOTS_ele <- cf ps (set_chthidx (set_kpidx (set_typeidx ad chtype) (size msigl)) (size sigWOTS)) 0 em_ele (val skWOTS_ele);
-        sigWOTS <- rcons sigWOTS sigWOTS_ele;
-      }
-      
-      ap <- cons_ap_trh (list2tree leafl) (insubd (size msigl)) ps (set_typeidx ad trhtype);
-      sig <- (insubd (size msigl), DBLL.insubd sigWOTS, ap);
-    
-      msig <- (m, sig);
-      msigl <- rcons msigl msig;
-    }
-    
-    (m', sig') <@ A.forge(pk, msigl);
-    
-    idx' <- sig'.`1;
-    sigWOTS' <- val sig'.`2;
-    ap' <- sig'.`3;
-    
-    em <- encode_msgWOTS m';
-    pkWOTS' <- [];
-    while (size pkWOTS' < len) {
-      sigWOTS_ele' <- nth witness sigWOTS' (size pkWOTS');
-      em_ele <- BaseW.val em.[size pkWOTS'];
-      pkWOTS_ele' <- cf ps (set_chthidx (set_kpidx (set_typeidx ad chtype) (val idx')) (size pkWOTS')) em_ele (w - 1 - em_ele) (val sigWOTS_ele');
-      pkWOTS' <- rcons pkWOTS' pkWOTS_ele';
-    }
-    
-    return (val idx', flatten (map DigestBlock.val pkWOTS'));
-  }
-}.
-
-local module (R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF : TRH.Adv_SMDTTCRC) (O : TRH.Oracle_SMDTTCR, OC : TRH.Oracle_THFC) = {
-  var ad : adrs
-  var skWOTSl : dgstblock list list
-  var leafl : dgstblock list
-  var adrsll : adrs list list
-  var inpll : dgst list list
-  var nodell : dgstblock list list
-  var root : dgstblock
-  
-  proc pick() : unit = {
-    var skWOTS : dgstblock list;
-    var pkWOTS : dgstblock list;
-    var leaf : dgstblock;
-    var node, lnode, rnode : dgstblock;
-    var adrsl : adrs list;
-    var inpl : dgst list;
-    var nodel, nodel' : dgstblock list;
-    var pkWOTS_ele : dgstblock;
-    var i : int;
-    
-    ad <@ A.choose();
-    
-    skWOTSl <- [];
-    leafl <- [];
-    while (size leafl < l) {
-      skWOTS <$ ddgstblockl;
-    
-      pkWOTS <- [];
-      while (size pkWOTS < len) {
-        pkWOTS_ele <- nth witness skWOTS (size pkWOTS);
-        
-        i <- 0;
-        while (i < w - 1) {
-          pkWOTS_ele <@ OC.query(set_htbidx (set_chthidx (set_kpidx (set_typeidx ad chtype) (size leafl)) (size pkWOTS)) i, val pkWOTS_ele);
-          i <- i + 1;
-        }
-        
-        pkWOTS <- rcons pkWOTS pkWOTS_ele;
-      }
-      
-      leaf <@ OC.query(set_kpidx (set_typeidx ad pkcotype) (size leafl), flatten (map DigestBlock.val pkWOTS));
-      
-      skWOTSl <- rcons skWOTSl skWOTS;
-      leafl <- rcons leafl leaf;
-    }
-    
-    adrsll <- [];
-    inpll <- [];
-    nodell <- [];
-    while (size nodell < h) {
-      adrsl <- [];
-      inpl <- [];
-      nodel <- [];
-      
-      nodel' <- last leafl nodell;
-         
-      while (size nodel < 2 ^ (h - size nodell - 1)) {
-        lnode <- nth witness nodel' (2 * (size nodel));
-        rnode <- nth witness nodel' (2 * (size nodel) + 1);
-        
-        node <@ O.query(set_thtbidx (set_typeidx ad trhtype) (size nodell + 1) (size nodel), val lnode ++ val rnode);
-        
-        adrsl <- rcons adrsl (set_thtbidx (set_typeidx ad trhtype) (size nodell + 1) (size nodel));
-        inpl <- rcons inpl (val lnode ++ val rnode);
-        nodel <- rcons nodel node;
-      }
-      
-      adrsll <- rcons adrsll adrsl;
-      inpll <- rcons inpll inpl;
-      nodell <- rcons nodell nodel; 
-    }
-    
-    root <- nth witness (nth witness nodell (h - 1)) 0; (* root <- node; *)
-  }
-  
-  proc find(ps : pseed) : int * dgst = {
-    var skWOTS : dgstblock list;
-    var pkWOTS' : dgstblock list;
-    var sigWOTS, sigWOTS' : dgstblock list;
-    var m, m' : msgFLXMSSTW;
-    var em : emsgWOTS;
-    var sig, sig' : sigFLXMSSTW;
-    var leaf' : dgstblock;
-    var ap, ap' : apFLXMSSTW;
-    var x, x' : dgst;
-    var hidx, bidx : int;
-    var pk : pkFLXMSSTW;
-    var msig : msgFLXMSSTW * sigFLXMSSTW;
-    var msigl : (msgFLXMSSTW * sigFLXMSSTW) list;
-    var skWOTS_ele : dgstblock;
-    var pkWOTS_ele' : dgstblock;
-    var sigWOTS_ele, sigWOTS_ele' : dgstblock;
-    var em_ele : int;
-    var idx' : index;
-    
-    pk <- (root, ps, ad);
-    
-    msigl <- [];
-    while (size msigl < l) {
-      m <$ dmsgFLXMSSTW;
-      
-      em <- encode_msgWOTS m;
-      skWOTS <- nth witness skWOTSl (size msigl);
-      sigWOTS <- [];
-      while (size sigWOTS < len){
-        skWOTS_ele <- nth witness skWOTS (size sigWOTS);
-        em_ele <- BaseW.val (em.[size sigWOTS]);
-        sigWOTS_ele <- cf ps (set_chthidx (set_kpidx (set_typeidx ad chtype) (size msigl)) (size sigWOTS)) 0 em_ele (val skWOTS_ele);
-        sigWOTS <- rcons sigWOTS sigWOTS_ele;
-      }
-      
-      ap <- cons_ap_trh (list2tree leafl) (insubd (size msigl)) ps (set_typeidx ad trhtype);
-      sig <- (insubd (size msigl), DBLL.insubd sigWOTS, ap);
-    
-      msig <- (m, sig);
-      msigl <- rcons msigl msig;
-    }
-    
-    (m', sig') <@ A.forge(pk, msigl);
-    
-    idx' <- sig'.`1;
-    sigWOTS' <- val sig'.`2;
-    ap' <- sig'.`3;
-    
-    em <- encode_msgWOTS m';
-    pkWOTS' <- [];
-    while (size pkWOTS' < len) {
-      sigWOTS_ele' <- nth witness sigWOTS' (size pkWOTS');
-      em_ele <- BaseW.val em.[size pkWOTS'];
-      pkWOTS_ele' <- cf ps (set_chthidx (set_kpidx (set_typeidx ad chtype) (val idx')) (size pkWOTS')) em_ele (w - 1 - em_ele) (val sigWOTS_ele');
-      pkWOTS' <- rcons pkWOTS' pkWOTS_ele';
-    }
-    
-    leaf' <- pkco ps (set_kpidx (set_typeidx ad pkcotype) (val idx')) (flatten (map DigestBlock.val pkWOTS'));
-    
-    (x, x', hidx, bidx) <- oget (extract_coll_bt_ap (list2tree leafl) (val ap') (rev (int2bs h (val idx'))) leaf' ps (set_typeidx ad trhtype) h 0);
-    
-    return (sumz (map size (take (hidx - 1) inpll)) + bidx, x');
-  }
-}.
-*)
-
-(* -- Game-Playing Proof -- *)
-(* - Zeroeth step: Show equivalence between EF_RMA_FLXMSSTWES and EF_RMA_FLXMSSTWES_Inline - *)
 local equiv EFRMA_FLXMSSTWES_Inline :
   EF_RMA_FLXMSSTWES(A).main ~ EF_RMA_FLXMSSTWES_Inline.main : ={glob A} ==> ={res}.
 proof.
@@ -3634,7 +3196,11 @@ by rewrite DBLL.insubdK 1:/#.
 qed.
 
 
-(* - First step: Reduce PRF of prf_sk to distinguishing between EF_RMA_FLXMSSTWES_Inline and EFRMA_FLXMSSTWES_NOPRF - *)
+(* 
+  First step: 
+  Reduce PRF of prf_sk to distinguishing between EF_RMA_FLXMSSTWES_Inline 
+  and EFRMA_FLXMSSTWES_NOPRF
+*)
 local lemma Step_EFRMAFLXMSSTWESInlineNOPRF_PRF &m :
   `|Pr[EF_RMA_FLXMSSTWES_Inline.main() @ &m : res] - Pr[EF_RMA_FLXMSSTWES_NOPRF(A).main() @ &m : res]|
   =
@@ -3765,11 +3331,9 @@ qed.
 
 
 (* 
-- 
   Second step: 
   Reduce solving EFRMA_FLXMSSTWES_NOPRF to solving M_EF_GCMA for WOTS_TW_ES (without PRF),
   SM_DT_TCR_C for PKCO, and SM_DT_TCR_C for TCR.    
-- 
 *)
 lemma EFRMA_FLXMSSTWES_NOPRF &m:
   l <= WOTS_TW.d =>
@@ -4579,7 +4143,7 @@ by rewrite -nthxval.
 qed.  
 
 
-(* - Security Theorem - *)
+(* Security Theorem *)
 lemma EFRMA_FLXMSSTWES &m :
   l <= WOTS_TW.d =>
     Pr[EF_RMA_FLXMSSTWES(A).main() @ &m : res]
@@ -4622,6 +4186,7 @@ end section Proof_EF_RMA_FLXMSSTWES.
 
 
 (* --- Fixed-Length XMSS-TW as standalone --- *)
+(* -- Clones and imports -- *)
 (* Import relevant definitions for key-updating signature scheme *)
 clone import DigitalSignatures as FLXMSSTW with
   type pk_t <= pkFLXMSSTW,
@@ -4698,8 +4263,8 @@ qed.
 lemma FLXMSSTW_verify_ll: islossless FL_XMSS_TW.verify.
 proof. by islossless; while true (len - size pkWOTS); auto; smt(size_rcons). qed.
 
-(* -- Proof of EF-RMA for Fixed-Length XMSS-TW as standalone -- *)
-(* - Reduction - *)
+
+(* -- Reduction adversaries -- *)
 module R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES (A : Adv_EFRMA) : Adv_EFRMA_FLXMSSTWES = {
   proc choose() : adrs = {
     var ad : adrs;
@@ -4719,17 +4284,18 @@ module R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES (A : Adv_EFRMA) : Adv_EFRMA_FLXMSSTWES = 
   }
 }.
 
+(* -- Proof of EF-RMA for Fixed-Length XMSS-TW as standalone -- *)
 section Proof_EF_RMA_FLXMSSTW.
 (* - Module declarations - *)
 declare module A <: Adv_EFRMA{-PRF_SK_PRF.O_PRF_Default, -FC.O_THFC_Default, -FC_PRE.O_SMDTPRE_Default, -FC_TCR.O_SMDTTCR_Default, -FC_UD.O_SMDTUD_Default, -O_MEFGCMA_WOTSTWES, -PKCOC.O_THFC_Default, -PKCOC_TCR.O_SMDTTCR_Default, -TRHC.O_THFC_Default, -TRHC_TCR.O_SMDTTCR_Default, -R_SMDTUDC_Game23WOTSTWES, -R_SMDTTCRC_Game34WOTSTWES, -R_PRF_FLXMSSTWESInlineNOPRF, -R_SMDTPREC_Game4WOTSTWES, -R_MEFGCMAWOTSTWES_EFRMAFLXMSSTWESNOPRF, -R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF, -R_SMDTTCRCPKCO_EFRMAFLXMSSTWESNOPRF, -R_SMDTTCRCTRH_EFRMAFLXMSSTWESNOPRF, -R_EFRMAFLXMSSTW_EFRMAFLXMSSTWES}.
 
 declare axiom A_forge_ll : islossless A.forge.
 
-(* 
-  - 
+
+(* - Steps - *)
+(*  
   First step: Reduce EF-RMA for Fixed-Length XMSS-TW in an encompassing structure to EF-RMA
   for Fixed-Length XMSS-TW as standalone  
-  -  
 *)
 local lemma Step_EFRMA_FLXMSSTW_FLXMSSTWES &m:
   Pr[EF_RMA(FL_XMSS_TW, A).main() @ &m : res]
@@ -4749,8 +4315,7 @@ wp; call (: true); first by sim.
 by wp; rnd; rnd; skip. 
 qed.
 
-
-(* - Security Theorem - *)
+(* Security Theorem *)
 lemma EFRMA_FLXMSSTW &m :
   l <= WOTS_TW.d =>
     Pr[EF_RMA(FL_XMSS_TW, A).main() @ &m : res]
