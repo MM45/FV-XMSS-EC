@@ -5,7 +5,7 @@ This repository comprises EasyCrypt scripts aimed at the formal verification of 
 \
 Currently, the latest version of EasyCrypt that has been confirmed to verify the scripts in this repository corresponds to the following commit of the `deploy-quantum-upgrade` branch of the [EasyCrypt repository](https://github.com/EasyCrypt/easycrypt): `commit 94538c51e6ed4ec582bf9c8bb5d9331bc1781993`.
 
-## Repository Structure and Contents (TODO)
+## Repository Structure and Contents
 This repository is structured as follows.
 * `proofs/`: All scripts relevant to the formal verification of the security of XMSS (both as standalone and as a component of SPHINCS+).
   * `DigitalSignatures.eca`: (Library) Generically defines signature schemes (both stateless and key-updating) and their security notions.
