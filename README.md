@@ -10,7 +10,7 @@ This repository is structured as follows.
 * `proofs/`: All scripts relevant to the formal verification of the security of XMSS (both as standalone and as a component of SPHINCS+).
   * `DigitalSignatures.eca`: (Library) Generically defines signature schemes (both stateless and key-updating) and their security notions.
   * `DigitalSignaturesROM.eca`: (Library) Similar to `DigitalSignatures.eca`, except that it defines everything with respect to a random oracle (this is for proofs in the random oracle model).
-  * `EFRMA_Interactive_Equiv.ec`: Demonstrates equivalence between the regular EF-RMA property for digital signature schemes and its (auxiliary) interactive variant.
+  * `EUFRMA_Interactive_Equiv.ec`: Demonstrates equivalence between the regular EUF-RMA property for digital signature schemes and its (auxiliary) interactive variant.
   * `FL_XMSS_TW.ec`: Provides the context, specification, and proofs concerning fixed-length XMSS-TW.
   * `HashThenSign.eca`: Demonstrates generic results concerning the hash-then-sign paradigm for digital signature schemes.
   * `KeyedHashFunctions.eca`: (Library) Generically defines keyed hash functions and their properties.

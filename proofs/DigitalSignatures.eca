@@ -87,18 +87,18 @@ theory Stateless.
   *)
   (*
     - 
-    Total Break under Key-Only Attack (TB-KOA). 
+    UnBreakability under Key-Only Attack (UB-KOA). 
     Given the public/verification key, the adversary is tasked with computing the
     corresponding secret key
     -
   *)
-  (* Class of adversaries against TB-KOA *)
-  module type Adv_TBKOA = {
+  (* Class of adversaries against UB-KOA *)
+  module type Adv_UBKOA = {
     proc break(pk : pk_t) : sk_t 
   }.
   
-  (* TB-KOA game *)
-  module TB_KOA(S : Scheme, A : Adv_TBKOA) = {
+  (* UB-KOA game *)
+  module UB_KOA(S : Scheme, A : Adv_UBKOA) = {
     proc main() : bool = {
       var pk : pk_t;
       var sk, sk' : sk_t;
@@ -118,22 +118,22 @@ theory Stateless.
   
   (* 
     - 
-    Universal Forgery under Key-Only Attack (UF-KOA).
+    Universal UnForgeability under Key-Only Attack (UUF-KOA).
     Given the public/verification key and an arbitrary message, the adversary is tasked 
     with forging a signature for the given message
     - 
   *)
-  abstract theory UFKOA.
+  abstract theory UUFKOA.
     (* (Proper) distribution over type of to-be-signed artifacts ('messages') *)
     op [lossless] dmsg : msg_t distr.
 
-    (* Class of adversaries against UF-KOA *)
-    module type Adv_UFKOA = {
+    (* Class of adversaries against UUF-KOA *)
+    module type Adv_UUFKOA = {
       proc forge(pk : pk_t, m : msg_t) : sig_t
     }.
 
-    (* UF-KOA game *)
-    module UF_KOA(S : Scheme, A : Adv_UFKOA) = {
+    (* UUF-KOA game *)
+    module UUF_KOA(S : Scheme, A : Adv_UUFKOA) = {
       proc main() : bool = {
         var pk : pk_t;
         var sk : sk_t;
@@ -160,23 +160,23 @@ theory Stateless.
         return is_valid;
       }
     }.
-  end UFKOA.
+  end UUFKOA.
   
   (*
     - 
-    Selective Forgery under Key-Only Attack (SF-KOA).
+    Selective UnForgeability under Key-Only Attack (SUF-KOA).
     After picking a message, the adversary is given the public/verification key and tasked
     with forging a signature for the picked message
     -
   *)
-  (* Class of adversaries SF-KOA *)
-  module type Adv_SFKOA = {
+  (* Class of adversaries SUF-KOA *)
+  module type Adv_SUFKOA = {
     proc pick() : msg_t
     proc forge(pk : pk_t) : sig_t 
   }.
 
-  (* SF-KOA game *)
-  module SF_KOA(S : Scheme, A : Adv_SFKOA) = {
+  (* SUF-KOA game *)
+  module SUF_KOA(S : Scheme, A : Adv_SUFKOA) = {
     proc main() : bool = {
       var pk : pk_t;
       var sk : sk_t;
@@ -210,18 +210,18 @@ theory Stateless.
   
   (*
     -
-    Existential Forgery under Key-Only Attack (EF-KOA).
+    Existential UnForgeability under Key-Only Attack (EUF-KOA).
     Given the public/verification key, the adversary is tasked with forging a signature
     for any fresh message
     -
   *)
-  (* Class of adversaries against EF-KOA *)
-  module type Adv_EFKOA = {
+  (* Class of adversaries against EUF-KOA *)
+  module type Adv_EUFKOA = {
     proc forge(pk : pk_t) : msg_t * sig_t 
   }.
 
-  (* EF-KOA game *)
-  module EF_KOA(S : Scheme, A : Adv_EFKOA) = {
+  (* EUF-KOA game *)
+  module EUF_KOA(S : Scheme, A : Adv_EUFKOA) = {
     proc main() : bool = {
       var pk : pk_t;
       var sk : sk_t;
@@ -259,26 +259,26 @@ theory Stateless.
   *)  
   (* 
     - 
-    Total Break under Random-Message Attack (TB-RMA). 
+    UnBreakability under Random-Message Attack (UB-RMA). 
     Given the public/verification key and the signatures for a set of known random messages, 
     the adversary is tasked with computing the secret key corresponding to the 
     public/verification key
     -
   *)
-  abstract theory TBRMA.
+  abstract theory UBRMA.
     (* (Proper) distribution over type of to-be-signed artifacts ('messages') *)
     op [lossless] dmsg : msg_t distr.
 
-    (* Number of messages the adversary obtains signatures for in TB-RMA game *)
-    const n_tbrma : { int | 0 <= n_tbrma } as ge0_ntbrma.
+    (* Number of messages the adversary obtains signatures for in UB-RMA game *)
+    const n_ubrma : { int | 0 <= n_ubrma } as ge0_nubrma.
 
-    (* Class of adversaries against TB-RMA *)
-    module type Adv_TBRMA = {
+    (* Class of adversaries against UB-RMA *)
+    module type Adv_UBRMA = {
       proc break(pk : pk_t, msigl : (msg_t * sig_t) list) : sk_t 
     }.
 
-    (* TB-RMA game *)
-    module TB_RMA(S : Scheme, A : Adv_TBRMA) = {
+    (* UB-RMA game *)
+    module UB_RMA(S : Scheme, A : Adv_UBRMA) = {
       proc main() : bool = {
         var pk : pk_t;
         var sk, sk' : sk_t;
@@ -291,13 +291,13 @@ theory Stateless.
         (pk, sk) <@ S.keygen();
 
         (* 
-          Construct a list of n_tbrma (message, signature) pairs. To this end,
+          Construct a list of n_ubrma (message, signature) pairs. To this end,
           for each pair, randomly sample a message and, subsequently, create
           (with the previously generated secret key) a corresponding signature by 
           using the signing algorithm of the considered signature scheme.
         *)
         msigl <- [];
-        while (size msigl < n_tbrma) {
+        while (size msigl < n_ubrma) {
           m <$ dmsg;
 
           sig <@ S.sign(sk, m);
@@ -316,31 +316,31 @@ theory Stateless.
         return sk' = sk;
       }
     }.
-  end TBRMA.
+  end UBRMA.
   
   
   (* 
     - 
-    Universal Forgery under Random-Message Attack (UF-RMA).
+    Universal UnForgeability under Random-Message Attack (UUF-RMA).
     Given the public/verification key, the signatures for a set of known random messages, 
     and an arbitrary message, the adversary is tasked with forging a signature for 
     the given (latter) message
     -
   *)
-  abstract theory UFRMA.
+  abstract theory UUFRMA.
     (* (Proper) distribution over type of to-be-signed artifacts ('messages') *)
     op [lossless] dmsg : msg_t distr.
 
-    (* Number of messages the adversary obtains signatures for in UF-RMA game *)
-    const n_ufrma : { int | 0 <= n_ufrma } as ge0_nufrma.
+    (* Number of messages the adversary obtains signatures for in UUF-RMA game *)
+    const n_uufrma : { int | 0 <= n_uufrma } as ge0_nuufrma.
 
-    (* Class of adversaries against UF-RMA *)
-    module type Adv_UFRMA = {
+    (* Class of adversaries against UUF-RMA *)
+    module type Adv_UUFRMA = {
       proc forge(pk : pk_t, msigl : (msg_t * sig_t) list, m : msg_t) : sig_t
     }.
 
-    (* UF-RMA game *)
-    module UF_RMA(S : Scheme, A : Adv_UFRMA) = {
+    (* UUF-RMA game *)
+    module UUF_RMA(S : Scheme, A : Adv_UUFRMA) = {
       proc main() : bool = {
         var pk : pk_t;
         var sk, sk' : sk_t;
@@ -357,13 +357,13 @@ theory Stateless.
         (pk, sk) <@ S.keygen();
 
         (* 
-          Construct a list of n_ufrma (message, signature) pairs. To this end,
+          Construct a list of n_uufrma (message, signature) pairs. To this end,
           for each pair, randomly sample a message and, subsequently, create
           (with the previously generated secret key) a corresponding signature by 
           using the signing algorithm of the considered signature scheme.
         *)
         msigl <- [];
-        while (size msigl < n_ufrma) {
+        while (size msigl < n_uufrma) {
           m <$ dmsg;
 
           sig <@ S.sign(sk, m);
@@ -399,32 +399,32 @@ theory Stateless.
         return is_valid /\ is_fresh;
       }
     }.
-  end UFRMA.
+  end UUFRMA.
 
 
   (*
     -
-    Selective Forgery under Random-Message Attack (SF-RMA).
+    Selective UnForgeability under Random-Message Attack (SUF-RMA).
     After picking a message, the adversary is given the public/verification key, 
     the signatures for a set of known random messages, and an arbitrary message, and is tasked
     with forging a signature for the picked message
     -
   *)
-  abstract theory SFRMA.
+  abstract theory SUFRMA.
     (* (Proper) distribution over type of to-be-signed artifacts ('messages') *)
     op [lossless] dmsg : msg_t distr.
 
-    (* Number of messages the adversary obtains signatures for in SF-RMA game *)
-    const n_sfrma : { int | 0 <= n_sfrma } as ge0_nsfrma.
+    (* Number of messages the adversary obtains signatures for in SUF-RMA game *)
+    const n_sufrma : { int | 0 <= n_sufrma } as ge0_nsufrma.
 
-    (* Class of adversaries against SF-RMA *)
-    module type Adv_SFRMA = {
+    (* Class of adversaries against SUF-RMA *)
+    module type Adv_SUFRMA = {
       proc pick() : msg_t
       proc forge(pk : pk_t, msigl : (msg_t * sig_t) list) : sig_t
     }.
 
-    (* SF-RMA game *)
-    module SF_RMA(S : Scheme, A : Adv_SFRMA) = {
+    (* SUF-RMA game *)
+    module SUF_RMA(S : Scheme, A : Adv_SUFRMA) = {
       proc main() : bool = {
         var pk : pk_t;
         var sk, sk' : sk_t;
@@ -441,13 +441,13 @@ theory Stateless.
         (pk, sk) <@ S.keygen();
 
         (* 
-          Construct a list of n_sfrma (message, signature) pairs. To this end,
+          Construct a list of n_sufrma (message, signature) pairs. To this end,
           for each pair, randomly sample a message and, subsequently, create
           (with the previously generated secret key) a corresponding signature by 
           using the signing algorithm of the considered signature scheme.
         *)
         msigl <- [];
-        while (size msigl < n_sfrma) {
+        while (size msigl < n_sufrma) {
           m <$ dmsg;
 
           sig <@ S.sign(sk, m);
@@ -483,30 +483,30 @@ theory Stateless.
         return is_valid /\ is_fresh;
       }
     }.
-  end SFRMA.
+  end SUFRMA.
   
   
   (*
     -
-    Existential Forgery under Random-Message Attack (EF-RMA)
+    Existential UnForgeability under Random-Message Attack (EUF-RMA)
     Given the public/verification key and the signatures for a set of known random messages,
     the adversary is tasked with forging a signature for any fresh message
     -
   *)
-  abstract theory EFRMA.
+  abstract theory EUFRMA.
     (* (Proper) distribution over type of to-be-signed artifacts ('messages') *)
     op [lossless] dmsg : msg_t distr.
 
-    (* Number of messages the adversary obtains signatures for in EF-RMA game *)
-    const n_efrma : { int | 0 <= n_efrma } as ge0_nefrma.
+    (* Number of messages the adversary obtains signatures for in EUF-RMA game *)
+    const n_eufrma : { int | 0 <= n_eufrma } as ge0_neufrma.
 
-    (* Class of adversaries against EF-RMA *)
-    module type Adv_EFRMA = {
+    (* Class of adversaries against EUF-RMA *)
+    module type Adv_EUFRMA = {
       proc forge(pk : pk_t, msigl : (msg_t * sig_t) list) : msg_t * sig_t
     }.
 
-    (* EF-RMA game *)
-    module EF_RMA(S : Scheme, A : Adv_EFRMA) = {   
+    (* EUF-RMA game *)
+    module EUF_RMA(S : Scheme, A : Adv_EUFRMA) = {   
       proc main() : bool = {
         var pk : pk_t;
         var sk : sk_t;
@@ -520,13 +520,13 @@ theory Stateless.
         (pk, sk) <@ S.keygen();
 
         (* 
-          Construct a list of n_efrma (message, signature) pairs. To this end,
+          Construct a list of n_eufrma (message, signature) pairs. To this end,
           for each pair, randomly sample a message and, subsequently, create
           (with the previously generated secret key) a corresponding signature by 
           using the signing algorithm of the considered signature scheme.
         *)
         msigl <- [];
-        while (size msigl < n_efrma) {
+        while (size msigl < n_eufrma) {
           m <$ dmsg;
 
           sig <@ S.sign(sk, m);
@@ -567,14 +567,14 @@ theory Stateless.
     
     (*
       -
-      Interactive Existential Forgery under Random-Message Attack (I-EF-RMA)
+      Interactive Existential UnForgeability under Random-Message Attack (I-EUF-RMA)
       Given the public/verification key and the signatures for a set of random messages
       (obtained one-by-one upon request), the adversary is tasked with forging a signature 
       for any fresh message
       -
     *)
     (* 
-      Type for signing oracles used in I-EF-RMA, including procedures 
+      Type for signing oracles used in I-EUF-RMA, including procedures 
       for initialization and auxiliary tasks 
     *)
     module type Oracle_RMA(S : Scheme) = {
@@ -585,7 +585,7 @@ theory Stateless.
     }.
     
     (* 
-      Type for signing oracles used in I-EF-RMA, only exposing the 
+      Type for signing oracles used in I-EUF-RMA, only exposing the 
       procedure for signing 
     *)
     module type SOracle_RMA = {
@@ -593,7 +593,7 @@ theory Stateless.
     }.
     
     (* 
-      Default implementation of a signing oracle used in I-EF-RMA, including procedures 
+      Default implementation of a signing oracle used in I-EUF-RMA, including procedures 
       for initialization and auxiliary tasks 
     *)
     module (O_RMA_Default : Oracle_RMA) (S : Scheme) = {
@@ -624,13 +624,13 @@ theory Stateless.
       }
     }.
  
-    (* Class of adversaries against I-EF-RMA *)
-    module type Adv_I_EFRMA(O : SOracle_RMA) = {
+    (* Class of adversaries against I-EUF-RMA *)
+    module type Adv_I_EUFRMA(O : SOracle_RMA) = {
       proc forge(pk : pk_t) : msg_t * sig_t
     }.
     
-    (* I-EF-RMA game *)
-    module I_EF_RMA(S : Scheme, A : Adv_I_EFRMA, O: Oracle_RMA) = {   
+    (* I-EUF-RMA game *)
+    module I_EUF_RMA(S : Scheme, A : Adv_I_EUFRMA, O: Oracle_RMA) = {   
       proc main() : bool = {
         var pk : pk_t;
         var sk : sk_t;
@@ -667,14 +667,14 @@ theory Stateless.
             
         (* 
           Success iff
-          (1) "nrqs <= n_efrma": the adversary made at most n_efrma oracle queries, and
+          (1) "nrqs <= n_eufrma": the adversary made at most n_eufrma oracle queries, and
           (2) "is_valid": the forged signature provided by the adversary is valid, and
           (3) "is_fresh": the message for which the adversary forged a signature is fresh.
         *)
-        return nrqs <= n_efrma /\ is_valid /\ is_fresh; 
+        return nrqs <= n_eufrma /\ is_valid /\ is_fresh; 
       }
     }.
-  end EFRMA.
+  end EUFRMA.
 
   
   (*
@@ -689,24 +689,24 @@ theory Stateless.
   *)  
   (* 
     - 
-    Total Break under Generic Chosen-Message Attack (TB-GCMA). 
+    UnBreakability under Generic Chosen-Message Attack (UB-GCMA). 
     Given the public/verification key and the signatures for a set of messages chosen
     non-adaptively and indepedently of the public key, the adversary is tasked with 
     computing the secret key corresponding to the public/verification key
     -
   *)
-  abstract theory TBGCMA.
-    (* Number of messages the adversary obtains signatures for in TB-GCMA game *)
-    const n_tbgcma : { int | 0 <= n_tbgcma } as ge0_ntbgcma.
+  abstract theory UBGCMA.
+    (* Number of messages the adversary obtains signatures for in UB-GCMA game *)
+    const n_ubgcma : { int | 0 <= n_ubgcma } as ge0_nubgcma.
 
-    (* Class of adversaries against TB-CMA *)
-    module type Adv_TBGCMA = {
+    (* Class of adversaries against UB-CMA *)
+    module type Adv_UBGCMA = {
       proc choose() : msg_t list
       proc break(pk : pk_t, sigl : sig_t list) : sk_t 
     }.
 
-    (* TB-GCMA game *)
-    module TB_GCMA(S : Scheme, A : Adv_TBGCMA) = {
+    (* UB-GCMA game *)
+    module UB_GCMA(S : Scheme, A : Adv_UBGCMA) = {
       proc main() : bool = {
         var pk : pk_t;
         var sk, sk' : sk_t;
@@ -722,7 +722,7 @@ theory Stateless.
         (pk, sk) <@ S.keygen();
 
         (* 
-          Construct a list sigl of at most n_tbgcma signatures. Here, the i-th signature is
+          Construct a list sigl of at most n_ubgcma signatures. Here, the i-th signature is
           a signature for the i-th message in the list ml previously provided by the
           adversary. Naturally, the signatures are created using the signing algorithm
           of the considered signature scheme with the previously generated secret key.
@@ -730,7 +730,7 @@ theory Stateless.
           resulting list of signatures will have the same size as ml (and, hence, less than n).
         *)
         sigl <- [];
-        while (size sigl < min (size ml) n_tbgcma) {
+        while (size sigl < min (size ml) n_ubgcma) {
           m <- nth witness ml (size sigl);
 
           sig <@ S.sign(sk, m);
@@ -749,32 +749,32 @@ theory Stateless.
         return sk' = sk;
       }
     }.
-  end TBGCMA.
+  end UBGCMA.
   
   
   (*
     -
-    Universal Forgery under Generic Chosen-Message Attack (UF-GCMA).
+    Universal UnForgeability under Generic Chosen-Message Attack (UUF-GCMA).
     Given the public/verification key, the signatures for a set of messages chosen
     non-adaptively and indepedently of the public key, and an arbitrary message, 
     the adversary is tasked with forging a signature for the given (latter) message
     -
   *)
-  abstract theory UFGCMA.
+  abstract theory UUFGCMA.
     (* (Proper) distribution over type of to-be-signed artifacts ('messages') *)
     op [lossless] dmsg : msg_t distr.
   
-    (* Number of messages the adversary obtains signatures for in UF-GCMA game *)
-    const n_ufgcma : { int | 0 <= n_ufgcma } as ge0_nufgcma.
+    (* Number of messages the adversary obtains signatures for in UUF-GCMA game *)
+    const n_uufgcma : { int | 0 <= n_uufgcma } as ge0_nuufgcma.
 
-    (* Class of adversaries against UF-GCMA *)
-    module type Adv_UFGCMA = {
+    (* Class of adversaries against UUF-GCMA *)
+    module type Adv_UUFGCMA = {
       proc choose() : msg_t list
       proc forge(pk : pk_t, sigl : sig_t list, m : msg_t) : sig_t
     }.
 
-    (* UF-GCMA game *)
-    module UF_GCMA(S : Scheme, A : Adv_UFGCMA) = {
+    (* UUF-GCMA game *)
+    module UUF_GCMA(S : Scheme, A : Adv_UUFGCMA) = {
       proc main() : bool = {
         var pk : pk_t;
         var sk : sk_t;
@@ -794,7 +794,7 @@ theory Stateless.
         (pk, sk) <@ S.keygen();
 
         (* 
-          Construct a list sigl of at most n_ufgcma signatures. Here, the i-th signature is
+          Construct a list sigl of at most n_uufgcma signatures. Here, the i-th signature is
           a signature for the i-th message in the list ml previously provided by the
           adversary. Naturally, the signatures are created using the signing algorithm
           of the considered signature scheme with the previously generated secret key.
@@ -802,7 +802,7 @@ theory Stateless.
           resulting list of signatures will have the same size as ml (and, hence, less than n).
         *)
         sigl <- [];
-        while (size sigl < min (size ml) n_ufgcma) {
+        while (size sigl < min (size ml) n_uufgcma) {
           m <- nth witness ml (size sigl);
 
           sig <@ S.sign(sk, m);
@@ -838,30 +838,30 @@ theory Stateless.
         return is_valid /\ is_fresh;
       }
     }.
-  end UFGCMA.
+  end UUFGCMA.
 
     
   (* 
     - 
-    Selective Forgery under Generic Chosen-Message Attack (SF-GCMA).
+    Selective UnForgeability under Generic Chosen-Message Attack (SUF-GCMA).
     After picking a message, the adversary is given the public/verification key and
     the signatures for a set of messages chosen non-adaptively and indepedently 
     of the public key, and is tasked with forging a signature for the picked message
     -
   *)
-  abstract theory SFGCMA.
-    (* Number of messages the adversary obtains signatures for in SF-GCMA game *)
-    const n_sfgcma : { int | 0 <= n_sfgcma } as ge0_nsfgcma.
+  abstract theory SUFGCMA.
+    (* Number of messages the adversary obtains signatures for in SUF-GCMA game *)
+    const n_sufgcma : { int | 0 <= n_sufgcma } as ge0_nsufgcma.
 
-    (* Class of adversaries against SF-GCMA *)
-    module type Adv_SFGCMA = {
+    (* Class of adversaries against SUF-GCMA *)
+    module type Adv_SUFGCMA = {
       proc pick() : msg_t
       proc choose() : msg_t list
       proc forge(pk : pk_t, sigl : sig_t list) : sig_t
     }.
 
-    (* SF-GCMA game *)
-    module SF_GCMA(S : Scheme, A : Adv_SFGCMA) = {
+    (* SUF-GCMA game *)
+    module SUF_GCMA(S : Scheme, A : Adv_SUFGCMA) = {
       proc main() : bool = {
         var pk : pk_t;
         var sk : sk_t;
@@ -881,7 +881,7 @@ theory Stateless.
         (pk, sk) <@ S.keygen();
 
         (* 
-          Construct a list sigl of at most n_sfgcma signatures. Here, the i-th signature is
+          Construct a list sigl of at most n_sufgcma signatures. Here, the i-th signature is
           a signature for the i-th message in the list ml previously provided by the
           adversary. Naturally, the signatures are created using the signing algorithm
           of the considered signature scheme with the previously generated secret key.
@@ -889,7 +889,7 @@ theory Stateless.
           resulting list of signatures will have the same size as ml (and, hence, less than n).
         *)
         sigl <- [];
-        while (size sigl < min (size ml) n_sfgcma) {
+        while (size sigl < min (size ml) n_sufgcma) {
           m <- nth witness ml (size sigl);
 
           sig <@ S.sign(sk, m);
@@ -925,29 +925,29 @@ theory Stateless.
         return is_valid /\ is_fresh;   
       }
     }.
-  end SFGCMA.
+  end SUFGCMA.
   
   
   (*
     -
-    Existential Forgery under Generic Chosen-Message Attack (EF-GCMA)
+    Existential UnForgeability under Generic Chosen-Message Attack (EUF-GCMA)
     Given the public/verification key and the signatures for a set of messages 
     chosen non-adaptively and indepedently of the public key, the adversary is tasked 
     with forging a signature for any fresh message
     -
   *)
-  abstract theory EFGCMA.
-    (* Number of messages the adversary obtains signatures for in EF-GCMA game *)
-    const n_efgcma : { int | 0 <= n_efgcma } as ge0_negcma.
+  abstract theory EUFGCMA.
+    (* Number of messages the adversary obtains signatures for in EUF-GCMA game *)
+    const n_eufgcma : { int | 0 <= n_eufgcma } as ge0_negcma.
 
-    (* Class of adversaries against EF-GCMA *)
-    module type Adv_EFGCMA = {
+    (* Class of adversaries against EUF-GCMA *)
+    module type Adv_EUFGCMA = {
       proc choose() : msg_t list
       proc forge(pk : pk_t, sigl : sig_t list) : msg_t * sig_t
     }.
 
-    (* EF-GCMA game *)
-    module EF_GCMA(S : Scheme, A : Adv_EFGCMA) = {   
+    (* EUF-GCMA game *)
+    module EUF_GCMA(S : Scheme, A : Adv_EUFGCMA) = {   
       proc main() : bool = {
         var pk : pk_t;
         var sk : sk_t;
@@ -964,7 +964,7 @@ theory Stateless.
         (pk, sk) <@ S.keygen();
 
         (* 
-          Construct a list sigl of at most n_efgcma signatures. Here, the i-th signature is
+          Construct a list sigl of at most n_eufgcma signatures. Here, the i-th signature is
           a signature for the i-th message in the list ml previously provided by the
           adversary. Naturally, the signatures are created using the signing algorithm
           of the considered signature scheme with the previously generated secret key.
@@ -972,7 +972,7 @@ theory Stateless.
           resulting list of signatures will have the same size as ml (and, hence, less than n).
         *)
         sigl <- [];
-        while (size sigl < min (size ml) n_efgcma) {
+        while (size sigl < min (size ml) n_eufgcma) {
           m <- nth witness ml (size sigl);
 
           sig <@ S.sign(sk, m);
@@ -1009,7 +1009,7 @@ theory Stateless.
         return is_valid /\ is_fresh;   
       }  
     }.
-  end EFGCMA.
+  end EUFGCMA.
   
   
   (*
@@ -1024,24 +1024,24 @@ theory Stateless.
   *) 
   (* 
     - 
-    Total Break under Non-Adaptive Chosen-Message Attack (TB-NACMA). 
+    UnBreakability under Non-Adaptive Chosen-Message Attack (UB-NACMA). 
     Given the public/verification key and the signatures for a set of non-adaptively
     chosen messages, the adversary is tasked with computing the secret key 
     corresponding to the public/verification key
     -
   *)
-  abstract theory TBNACMA.
-    (* Number of messages the adversary obtains signatures for in TB-RMA game *)
-    const n_tbnacma : { int | 0 <= n_tbnacma } as ge0_ntbnacma.
+  abstract theory UBNACMA.
+    (* Number of messages the adversary obtains signatures for in UB-RMA game *)
+    const n_ubnacma : { int | 0 <= n_ubnacma } as ge0_nubnacma.
 
-    (* Class of adversaries against TB-NACMA *)
-    module type Adv_TBNACMA = {
+    (* Class of adversaries against UB-NACMA *)
+    module type Adv_UBNACMA = {
       proc choose(pk : pk_t) : msg_t list
       proc break(sigl : sig_t list) : sk_t 
     }.
 
-    (* TB-NACMA game *)
-    module TB_NACMA(S : Scheme, A : Adv_TBNACMA) = {
+    (* UB-NACMA game *)
+    module UB_NACMA(S : Scheme, A : Adv_UBNACMA) = {
       proc main() : bool = {
         var pk : pk_t;
         var sk, sk' : sk_t;
@@ -1060,7 +1060,7 @@ theory Stateless.
         ml <@ A.choose(pk);
 
         (* 
-          Construct a list sigl of at most n_tbnacma signatures. Here, the i-th signature is
+          Construct a list sigl of at most n_ubnacma signatures. Here, the i-th signature is
           a signature for the i-th message in the list ml previously provided by the
           adversary. Naturally, the signatures are created using the signing algorithm
           of the considered signature scheme with the previously generated secret key.
@@ -1068,7 +1068,7 @@ theory Stateless.
           resulting list of signatures will have the same size as ml (and, hence, less than n).
         *)
         sigl <- [];
-        while (size sigl < min (size ml) n_tbnacma) {
+        while (size sigl < min (size ml) n_ubnacma) {
           m <- nth witness ml (size sigl);
 
           sig <@ S.sign(sk, m);
@@ -1087,32 +1087,32 @@ theory Stateless.
         return sk' = sk;
       }
     }.
-  end TBNACMA.
+  end UBNACMA.
   
   
   (*
     - 
-    Universal Forgery under Non-Adaptive Chosen-Message Attack (UF-NACMA).
+    Universal UnForgeability under Non-Adaptive Chosen-Message Attack (UUF-NACMA).
     Given the public/verification key, the signatures for a set of non-adaptively
     chosen messages, and an arbitrary message, the adversary is tasked with forging 
     a signature for the given (latter) message
     -
   *)
-  abstract theory UFNACMA.
+  abstract theory UUFNACMA.
     (* (Proper) distribution over type of to-be-signed artifacts ('messages') *)
     op [lossless] dmsg : msg_t distr.
   
-    (* Number of messages the adversary obtains signatures for in UF-RMA game *)
-    const n_ufnacma : { int | 0 <= n_ufnacma } as ge0_nufnacma.
+    (* Number of messages the adversary obtains signatures for in UUF-RMA game *)
+    const n_uufnacma : { int | 0 <= n_uufnacma } as ge0_nuufnacma.
 
-    (* Class of adversaries against UF-NACMA *)
-    module type Adv_UFNACMA = {
+    (* Class of adversaries against UUF-NACMA *)
+    module type Adv_UUFNACMA = {
       proc choose(pk : pk_t) : msg_t list
       proc forge(sigl : sig_t list, m : msg_t) : sig_t
     }.
 
-    (* UF-NACMA game *)
-    module UF_NACMA(S : Scheme, A : Adv_UFNACMA) = {
+    (* UUF-NACMA game *)
+    module UUF_NACMA(S : Scheme, A : Adv_UUFNACMA) = {
       proc main() : bool = {
         var pk : pk_t;
         var sk : sk_t;
@@ -1135,7 +1135,7 @@ theory Stateless.
         ml <@ A.choose(pk);
 
         (* 
-          Construct a list sigl of at most n_ufnacma signatures. Here, the i-th signature is
+          Construct a list sigl of at most n_uufnacma signatures. Here, the i-th signature is
           a signature for the i-th message in the list ml previously provided by the
           adversary. Naturally, the signatures are created using the signing algorithm
           of the considered signature scheme with the previously generated secret key.
@@ -1143,7 +1143,7 @@ theory Stateless.
           resulting list of signatures will have the same size as ml (and, hence, less than n).
         *)
         sigl <- [];
-        while (size sigl < min (size ml) n_ufnacma) {
+        while (size sigl < min (size ml) n_uufnacma) {
           m <- nth witness ml (size sigl);
 
           sig <@ S.sign(sk, m);
@@ -1179,33 +1179,33 @@ theory Stateless.
         return is_valid /\ is_fresh;
       }
     }.
-  end UFNACMA.
+  end UUFNACMA.
 
   
   (* 
     - 
-    Selective Forgery under Non-Adaptive Chosen-Message Attack (SF-NACMA).
+    Selective UnForgeability under Non-Adaptive Chosen-Message Attack (SUF-NACMA).
     After picking a message, the adversary is given the public/verification key and
     the signatures for a set of non-adaptively chosen messages, and is tasked with 
     forging a signature for the picked message
     -
   *)
-  abstract theory SFNACMA.
+  abstract theory SUFNACMA.
     (* (Proper) distribution over type of to-be-signed artifacts ('messages') *)
     op [lossless] dmsg : msg_t distr.
 
-    (* Number of messages the adversary obtains signatures for in SF-RMA game *)
-    const n_sfnacma : { int | 0 <= n_sfnacma } as ge0_nsfnacma.
+    (* Number of messages the adversary obtains signatures for in SUF-RMA game *)
+    const n_sufnacma : { int | 0 <= n_sufnacma } as ge0_nsufnacma.
 
-    (* Class of adversaries against SF-NACMA *)
-    module type Adv_SFNACMA = {
+    (* Class of adversaries against SUF-NACMA *)
+    module type Adv_SUFNACMA = {
       proc pick() : msg_t
       proc choose(pk : pk_t) : msg_t list
       proc forge(sigl : sig_t list) : sig_t
     }.
 
-    (* SF-NACMA game *)
-    module SF_NACMA(S : Scheme, A : Adv_SFNACMA) = {
+    (* SUF-NACMA game *)
+    module SUF_NACMA(S : Scheme, A : Adv_SUFNACMA) = {
       proc main() : bool = {
         var pk : pk_t;
         var sk : sk_t;
@@ -1228,16 +1228,16 @@ theory Stateless.
         ml <@ A.choose(pk);
 
         (* 
-          Construct a list sigl of at most n_sfnacma signatures. Here, the i-th signature is
+          Construct a list sigl of at most n_sufnacma signatures. Here, the i-th signature is
           a signature for the i-th message in the list ml previously provided by the
           adversary. Naturally, the signatures are created using the signing algorithm
           of the considered signature scheme with the previously generated secret key.
-          Note that, in case the adversary provided less than n_sfnacma messages in ml, the
+          Note that, in case the adversary provided less than n_sufnacma messages in ml, the
           resulting list of signatures will have the same size as ml 
-          (and, hence, less than n_sfnacma).
+          (and, hence, less than n_sufnacma).
         *)
         sigl <- [];
-        while (size sigl < min (size ml) n_sfnacma) {
+        while (size sigl < min (size ml) n_sufnacma) {
           m <- nth witness ml (size sigl);
 
           sig <@ S.sign(sk, m);
@@ -1273,28 +1273,28 @@ theory Stateless.
         return is_valid /\ is_fresh;
       }
     }.
-  end SFNACMA.
+  end SUFNACMA.
   
   
   (*
     -
-    Existential Forgery under Non-Adaptive Chosen-Message Attack (EF-NACMA).
+    Existential UnForgeability under Non-Adaptive Chosen-Message Attack (EUF-NACMA).
     Given the public/verification key and the signatures for a set of non-adaptively
     chosen messages the adversary is tasked with forging a signature for any fresh message
     -
   *)
-  abstract theory EFNACMA.
-    (* Number of messages the adversary obtains signatures for in EF-RMA game *)
-    const n_efnacma : { int | 0 <= n_efnacma } as ge0_nefnacma.
+  abstract theory EUFNACMA.
+    (* Number of messages the adversary obtains signatures for in EUF-RMA game *)
+    const n_eufnacma : { int | 0 <= n_eufnacma } as ge0_neufnacma.
 
-    (* Class of adversaries against EF-NACMA *)
-    module type Adv_EFNACMA = {
+    (* Class of adversaries against EUF-NACMA *)
+    module type Adv_EUFNACMA = {
       proc choose(pk : pk_t) : msg_t list
       proc forge(sigl : sig_t list) : msg_t * sig_t
     }.
 
-    (* EF-NACMA game *)
-    module EF_NACMA(S : Scheme, A : Adv_EFNACMA) = {   
+    (* EUF-NACMA game *)
+    module EUF_NACMA(S : Scheme, A : Adv_EUFNACMA) = {   
       proc main() : bool = {
         var pk : pk_t;
         var sk : sk_t;
@@ -1314,7 +1314,7 @@ theory Stateless.
         ml <@ A.choose(pk);
 
         (* 
-          Construct a list sigl of at most n_efnacma signatures. Here, the i-th signature is
+          Construct a list sigl of at most n_eufnacma signatures. Here, the i-th signature is
           a signature for the i-th message in the list ml previously provided by the
           adversary. Naturally, the signatures are created using the signing algorithm
           of the considered signature scheme with the previously generated secret key.
@@ -1322,7 +1322,7 @@ theory Stateless.
           resulting list of signatures will have the same size as ml (and, hence, less than n).
         *)
         sigl <- [];
-        while (size sigl < min (size ml) n_efnacma) {
+        while (size sigl < min (size ml) n_eufnacma) {
           m <- nth witness ml (size sigl);
 
           sig <@ S.sign(sk, m);
@@ -1359,7 +1359,7 @@ theory Stateless.
         return is_valid /\ is_fresh; 
       }  
     }.
-  end EFNACMA.
+  end EUFNACMA.
 
   
   (*
@@ -1425,19 +1425,19 @@ theory Stateless.
   
   (* 
     - 
-    Total Break under (Adaptive) Chosen-Message Attack (TB-CMA). 
+    UnBreakability under (Adaptive) Chosen-Message Attack (UB-CMA). 
     Given the public/verification key and the signatures for a set of adaptively
     chosen messages, the adversary is tasked with computing the secret key 
     corresponding to the public/verification key
     -
   *)
-  (* Class of adversaries against TB-CMA *)
-  module type Adv_TBCMA(O : SOracle_CMA) = {
+  (* Class of adversaries against UB-CMA *)
+  module type Adv_UBCMA(O : SOracle_CMA) = {
     proc break(pk : pk_t) : sk_t
   }.
   
-  (* TB-CMA game *)
-  module TB_CMA(S : Scheme, A : Adv_TBCMA, O : Oracle_CMA) = {
+  (* UB-CMA game *)
+  module UB_CMA(S : Scheme, A : Adv_UBCMA, O : Oracle_CMA) = {
     proc main() : bool = {
       var pk : pk_t;
       var sk, sk' : sk_t;
@@ -1462,23 +1462,23 @@ theory Stateless.
   
   (*
     - 
-    Universal Forgery under (Adaptive) Chosen-Message Attack (UF-CMA)
+    Universal UnForgeability under (Adaptive) Chosen-Message Attack (UUF-CMA)
     Given the public/verification key, the signatures for a set of adaptively
     chosen messages, and an arbitrary message, the adversary is tasked with forging 
     a signature for the given (latter) message
     -
   *)
-  abstract theory UFCMA.
+  abstract theory UUFCMA.
     (* (Proper) distribution over type of to-be-signed artifacts ('messages') *)
     op [lossless] dmsg : msg_t distr.
 
-    (* Class of adversaries against UF-CMA *)
-    module type Adv_UFCMA(O : SOracle_CMA) = {
+    (* Class of adversaries against UUF-CMA *)
+    module type Adv_UUFCMA(O : SOracle_CMA) = {
       proc forge(pk : pk_t, m : msg_t) : sig_t
     }.
 
-    (* UF-CMA game *)
-    module UF_CMA(S : Scheme, A : Adv_UFCMA, O : Oracle_CMA) = {
+    (* UUF-CMA game *)
+    module UUF_CMA(S : Scheme, A : Adv_UUFCMA, O : Oracle_CMA) = {
       proc main() : bool = {
         var pk : pk_t;
         var sk : sk_t;
@@ -1522,25 +1522,25 @@ theory Stateless.
         return is_valid /\ is_fresh; 
       }
     }.
-  end UFCMA.
+  end UUFCMA.
 
     
   (*
     -
-    Selective Forgery under Chosen-Message Attack (SF-CMA).
+    Selective UnForgeability under Chosen-Message Attack (SUF-CMA).
     After picking a message, the adversary is given the public/verification key 
     and the signatures for a set of adaptively chosen messages, and is tasked with 
     forging a signature for the picked message
     -
   *)
-  (* Class of adversaries against SF-CMA *)
-  module type Adv_SFCMA(O : SOracle_CMA) = {
+  (* Class of adversaries against SUF-CMA *)
+  module type Adv_SUFCMA(O : SOracle_CMA) = {
     proc pick() : msg_t
     proc forge(pk : pk_t) : sig_t
   }.
   
-  (* SF-CMA game *)
-  module SF_CMA(S : Scheme, A : Adv_SFCMA, O : Oracle_CMA) = {
+  (* SUF-CMA game *)
+  module SUF_CMA(S : Scheme, A : Adv_SUFCMA, O : Oracle_CMA) = {
     proc main() : bool = {
       var pk : pk_t;
       var sk : sk_t;
@@ -1588,18 +1588,18 @@ theory Stateless.
 
   (*
     -
-    Existential Forgery under Chosen-Message Attack (EF-CMA)
+    Existential UnForgeability under Chosen-Message Attack (EUF-CMA)
     Given the public/verification key and the signatures for a set of adaptively 
     chosen messages, the adversary is tasked with forging a signature for any fresh message
     -
   *)
-  (* Class of adversaries against EF-CMA *)
-  module type Adv_EFCMA(O : SOracle_CMA) = {
+  (* Class of adversaries against EUF-CMA *)
+  module type Adv_EUFCMA(O : SOracle_CMA) = {
     proc forge(pk : pk_t) : msg_t * sig_t
   }.
 
-  (* EF-CMA game *)
-  module EF_CMA(S : Scheme, A : Adv_EFCMA, O : Oracle_CMA) = {
+  (* EUF-CMA game *)
+  module EUF_CMA(S : Scheme, A : Adv_EUFCMA, O : Oracle_CMA) = {
     proc main() : bool = {
       var pk : pk_t;
       var sk : sk_t;
@@ -1645,16 +1645,16 @@ theory Stateless.
   
   (*
     - 
-    Strong Existential Forgery under Chosen-Message Attack (SEF-CMA).
+    Strong Existential UnForgeability under Chosen-Message Attack (SEUF-CMA).
     Given the public/verification key and the signatures for a set of adaptively 
     chosen messages, the adversary is tasked with forging a fresh signature for any message
     -
   *)
   (* 
-    Type for signing oracles used in the SEF-CMA game, including procedures 
+    Type for signing oracles used in the SEUF-CMA game, including procedures 
     for initialization and auxiliary tasks 
   *)
-  module type Oracle_SEFCMA(S : Scheme) = {
+  module type Oracle_SEUFCMA(S : Scheme) = {
     proc init(sk_init : sk_t) : unit
     proc sign(m : msg_t) : sig_t
     proc fresh(msig : msg_t * sig_t) : bool
@@ -1662,10 +1662,10 @@ theory Stateless.
   }.
 
   (* 
-    Type for signing oracles used in the SEF-CMA game, only exposing the 
+    Type for signing oracles used in the SEUF-CMA game, only exposing the 
     procedure for signing 
   *)
-  module type SOracle_SEFCMA = {
+  module type SOracle_SEUFCMA = {
     proc sign(m : msg_t) : sig_t
   }.
   
@@ -1673,7 +1673,7 @@ theory Stateless.
     Default implementation of a signing oracle including procedures for 
     initialization and auxiliary tasks 
   *)
-  module (O_SEFCMA_Default : Oracle_SEFCMA) (S : Scheme) = {
+  module (O_SEUFCMA_Default : Oracle_SEUFCMA) (S : Scheme) = {
     var sk : sk_t
     var qs : (msg_t * sig_t) list
     
@@ -1713,13 +1713,13 @@ theory Stateless.
     }
   }.
 
-  (* Class of adversaries against SEF-CMA *)
-  module type Adv_SEFCMA(O : SOracle_SEFCMA) = {
+  (* Class of adversaries against SEUF-CMA *)
+  module type Adv_SEUFCMA(O : SOracle_SEUFCMA) = {
     proc forge(pk : pk_t) : msg_t * sig_t
   }.
 
-  (* SEF-CMA game *)
-  module SEF_CMA(S : Scheme, A : Adv_SEFCMA, O : Oracle_SEFCMA) = {
+  (* SEUF-CMA game *)
+  module SEUF_CMA(S : Scheme, A : Adv_SEUFCMA, O : Oracle_SEUFCMA) = {
     proc main() : bool = {
       var pk : pk_t;
       var sk : sk_t;
@@ -1819,18 +1819,18 @@ theory KeyUpdating.
   *)
   (*
     - 
-    Total Break under Key-Only Attack (TB-KOA). 
+    UnBreakability under Key-Only Attack (UB-KOA). 
     Given the public/verification key, the adversary is tasked with computing the
     corresponding secret key
     -
   *)
-  (* Class of adversaries against TB-KOA *)
-  module type Adv_TBKOA = {
+  (* Class of adversaries against UB-KOA *)
+  module type Adv_UBKOA = {
     proc break(pk : pk_t) : sk_t 
   }.
   
-  (* TB-KOA game *)
-  module TB_KOA(S : Scheme, A : Adv_TBKOA) = {
+  (* UB-KOA game *)
+  module UB_KOA(S : Scheme, A : Adv_UBKOA) = {
     proc main() : bool = {
       var pk : pk_t;
       var sk, sk' : sk_t;
@@ -1850,22 +1850,22 @@ theory KeyUpdating.
   
   (* 
     - 
-    Universal Forgery under Key-Only Attack (UF-KOA).
+    Universal UnForgeability under Key-Only Attack (UUF-KOA).
     Given the public/verification key and an arbitrary message, the adversary is tasked 
     with forging a signature for the given message
     - 
   *)
-  abstract theory UFKOA.
+  abstract theory UUFKOA.
     (* (Proper) distribution over type of to-be-signed artifacts ('messages') *)
     op [lossless] dmsg : msg_t distr.
 
-    (* Class of adversaries against UF-KOA *)
-    module type Adv_UFKOA = {
+    (* Class of adversaries against UUF-KOA *)
+    module type Adv_UUFKOA = {
       proc forge(pk : pk_t, m : msg_t) : sig_t
     }.
 
-    (* UF-KOA game *)
-    module UF_KOA(S : Scheme, A : Adv_UFKOA) = {
+    (* UUF-KOA game *)
+    module UUF_KOA(S : Scheme, A : Adv_UUFKOA) = {
       proc main() : bool = {
         var pk : pk_t;
         var sk : sk_t;
@@ -1892,23 +1892,23 @@ theory KeyUpdating.
         return is_valid;
       }
     }.
-  end UFKOA.
+  end UUFKOA.
   
   (*
     - 
-    Selective Forgery under Key-Only Attack (SF-KOA).
+    Selective UnForgeability under Key-Only Attack (SUF-KOA).
     After picking a message, the adversary is given the public/verification key and tasked
     with forging a signature for the picked message
     -
   *)
-  (* Class of adversaries SF-KOA *)
-  module type Adv_SFKOA = {
+  (* Class of adversaries SUF-KOA *)
+  module type Adv_SUFKOA = {
     proc pick() : msg_t
     proc forge(pk : pk_t) : sig_t 
   }.
 
-  (* SF-KOA game *)
-  module SF_KOA(S : Scheme, A : Adv_SFKOA) = {
+  (* SUF-KOA game *)
+  module SUF_KOA(S : Scheme, A : Adv_SUFKOA) = {
     proc main() : bool = {
       var pk : pk_t;
       var sk : sk_t;
@@ -1942,18 +1942,18 @@ theory KeyUpdating.
   
   (*
     -
-    Existential Forgery under Key-Only Attack (EF-KOA).
+    Existential UnForgeability under Key-Only Attack (EUF-KOA).
     Given the public/verification key, the adversary is tasked with forging a signature
     for any fresh message
     -
   *)
-  (* Class of adversaries against EF-KOA *)
-  module type Adv_EFKOA = {
+  (* Class of adversaries against EUF-KOA *)
+  module type Adv_EUFKOA = {
     proc forge(pk : pk_t) : msg_t * sig_t 
   }.
 
-  (* EF-KOA game *)
-  module EF_KOA(S : Scheme, A : Adv_EFKOA) = {
+  (* EUF-KOA game *)
+  module EUF_KOA(S : Scheme, A : Adv_EUFKOA) = {
     proc main() : bool = {
       var pk : pk_t;
       var sk : sk_t;
@@ -1991,26 +1991,26 @@ theory KeyUpdating.
   *)  
   (* 
     - 
-    Total Break under Random-Message Attack (TB-RMA). 
+    UnBreakability under Random-Message Attack (UB-RMA). 
     Given the public/verification key and the signatures for a set of known random messages, 
     the adversary is tasked with computing the secret key corresponding to the 
     public/verification key
     -
   *)
-  abstract theory TBRMA.
+  abstract theory UBRMA.
     (* (Proper) distribution over type of to-be-signed artifacts ('messages') *)
     op [lossless] dmsg : msg_t distr.
 
-    (* Number of messages the adversary obtains signatures for in TB-RMA game *)
-    const n_tbrma : { int | 0 <= n_tbrma } as ge0_ntbrma.
+    (* Number of messages the adversary obtains signatures for in UB-RMA game *)
+    const n_ubrma : { int | 0 <= n_ubrma } as ge0_nubrma.
 
-    (* Class of adversaries against TB-RMA *)
-    module type Adv_TBRMA = {
+    (* Class of adversaries against UB-RMA *)
+    module type Adv_UBRMA = {
       proc break(pk : pk_t, msigl : (msg_t * sig_t) list) : sk_t 
     }.
 
-    (* TB-RMA game *)
-    module TB_RMA(S : Scheme, A : Adv_TBRMA) = {
+    (* UB-RMA game *)
+    module UB_RMA(S : Scheme, A : Adv_UBRMA) = {
       proc main() : bool = {
         var pk : pk_t;
         var sk, sk' : sk_t;
@@ -2023,13 +2023,13 @@ theory KeyUpdating.
         (pk, sk) <@ S.keygen();
 
         (* 
-          Construct a list of n_tbrma (message, signature) pairs. To this end,
+          Construct a list of n_ubrma (message, signature) pairs. To this end,
           for each pair, randomly sample a message and, subsequently, create
           (with the previously generated secret key) a corresponding signature by 
           using the signing algorithm of the considered signature scheme.
         *)
         msigl <- [];
-        while (size msigl < n_tbrma) {
+        while (size msigl < n_ubrma) {
           m <$ dmsg;
 
           (sig, sk) <@ S.sign(sk, m);
@@ -2048,31 +2048,31 @@ theory KeyUpdating.
         return sk' = sk;
       }
     }.
-  end TBRMA.
+  end UBRMA.
   
   
   (* 
     - 
-    Universal Forgery under Random-Message Attack (UF-RMA).
+    Universal UnForgeability under Random-Message Attack (UUF-RMA).
     Given the public/verification key, the signatures for a set of known random messages, 
     and an arbitrary message, the adversary is tasked with forging a signature for 
     the given (latter) message
     -
   *)
-  abstract theory UFRMA.
+  abstract theory UUFRMA.
     (* (Proper) distribution over type of to-be-signed artifacts ('messages') *)
     op [lossless] dmsg : msg_t distr.
 
-    (* Number of messages the adversary obtains signatures for in UF-RMA game *)
-    const n_ufrma : { int | 0 <= n_ufrma } as ge0_nufrma.
+    (* Number of messages the adversary obtains signatures for in UUF-RMA game *)
+    const n_uufrma : { int | 0 <= n_uufrma } as ge0_nuufrma.
 
-    (* Class of adversaries against UF-RMA *)
-    module type Adv_UFRMA = {
+    (* Class of adversaries against UUF-RMA *)
+    module type Adv_UUFRMA = {
       proc forge(pk : pk_t, msigl : (msg_t * sig_t) list, m : msg_t) : sig_t
     }.
 
-    (* UF-RMA game *)
-    module UF_RMA(S : Scheme, A : Adv_UFRMA) = {
+    (* UUF-RMA game *)
+    module UUF_RMA(S : Scheme, A : Adv_UUFRMA) = {
       proc main() : bool = {
         var pk : pk_t;
         var sk, sk' : sk_t;
@@ -2089,13 +2089,13 @@ theory KeyUpdating.
         (pk, sk) <@ S.keygen();
 
         (* 
-          Construct a list of n_ufrma (message, signature) pairs. To this end,
+          Construct a list of n_uufrma (message, signature) pairs. To this end,
           for each pair, randomly sample a message and, subsequently, create
           (with the previously generated secret key) a corresponding signature by 
           using the signing algorithm of the considered signature scheme.
         *)
         msigl <- [];
-        while (size msigl < n_ufrma) {
+        while (size msigl < n_uufrma) {
           m <$ dmsg;
 
           (sig, sk) <@ S.sign(sk, m);
@@ -2131,32 +2131,32 @@ theory KeyUpdating.
         return is_valid /\ is_fresh;
       }
     }.
-  end UFRMA.
+  end UUFRMA.
 
 
   (*
     -
-    Selective Forgery under Random-Message Attack (SF-RMA).
+    Selective UnForgeability under Random-Message Attack (SUF-RMA).
     After picking a message, the adversary is given the public/verification key, 
     the signatures for a set of known random messages, and an arbitrary message, and is tasked
     with forging a signature for the picked message
     -
   *)
-  abstract theory SFRMA.
+  abstract theory SUFRMA.
     (* (Proper) distribution over type of to-be-signed artifacts ('messages') *)
     op [lossless] dmsg : msg_t distr.
 
-    (* Number of messages the adversary obtains signatures for in SF-RMA game *)
-    const n_sfrma : { int | 0 <= n_sfrma } as ge0_nsfrma.
+    (* Number of messages the adversary obtains signatures for in SUF-RMA game *)
+    const n_sufrma : { int | 0 <= n_sufrma } as ge0_nsufrma.
 
-    (* Class of adversaries against SF-RMA *)
-    module type Adv_SFRMA = {
+    (* Class of adversaries against SUF-RMA *)
+    module type Adv_SUFRMA = {
       proc pick() : msg_t
       proc forge(pk : pk_t, msigl : (msg_t * sig_t) list) : sig_t
     }.
 
-    (* SF-RMA game *)
-    module SF_RMA(S : Scheme, A : Adv_SFRMA) = {
+    (* SUF-RMA game *)
+    module SUF_RMA(S : Scheme, A : Adv_SUFRMA) = {
       proc main() : bool = {
         var pk : pk_t;
         var sk, sk' : sk_t;
@@ -2173,13 +2173,13 @@ theory KeyUpdating.
         (pk, sk) <@ S.keygen();
 
         (* 
-          Construct a list of n_sfrma (message, signature) pairs. To this end,
+          Construct a list of n_sufrma (message, signature) pairs. To this end,
           for each pair, randomly sample a message and, subsequently, create
           (with the previously generated secret key) a corresponding signature by 
           using the signing algorithm of the considered signature scheme.
         *)
         msigl <- [];
-        while (size msigl < n_sfrma) {
+        while (size msigl < n_sufrma) {
           m <$ dmsg;
 
           (sig, sk) <@ S.sign(sk, m);
@@ -2215,30 +2215,30 @@ theory KeyUpdating.
         return is_valid /\ is_fresh;
       }
     }.
-  end SFRMA.
+  end SUFRMA.
   
   
   (*
     -
-    Existential Forgery under Random-Message Attack (EF-RMA)
+    Existential UnForgeability under Random-Message Attack (EUF-RMA)
     Given the public/verification key and the signatures for a set of known random messages,
     the adversary is tasked with forging a signature for any fresh message
     -
   *)
-  abstract theory EFRMA.
+  abstract theory EUFRMA.
     (* (Proper) distribution over type of to-be-signed artifacts ('messages') *)
     op [lossless] dmsg : msg_t distr.
 
-    (* Number of messages the adversary obtains signatures for in EF-RMA game *)
-    const n_efrma : { int | 0 <= n_efrma } as ge0_nefrma.
+    (* Number of messages the adversary obtains signatures for in EUF-RMA game *)
+    const n_eufrma : { int | 0 <= n_eufrma } as ge0_neufrma.
 
-    (* Class of adversaries against EF-RMA *)
-    module type Adv_EFRMA = {
+    (* Class of adversaries against EUF-RMA *)
+    module type Adv_EUFRMA = {
       proc forge(pk : pk_t, msigl : (msg_t * sig_t) list) : msg_t * sig_t
     }.
 
-    (* EF-RMA game *)
-    module EF_RMA(S : Scheme, A : Adv_EFRMA) = {   
+    (* EUF-RMA game *)
+    module EUF_RMA(S : Scheme, A : Adv_EUFRMA) = {   
       proc main() : bool = {
         var pk : pk_t;
         var sk : sk_t;
@@ -2252,13 +2252,13 @@ theory KeyUpdating.
         (pk, sk) <@ S.keygen();
 
         (* 
-          Construct a list of n_efrma (message, signature) pairs. To this end,
+          Construct a list of n_eufrma (message, signature) pairs. To this end,
           for each pair, randomly sample a message and, subsequently, create
           (with the previously generated secret key) a corresponding signature by 
           using the signing algorithm of the considered signature scheme.
         *)
         msigl <- [];
-        while (size msigl < n_efrma) {
+        while (size msigl < n_eufrma) {
           m <$ dmsg;
 
           (sig, sk) <@ S.sign(sk, m);
@@ -2299,14 +2299,14 @@ theory KeyUpdating.
     
     (*
       -
-      Interactive Existential Forgery under Random-Message Attack (I-EF-RMA)
+      Interactive Existential UnForgeability under Random-Message Attack (I-EUF-RMA)
       Given the public/verification key and the signatures for a set of random messages
       (obtained one-by-one upon request), the adversary is tasked with forging a signature 
       for any fresh message
       -
     *)
     (* 
-      Type for signing oracles used in I-EF-RMA, including procedures 
+      Type for signing oracles used in I-EUF-RMA, including procedures 
       for initialization and auxiliary tasks 
     *)
     module type Oracle_RMA(S : Scheme) = {
@@ -2317,7 +2317,7 @@ theory KeyUpdating.
     }.
     
     (* 
-      Type for signing oracles used in I-EF-RMA, only exposing the 
+      Type for signing oracles used in I-EUF-RMA, only exposing the 
       procedure for signing 
     *)
     module type SOracle_RMA = {
@@ -2325,7 +2325,7 @@ theory KeyUpdating.
     }.
     
     (* 
-      Default implementation of a signing oracle used in I-EF-RMA, including procedures 
+      Default implementation of a signing oracle used in I-EUF-RMA, including procedures 
       for initialization and auxiliary tasks 
     *)
     module (O_RMA_Default : Oracle_RMA) (S : Scheme) = {
@@ -2355,13 +2355,13 @@ theory KeyUpdating.
       }
     }.
  
-    (* Class of adversaries against I-EF-RMA *)
-    module type Adv_I_EFRMA(O : SOracle_RMA) = {
+    (* Class of adversaries against I-EUF-RMA *)
+    module type Adv_I_EUFRMA(O : SOracle_RMA) = {
       proc forge(pk : pk_t) : msg_t * sig_t
     }.
     
-    (* I-EF-RMA game *)
-    module I_EF_RMA(S : Scheme, A : Adv_I_EFRMA, O: Oracle_RMA) = {   
+    (* I-EUF-RMA game *)
+    module I_EUF_RMA(S : Scheme, A : Adv_I_EUFRMA, O: Oracle_RMA) = {   
       proc main() : bool = {
         var pk : pk_t;
         var sk : sk_t;
@@ -2398,14 +2398,14 @@ theory KeyUpdating.
             
         (* 
           Success iff
-          (1) "nrqs <= n_efrma": the adversary made at most n_efrma oracle queries, and
+          (1) "nrqs <= n_eufrma": the adversary made at most n_eufrma oracle queries, and
           (2) "is_valid": the forged signature provided by the adversary is valid, and
           (3) "is_fresh": the message for which the adversary forged a signature is fresh.
         *)
-        return nrqs <= n_efrma /\ is_valid /\ is_fresh; 
+        return nrqs <= n_eufrma /\ is_valid /\ is_fresh; 
       }
     }.
-  end EFRMA.
+  end EUFRMA.
 
   (*
     -- 
@@ -2419,24 +2419,24 @@ theory KeyUpdating.
   *)  
   (* 
     - 
-    Total Break under Generic Chosen-Message Attack (TB-GCMA). 
+    UnBreakability under Generic Chosen-Message Attack (UB-GCMA). 
     Given the public/verification key and the signatures for a set of messages chosen
     non-adaptively and indepedently of the public key, the adversary is tasked with 
     computing the secret key corresponding to the public/verification key
     -
   *)
-  abstract theory TBGCMA.
-    (* Number of messages the adversary obtains signatures for in TB-GCMA game *)
-    const n_tbgcma : { int | 0 <= n_tbgcma } as ge0_ntbgcma.
+  abstract theory UBGCMA.
+    (* Number of messages the adversary obtains signatures for in UB-GCMA game *)
+    const n_ubgcma : { int | 0 <= n_ubgcma } as ge0_nubgcma.
 
-    (* Class of adversaries against TB-CMA *)
-    module type Adv_TBGCMA = {
+    (* Class of adversaries against UB-CMA *)
+    module type Adv_UBGCMA = {
       proc choose() : msg_t list
       proc break(pk : pk_t, sigl : sig_t list) : sk_t 
     }.
 
-    (* TB-GCMA game *)
-    module TB_GCMA(S : Scheme, A : Adv_TBGCMA) = {
+    (* UB-GCMA game *)
+    module UB_GCMA(S : Scheme, A : Adv_UBGCMA) = {
       proc main() : bool = {
         var pk : pk_t;
         var sk, sk' : sk_t;
@@ -2452,7 +2452,7 @@ theory KeyUpdating.
         (pk, sk) <@ S.keygen();
 
         (* 
-          Construct a list sigl of at most n_tbgcma signatures. Here, the i-th signature is
+          Construct a list sigl of at most n_ubgcma signatures. Here, the i-th signature is
           a signature for the i-th message in the list ml previously provided by the
           adversary. Naturally, the signatures are created using the signing algorithm
           of the considered signature scheme with the previously generated secret key.
@@ -2460,7 +2460,7 @@ theory KeyUpdating.
           resulting list of signatures will have the same size as ml (and, hence, less than n).
         *)
         sigl <- [];
-        while (size sigl < min (size ml) n_tbgcma) {
+        while (size sigl < min (size ml) n_ubgcma) {
           m <- nth witness ml (size sigl);
 
           (sig, sk) <@ S.sign(sk, m);
@@ -2479,32 +2479,32 @@ theory KeyUpdating.
         return sk' = sk;
       }
     }.
-  end TBGCMA.
+  end UBGCMA.
   
   
   (*
     -
-    Universal Forgery under Generic Chosen-Message Attack (UF-GCMA).
+    Universal UnForgeability under Generic Chosen-Message Attack (UUF-GCMA).
     Given the public/verification key, the signatures for a set of messages chosen
     non-adaptively and indepedently of the public key, and an arbitrary message, 
     the adversary is tasked with forging a signature for the given (latter) message
     -
   *)
-  abstract theory UFGCMA.
+  abstract theory UUFGCMA.
     (* (Proper) distribution over type of to-be-signed artifacts ('messages') *)
     op [lossless] dmsg : msg_t distr.
   
-    (* Number of messages the adversary obtains signatures for in UF-GCMA game *)
-    const n_ufgcma : { int | 0 <= n_ufgcma } as ge0_nufgcma.
+    (* Number of messages the adversary obtains signatures for in UUF-GCMA game *)
+    const n_uufgcma : { int | 0 <= n_uufgcma } as ge0_nuufgcma.
 
-    (* Class of adversaries against UF-GCMA *)
-    module type Adv_UFGCMA = {
+    (* Class of adversaries against UUF-GCMA *)
+    module type Adv_UUFGCMA = {
       proc choose() : msg_t list
       proc forge(pk : pk_t, sigl : sig_t list, m : msg_t) : sig_t
     }.
 
-    (* UF-GCMA game *)
-    module UF_GCMA(S : Scheme, A : Adv_UFGCMA) = {
+    (* UUF-GCMA game *)
+    module UUF_GCMA(S : Scheme, A : Adv_UUFGCMA) = {
       proc main() : bool = {
         var pk : pk_t;
         var sk : sk_t;
@@ -2524,7 +2524,7 @@ theory KeyUpdating.
         (pk, sk) <@ S.keygen();
 
         (* 
-          Construct a list sigl of at most n_ufgcma signatures. Here, the i-th signature is
+          Construct a list sigl of at most n_uufgcma signatures. Here, the i-th signature is
           a signature for the i-th message in the list ml previously provided by the
           adversary. Naturally, the signatures are created using the signing algorithm
           of the considered signature scheme with the previously generated secret key.
@@ -2532,7 +2532,7 @@ theory KeyUpdating.
           resulting list of signatures will have the same size as ml (and, hence, less than n).
         *)
         sigl <- [];
-        while (size sigl < min (size ml) n_ufgcma) {
+        while (size sigl < min (size ml) n_uufgcma) {
           m <- nth witness ml (size sigl);
 
           (sig, sk) <@ S.sign(sk, m);
@@ -2568,30 +2568,30 @@ theory KeyUpdating.
         return is_valid /\ is_fresh;
       }
     }.
-  end UFGCMA.
+  end UUFGCMA.
 
     
   (* 
     - 
-    Selective Forgery under Generic Chosen-Message Attack (SF-GCMA).
+    Selective UnForgeability under Generic Chosen-Message Attack (SUF-GCMA).
     After picking a message, the adversary is given the public/verification key and
     the signatures for a set of messages chosen non-adaptively and indepedently 
     of the public key, and is tasked with forging a signature for the picked message
     -
   *)
-  abstract theory SFGCMA.
-    (* Number of messages the adversary obtains signatures for in SF-GCMA game *)
-    const n_sfgcma : { int | 0 <= n_sfgcma } as ge0_nsfgcma.
+  abstract theory SUFGCMA.
+    (* Number of messages the adversary obtains signatures for in SUF-GCMA game *)
+    const n_sufgcma : { int | 0 <= n_sufgcma } as ge0_nsufgcma.
 
-    (* Class of adversaries against SF-GCMA *)
-    module type Adv_SFGCMA = {
+    (* Class of adversaries against SUF-GCMA *)
+    module type Adv_SUFGCMA = {
       proc pick() : msg_t
       proc choose() : msg_t list
       proc forge(pk : pk_t, sigl : sig_t list) : sig_t
     }.
 
-    (* SF-GCMA game *)
-    module SF_GCMA(S : Scheme, A : Adv_SFGCMA) = {
+    (* SUF-GCMA game *)
+    module SUF_GCMA(S : Scheme, A : Adv_SUFGCMA) = {
       proc main() : bool = {
         var pk : pk_t;
         var sk : sk_t;
@@ -2611,7 +2611,7 @@ theory KeyUpdating.
         (pk, sk) <@ S.keygen();
 
         (* 
-          Construct a list sigl of at most n_sfgcma signatures. Here, the i-th signature is
+          Construct a list sigl of at most n_sufgcma signatures. Here, the i-th signature is
           a signature for the i-th message in the list ml previously provided by the
           adversary. Naturally, the signatures are created using the signing algorithm
           of the considered signature scheme with the previously generated secret key.
@@ -2619,7 +2619,7 @@ theory KeyUpdating.
           resulting list of signatures will have the same size as ml (and, hence, less than n).
         *)
         sigl <- [];
-        while (size sigl < min (size ml) n_sfgcma) {
+        while (size sigl < min (size ml) n_sufgcma) {
           m <- nth witness ml (size sigl);
 
           (sig, sk) <@ S.sign(sk, m);
@@ -2655,29 +2655,29 @@ theory KeyUpdating.
         return is_valid /\ is_fresh;   
       }
     }.
-  end SFGCMA.
+  end SUFGCMA.
   
   
   (*
     -
-    Existential Forgery under Generic Chosen-Message Attack (EF-GCMA)
+    Existential UnForgeability under Generic Chosen-Message Attack (EUF-GCMA)
     Given the public/verification key and the signatures for a set of messages 
     chosen non-adaptively and indepedently of the public key, the adversary is tasked 
     with forging a signature for any fresh message
     -
   *)
-  abstract theory EFGCMA.
-    (* Number of messages the adversary obtains signatures for in EF-GCMA game *)
-    const n_efgcma : { int | 0 <= n_efgcma } as ge0_negcma.
+  abstract theory EUFGCMA.
+    (* Number of messages the adversary obtains signatures for in EUF-GCMA game *)
+    const n_eufgcma : { int | 0 <= n_eufgcma } as ge0_negcma.
 
-    (* Class of adversaries against EF-GCMA *)
-    module type Adv_EFGCMA = {
+    (* Class of adversaries against EUF-GCMA *)
+    module type Adv_EUFGCMA = {
       proc choose() : msg_t list
       proc forge(pk : pk_t, sigl : sig_t list) : msg_t * sig_t
     }.
 
-    (* EF-GCMA game *)
-    module EF_GCMA(S : Scheme, A : Adv_EFGCMA) = {   
+    (* EUF-GCMA game *)
+    module EUF_GCMA(S : Scheme, A : Adv_EUFGCMA) = {   
       proc main() : bool = {
         var pk : pk_t;
         var sk : sk_t;
@@ -2694,7 +2694,7 @@ theory KeyUpdating.
         (pk, sk) <@ S.keygen();
 
         (* 
-          Construct a list sigl of at most n_efgcma signatures. Here, the i-th signature is
+          Construct a list sigl of at most n_eufgcma signatures. Here, the i-th signature is
           a signature for the i-th message in the list ml previously provided by the
           adversary. Naturally, the signatures are created using the signing algorithm
           of the considered signature scheme with the previously generated secret key.
@@ -2702,7 +2702,7 @@ theory KeyUpdating.
           resulting list of signatures will have the same size as ml (and, hence, less than n).
         *)
         sigl <- [];
-        while (size sigl < min (size ml) n_efgcma) {
+        while (size sigl < min (size ml) n_eufgcma) {
           m <- nth witness ml (size sigl);
 
           (sig, sk) <@ S.sign(sk, m);
@@ -2739,7 +2739,7 @@ theory KeyUpdating.
         return is_valid /\ is_fresh;   
       }  
     }.
-  end EFGCMA.
+  end EUFGCMA.
   
   
   (*
@@ -2754,24 +2754,24 @@ theory KeyUpdating.
   *) 
   (* 
     - 
-    Total Break under Non-Adaptive Chosen-Message Attack (TB-NACMA). 
+    UnBreakability under Non-Adaptive Chosen-Message Attack (UB-NACMA). 
     Given the public/verification key and the signatures for a set of non-adaptively
     chosen messages, the adversary is tasked with computing the secret key 
     corresponding to the public/verification key
     -
   *)
-  abstract theory TBNACMA.
-    (* Number of messages the adversary obtains signatures for in TB-RMA game *)
-    const n_tbnacma : { int | 0 <= n_tbnacma } as ge0_ntbnacma.
+  abstract theory UBNACMA.
+    (* Number of messages the adversary obtains signatures for in UB-RMA game *)
+    const n_ubnacma : { int | 0 <= n_ubnacma } as ge0_nubnacma.
 
-    (* Class of adversaries against TB-NACMA *)
-    module type Adv_TBNACMA = {
+    (* Class of adversaries against UB-NACMA *)
+    module type Adv_UBNACMA = {
       proc choose(pk : pk_t) : msg_t list
       proc break(sigl : sig_t list) : sk_t 
     }.
 
-    (* TB-NACMA game *)
-    module TB_NACMA(S : Scheme, A : Adv_TBNACMA) = {
+    (* UB-NACMA game *)
+    module UB_NACMA(S : Scheme, A : Adv_UBNACMA) = {
       proc main() : bool = {
         var pk : pk_t;
         var sk, sk' : sk_t;
@@ -2790,7 +2790,7 @@ theory KeyUpdating.
         ml <@ A.choose(pk);
 
         (* 
-          Construct a list sigl of at most n_tbnacma signatures. Here, the i-th signature is
+          Construct a list sigl of at most n_ubnacma signatures. Here, the i-th signature is
           a signature for the i-th message in the list ml previously provided by the
           adversary. Naturally, the signatures are created using the signing algorithm
           of the considered signature scheme with the previously generated secret key.
@@ -2798,7 +2798,7 @@ theory KeyUpdating.
           resulting list of signatures will have the same size as ml (and, hence, less than n).
         *)
         sigl <- [];
-        while (size sigl < min (size ml) n_tbnacma) {
+        while (size sigl < min (size ml) n_ubnacma) {
           m <- nth witness ml (size sigl);
 
           (sig, sk) <@ S.sign(sk, m);
@@ -2817,32 +2817,32 @@ theory KeyUpdating.
         return sk' = sk;
       }
     }.
-  end TBNACMA.
+  end UBNACMA.
   
   
   (*
     - 
-    Universal Forgery under Non-Adaptive Chosen-Message Attack (UF-NACMA).
+    Universal UnForgeability under Non-Adaptive Chosen-Message Attack (UUF-NACMA).
     Given the public/verification key, the signatures for a set of non-adaptively
     chosen messages, and an arbitrary message, the adversary is tasked with forging 
     a signature for the given (latter) message
     -
   *)
-  abstract theory UFNACMA.
+  abstract theory UUFNACMA.
     (* (Proper) distribution over type of to-be-signed artifacts ('messages') *)
     op [lossless] dmsg : msg_t distr.
   
-    (* Number of messages the adversary obtains signatures for in UF-RMA game *)
-    const n_ufnacma : { int | 0 <= n_ufnacma } as ge0_nufnacma.
+    (* Number of messages the adversary obtains signatures for in UUF-RMA game *)
+    const n_uufnacma : { int | 0 <= n_uufnacma } as ge0_nuufnacma.
 
-    (* Class of adversaries against UF-NACMA *)
-    module type Adv_UFNACMA = {
+    (* Class of adversaries against UUF-NACMA *)
+    module type Adv_UUFNACMA = {
       proc choose(pk : pk_t) : msg_t list
       proc forge(sigl : sig_t list, m : msg_t) : sig_t
     }.
 
-    (* UF-NACMA game *)
-    module UF_NACMA(S : Scheme, A : Adv_UFNACMA) = {
+    (* UUF-NACMA game *)
+    module UUF_NACMA(S : Scheme, A : Adv_UUFNACMA) = {
       proc main() : bool = {
         var pk : pk_t;
         var sk : sk_t;
@@ -2865,7 +2865,7 @@ theory KeyUpdating.
         ml <@ A.choose(pk);
 
         (* 
-          Construct a list sigl of at most n_ufnacma signatures. Here, the i-th signature is
+          Construct a list sigl of at most n_uufnacma signatures. Here, the i-th signature is
           a signature for the i-th message in the list ml previously provided by the
           adversary. Naturally, the signatures are created using the signing algorithm
           of the considered signature scheme with the previously generated secret key.
@@ -2873,7 +2873,7 @@ theory KeyUpdating.
           resulting list of signatures will have the same size as ml (and, hence, less than n).
         *)
         sigl <- [];
-        while (size sigl < min (size ml) n_ufnacma) {
+        while (size sigl < min (size ml) n_uufnacma) {
           m <- nth witness ml (size sigl);
 
           (sig, sk) <@ S.sign(sk, m);
@@ -2909,33 +2909,33 @@ theory KeyUpdating.
         return is_valid /\ is_fresh;
       }
     }.
-  end UFNACMA.
+  end UUFNACMA.
 
   
   (* 
     - 
-    Selective Forgery under Non-Adaptive Chosen-Message Attack (SF-NACMA).
+    Selective UnForgeability under Non-Adaptive Chosen-Message Attack (SUF-NACMA).
     After picking a message, the adversary is given the public/verification key and
     the signatures for a set of non-adaptively chosen messages, and is tasked with 
     forging a signature for the picked message
     -
   *)
-  abstract theory SFNACMA.
+  abstract theory SUFNACMA.
     (* (Proper) distribution over type of to-be-signed artifacts ('messages') *)
     op [lossless] dmsg : msg_t distr.
 
-    (* Number of messages the adversary obtains signatures for in SF-RMA game *)
-    const n_sfnacma : { int | 0 <= n_sfnacma } as ge0_nsfnacma.
+    (* Number of messages the adversary obtains signatures for in SUF-RMA game *)
+    const n_sufnacma : { int | 0 <= n_sufnacma } as ge0_nsufnacma.
 
-    (* Class of adversaries against SF-NACMA *)
-    module type Adv_SFNACMA = {
+    (* Class of adversaries against SUF-NACMA *)
+    module type Adv_SUFNACMA = {
       proc pick() : msg_t
       proc choose(pk : pk_t) : msg_t list
       proc forge(sigl : sig_t list) : sig_t
     }.
 
-    (* SF-NACMA game *)
-    module SF_NACMA(S : Scheme, A : Adv_SFNACMA) = {
+    (* SUF-NACMA game *)
+    module SUF_NACMA(S : Scheme, A : Adv_SUFNACMA) = {
       proc main() : bool = {
         var pk : pk_t;
         var sk : sk_t;
@@ -2958,7 +2958,7 @@ theory KeyUpdating.
         ml <@ A.choose(pk);
 
         (* 
-          Construct a list sigl of at most n_sfnacma signatures. Here, the i-th signature is
+          Construct a list sigl of at most n_sufnacma signatures. Here, the i-th signature is
           a signature for the i-th message in the list ml previously provided by the
           adversary. Naturally, the signatures are created using the signing algorithm
           of the considered signature scheme with the previously generated secret key.
@@ -2966,7 +2966,7 @@ theory KeyUpdating.
           resulting list of signatures will have the same size as ml (and, hence, less than n).
         *)
         sigl <- [];
-        while (size sigl < min (size ml) n_sfnacma) {
+        while (size sigl < min (size ml) n_sufnacma) {
           m <- nth witness ml (size sigl);
 
           (sig, sk) <@ S.sign(sk, m);
@@ -3002,28 +3002,28 @@ theory KeyUpdating.
         return is_valid /\ is_fresh;
       }
     }.
-  end SFNACMA.
+  end SUFNACMA.
   
   
   (*
     -
-    Existential Forgery under Non-Adaptive Chosen-Message Attack (EF-NACMA).
+    Existential UnForgeability under Non-Adaptive Chosen-Message Attack (EUF-NACMA).
     Given the public/verification key and the signatures for a set of non-adaptively
     chosen messages the adversary is tasked with forging a signature for any fresh message
     -
   *)
-  abstract theory EFNACMA.
-    (* Number of messages the adversary obtains signatures for in EF-RMA game *)
-    const n_efnacma : { int | 0 <= n_efnacma } as ge0_nefnacma.
+  abstract theory EUFNACMA.
+    (* Number of messages the adversary obtains signatures for in EUF-RMA game *)
+    const n_eufnacma : { int | 0 <= n_eufnacma } as ge0_neufnacma.
 
-    (* Class of adversaries against EF-NACMA *)
-    module type Adv_EFNACMA = {
+    (* Class of adversaries against EUF-NACMA *)
+    module type Adv_EUFNACMA = {
       proc choose(pk : pk_t) : msg_t list
       proc forge(sigl : sig_t list) : msg_t * sig_t
     }.
 
-    (* EF-NACMA game *)
-    module EF_NACMA(S : Scheme, A : Adv_EFNACMA) = {   
+    (* EUF-NACMA game *)
+    module EUF_NACMA(S : Scheme, A : Adv_EUFNACMA) = {   
       proc main() : bool = {
         var pk : pk_t;
         var sk : sk_t;
@@ -3043,7 +3043,7 @@ theory KeyUpdating.
         ml <@ A.choose(pk);
 
         (* 
-          Construct a list sigl of at most n_efnacma signatures. Here, the i-th signature is
+          Construct a list sigl of at most n_eufnacma signatures. Here, the i-th signature is
           a signature for the i-th message in the list ml previously provided by the
           adversary. Naturally, the signatures are created using the signing algorithm
           of the considered signature scheme with the previously generated secret key.
@@ -3051,7 +3051,7 @@ theory KeyUpdating.
           resulting list of signatures will have the same size as ml (and, hence, less than n).
         *)
         sigl <- [];
-        while (size sigl < min (size ml) n_efnacma) {
+        while (size sigl < min (size ml) n_eufnacma) {
           m <- nth witness ml (size sigl);
 
           (sig, sk) <@ S.sign(sk, m);
@@ -3088,7 +3088,7 @@ theory KeyUpdating.
         return is_valid /\ is_fresh; 
       }  
     }.
-  end EFNACMA.
+  end EUFNACMA.
 
   
   (*
@@ -3154,19 +3154,19 @@ theory KeyUpdating.
   
   (* 
     - 
-    Total Break under (Adaptive) Chosen-Message Attack (TB-CMA). 
+    UnBreakability under (Adaptive) Chosen-Message Attack (UB-CMA). 
     Given the public/verification key and the signatures for a set of adaptively
     chosen messages, the adversary is tasked with computing the secret key 
     corresponding to the public/verification key
     -
   *)
-  (* Class of adversaries against TB-CMA *)
-  module type Adv_TBCMA(O : SOracle_CMA) = {
+  (* Class of adversaries against UB-CMA *)
+  module type Adv_UBCMA(O : SOracle_CMA) = {
     proc break(pk : pk_t) : sk_t
   }.
   
-  (* TB-CMA game *)
-  module TB_CMA(S : Scheme, A : Adv_TBCMA, O : Oracle_CMA) = {
+  (* UB-CMA game *)
+  module UB_CMA(S : Scheme, A : Adv_UBCMA, O : Oracle_CMA) = {
     proc main() : bool = {
       var pk : pk_t;
       var sk, sk' : sk_t;
@@ -3191,26 +3191,26 @@ theory KeyUpdating.
   
   (*
     - 
-    Universal Forgery under (Adaptive) Chosen-Message Attack (UF-CMA)
+    Universal UnForgeability under (Adaptive) Chosen-Message Attack (UUF-CMA)
     Given the public/verification key, the signatures for a set of adaptively
     chosen messages, and an arbitrary message, the adversary is tasked with forging 
     a signature for the given (latter) message
     -
   *)
-  abstract theory UFCMA.
+  abstract theory UUFCMA.
     (* (Proper) distribution over type of to-be-signed artifacts ('messages') *)
     op [lossless] dmsg : msg_t distr.
 
-    (* Maximum number of oracle queries the adversary is allowed to make in UF-CMA game *)
-    const q_ufcma : { int | 0 <= q_ufcma } as ge0_qufcma.
+    (* Maximum number of oracle queries the adversary is allowed to make in UUF-CMA game *)
+    const q_uufcma : { int | 0 <= q_uufcma } as ge0_quufcma.
 
-    (* Class of adversaries against UF-CMA *)
-    module type Adv_UFCMA(O : SOracle_CMA) = {
+    (* Class of adversaries against UUF-CMA *)
+    module type Adv_UUFCMA(O : SOracle_CMA) = {
       proc forge(pk : pk_t, m : msg_t) : sig_t
     }.
 
-    (* UF-CMA game *)
-    module UF_CMA(S : Scheme, A : Adv_UFCMA, O : Oracle_CMA) = {
+    (* UUF-CMA game *)
+    module UUF_CMA(S : Scheme, A : Adv_UUFCMA, O : Oracle_CMA) = {
       proc main() : bool = {
         var pk : pk_t;
         var sk : sk_t;
@@ -3254,25 +3254,25 @@ theory KeyUpdating.
         return is_valid /\ is_fresh; 
       }
     }.
-  end UFCMA.
+  end UUFCMA.
   
   
   (*
     -
-    Selective Forgery under Chosen-Message Attack (SF-CMA).
+    Selective UnForgeability under Chosen-Message Attack (SUF-CMA).
     After picking a message, the adversary is given the public/verification key 
     and the signatures for a set of adaptively chosen messages, and is tasked with 
     forging a signature for the picked message
     -
   *)
-  (* Class of adversaries against SF-CMA *)
-  module type Adv_SFCMA(O : SOracle_CMA) = {
+  (* Class of adversaries against SUF-CMA *)
+  module type Adv_SUFCMA(O : SOracle_CMA) = {
     proc pick() : msg_t
     proc forge(pk : pk_t) : sig_t
   }.
   
-  (* SF-CMA game *)
-  module SF_CMA(S : Scheme, A : Adv_SFCMA, O : Oracle_CMA) = {
+  (* SUF-CMA game *)
+  module SUF_CMA(S : Scheme, A : Adv_SUFCMA, O : Oracle_CMA) = {
     proc main() : bool = {
       var pk : pk_t;
       var sk : sk_t;
@@ -3320,18 +3320,18 @@ theory KeyUpdating.
 
   (*
     -
-    Existential Forgery under Chosen-Message Attack (EF-CMA)
+    Existential UnForgeability under Chosen-Message Attack (EUF-CMA)
     Given the public/verification key and the signatures for a set of adaptively 
     chosen messages, the adversary is tasked with forging a signature for any fresh message
     -
   *)
-  (* Class of adversaries against EF-CMA *)
-  module type Adv_EFCMA(O : SOracle_CMA) = {
+  (* Class of adversaries against EUF-CMA *)
+  module type Adv_EUFCMA(O : SOracle_CMA) = {
     proc forge(pk : pk_t) : msg_t * sig_t
   }.
 
-  (* EF-CMA game *)
-  module EF_CMA(S : Scheme, A : Adv_EFCMA, O : Oracle_CMA) = {
+  (* EUF-CMA game *)
+  module EUF_CMA(S : Scheme, A : Adv_EUFCMA, O : Oracle_CMA) = {
     proc main() : bool = {
       var pk : pk_t;
       var sk : sk_t;
@@ -3377,16 +3377,16 @@ theory KeyUpdating.
   
   (*
     - 
-    Strong Existential Forgery under Chosen-Message Attack (SEF-CMA).
+    Strong Existential UnForgeability under Chosen-Message Attack (SEUF-CMA).
     Given the public/verification key and the signatures for a set of adaptively 
     chosen messages, the adversary is tasked with forging a fresh signature for any message
     -
   *)
   (* 
-    Type for signing oracles used in the SEF-CMA game, including procedures 
+    Type for signing oracles used in the SEUF-CMA game, including procedures 
     for initialization and auxiliary tasks 
   *)
-  module type Oracle_SEFCMA(S : Scheme) = {
+  module type Oracle_SEUFCMA(S : Scheme) = {
     proc init(sk_init : sk_t) : unit
     proc sign(m : msg_t) : sig_t
     proc fresh(msig : msg_t * sig_t) : bool
@@ -3394,10 +3394,10 @@ theory KeyUpdating.
   }.
 
   (* 
-    Type for signing oracles used in the SEF-CMA game, only exposing the 
+    Type for signing oracles used in the SEUF-CMA game, only exposing the 
     procedure for signing 
   *)
-  module type SOracle_SEFCMA = {
+  module type SOracle_SEUFCMA = {
     proc sign(m : msg_t) : sig_t
   }.
   
@@ -3405,7 +3405,7 @@ theory KeyUpdating.
     Default implementation of a signing oracle including procedures for 
     initialization and auxiliary tasks 
   *)
-  module (O_SEFCMA_Default : Oracle_SEFCMA) (S : Scheme) = {
+  module (O_SEUFCMA_Default : Oracle_SEUFCMA) (S : Scheme) = {
     var sk : sk_t
     var qs : (msg_t * sig_t) list
     
@@ -3445,13 +3445,13 @@ theory KeyUpdating.
     }
   }.
 
-  (* Class of adversaries against SEF-CMA *)
-  module type Adv_SEFCMA(O : SOracle_SEFCMA) = {
+  (* Class of adversaries against SEUF-CMA *)
+  module type Adv_SEUFCMA(O : SOracle_SEUFCMA) = {
     proc forge(pk : pk_t) : msg_t * sig_t
   }.
 
-  (* SEF-CMA game *)
-  module SEF_CMA(S : Scheme, A : Adv_SEFCMA, O : Oracle_SEFCMA) = {
+  (* SEUF-CMA game *)
+  module SEUF_CMA(S : Scheme, A : Adv_SEUFCMA, O : Oracle_SEUFCMA) = {
     proc main() : bool = {
       var pk : pk_t;
       var sk : sk_t;

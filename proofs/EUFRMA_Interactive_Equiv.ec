@@ -14,7 +14,7 @@ type sk_t.
 op [lossless] dmsg : msg_t distr.
 
 (* Number of messages the adversary obtains signatures for in EF-RMA game *)
-const n_efrma : { int | 0 <= n_efrma } as ge0_nefrma.
+const n_eufrma : { int | 0 <= n_eufrma } as ge0_neufrma.
 
 (** The non-interactive, classical definition **)
 clone DigitalSignatures as ClassDS with
@@ -27,15 +27,15 @@ clone DigitalSignatures as ClassDS with
   
 import ClassDS.KeyUpdating.
 
-clone import EFRMA as Class_EFRMA with
+clone import EUFRMA as Class_EUFRMA with
   op dmsg    <= dmsg,
-  op n_efrma <= n_efrma,
+  op n_eufrma <= n_eufrma,
   lemma dmsg_ll <- dmsg_ll,
-  lemma ge0_nefrma <- ge0_nefrma
+  lemma ge0_neufrma <- ge0_neufrma
   
   proof *.
 
-module R_EFRMA_IEFRMA (A : Adv_I_EFRMA) : Adv_EFRMA = {
+module R_EUFRMA_IEUFRMA (A : Adv_I_EUFRMA) : Adv_EUFRMA = {
   module O_R : SOracle_RMA = {
     var q : int
     var msigl : (msg_t * sig_t) list
@@ -76,12 +76,12 @@ module R_EFRMA_IEFRMA (A : Adv_I_EFRMA) : Adv_EFRMA = {
 }.
 
 section.
-declare module A <: Adv_I_EFRMA {-R_EFRMA_IEFRMA, -O_RMA_Default}.
+declare module A <: Adv_I_EUFRMA {-R_EUFRMA_IEUFRMA, -O_RMA_Default}.
 declare axiom A_ll (O <: SOracle_RMA {-A}):
      islossless O.sign
   => islossless A(O).forge.
 
-declare module S <: Scheme {-A, -R_EFRMA_IEFRMA, -O_RMA_Default}.
+declare module S <: Scheme {-A, -R_EUFRMA_IEUFRMA, -O_RMA_Default}.
 declare axiom Ssign_ll: islossless S.sign.
 declare axiom Sverify_ll: islossless S.verify.
 
@@ -98,7 +98,7 @@ declare axiom Skeygen_stateless:
 declare axiom Sverify_stateless:
   equiv[ S.verify ~ S.verify: ={arg} ==> ={res} ].
 
-(* Pseudo-Interactive EF-RMA oracles *)
+(* Pseudo-Interactive EUF-RMA oracles *)
 (** TODO: This is overengineered—pre-sample all messages, then
           carefully craft the invariant on secret keys **)
 local module (O_RMA_Lazy : Oracle_RMA) (S : Scheme) = {
@@ -121,7 +121,7 @@ local module (O_RMA_Lazy : Oracle_RMA) (S : Scheme) = {
   proc sign() : msg_t * sig_t = {
     var m, sig;
 
-    if (size qs < n_efrma) {
+    if (size qs < n_eufrma) {
       m <$ dmsg;
       (sig, sk) <- opsign sk m;
       qs <- rcons qs m;
@@ -143,7 +143,7 @@ local module (O_RMA_Lazy : Oracle_RMA) (S : Scheme) = {
 
   (* Get the number of oracle queries, i.e., the size of the oracle query list qs *)
   proc nr_queries() : int = {
-    return if bad then n_efrma + 1 else size qs;
+    return if bad then n_eufrma + 1 else size qs;
   }
 }.
 
@@ -191,7 +191,7 @@ local module (O_RMA_Hybrid (O : RO) : Oracle_RMA) (S : Scheme) = {
     
     (m, sig) <- witness;
 
-    if (size qs < n_efrma) {
+    if (size qs < n_eufrma) {
       if (size qs < j) {
         (m, sig) <- nth witness msigl (size qs);
       }
@@ -239,7 +239,7 @@ local module (O_RMA_Eager : Oracle_RMA) (S : Scheme) = {
     qs <- [];
     sk <- sk_init;
 
-    while (size msigl < n_efrma) {
+    while (size msigl < n_eufrma) {
       m <$ dmsg;
       (sig, sk) <- opsign sk m;
       msigl <- rcons msigl (m, sig);
@@ -254,7 +254,7 @@ local module (O_RMA_Eager : Oracle_RMA) (S : Scheme) = {
     var m, sig;
 
     (m, sig) <- nth witness msigl (size qs);
-    if (size qs < n_efrma) {
+    if (size qs < n_eufrma) {
       qs <- rcons qs m;
     }
     return (m, sig);
@@ -275,17 +275,17 @@ local module (O_RMA_Eager : Oracle_RMA) (S : Scheme) = {
 }.
 
 local equiv left_eq:
-  I_EF_RMA(S, A, O_RMA_Default).main ~ I_EF_RMA(S, A, O_RMA_Lazy).main:
+  I_EUF_RMA(S, A, O_RMA_Default).main ~ I_EUF_RMA(S, A, O_RMA_Lazy).main:
     ={glob A} ==> ={res}.
 proof.
 proc.
-conseq (: ((nrqs{1} <= n_efrma) <=> (nrqs{2} <= n_efrma))
-       /\ (!O_RMA_Lazy.bad <=> nrqs <= n_efrma){2}
+conseq (: ((nrqs{1} <= n_eufrma) <=> (nrqs{2} <= n_eufrma))
+       /\ (!O_RMA_Lazy.bad <=> nrqs <= n_eufrma){2}
        /\ (   !O_RMA_Lazy.bad{2}
            => ={is_valid, is_fresh})).
-+ by move=> /> + + nrqsL + + nrqsR; case: (nrqsL <= n_efrma)=> />.
++ by move=> /> + + nrqsL + + nrqsR; case: (nrqsL <= n_eufrma)=> />.
 seq  3  3:
-  (   ((size ClassDS.O_Base_Default.qs <= n_efrma){1} <=> !O_RMA_Lazy.bad{2})
+  (   ((size ClassDS.O_Base_Default.qs <= n_eufrma){1} <=> !O_RMA_Lazy.bad{2})
    /\ (   !O_RMA_Lazy.bad{2}
        => (   ={pk, m', sig'}
            /\ ={qs}(ClassDS.O_Base_Default, O_RMA_Lazy)))); first last.
@@ -298,12 +298,12 @@ seq  3  3:
 call (: O_RMA_Lazy.bad
       , ={qs}(ClassDS.O_Base_Default, O_RMA_Lazy)
      /\ ={sk}(O_RMA_Default, O_RMA_Lazy)
-     /\ (size O_RMA_Lazy.qs <= n_efrma){2}
-      , (n_efrma < size ClassDS.O_Base_Default.qs){1}
-     /\ (size O_RMA_Lazy.qs = n_efrma){2}).
+     /\ (size O_RMA_Lazy.qs <= n_eufrma){2}
+      , (n_eufrma < size ClassDS.O_Base_Default.qs){1}
+     /\ (size O_RMA_Lazy.qs = n_eufrma){2}).
 + exact: A_ll.
 + proc.
-  case: (size O_RMA_Lazy.qs{2} = n_efrma).
+  case: (size O_RMA_Lazy.qs{2} = n_eufrma).
   + rcondf {2} 1; 1:by auto; smt().
     wp; ecall {1} (S_pfun O_RMA_Default.sk{1} m{1}).
     by auto=> />; smt(size_rcons).
@@ -316,12 +316,12 @@ call (: O_RMA_Lazy.bad
   by rewrite dmsg_ll; smt(size_rcons).
 + by move=> &1; proc; rcondf 1; auto=> /#.
 inline *; wp; call Skeygen_stateless; auto=> />.
-split; 1:by exact: ge0_nefrma.
+split; 1:by exact: ge0_neufrma.
 move=> _ [] sigL skL [] sigR skR gAL qsL sk0L gAR badR qsR sk0R.
 by case: badR=> /> /#.
 qed.
 
-local module I_EF_RMA0 (S : Scheme) (A : Adv_I_EFRMA) (O : Oracle_RMA) = {
+local module I_EUF_RMA0 (S : Scheme) (A : Adv_I_EUFRMA) (O : Oracle_RMA) = {
   var bad : bool
 
   proc main() : bool = {
@@ -355,7 +355,7 @@ local module I_EF_RMA0 (S : Scheme) (A : Adv_I_EFRMA) (O : Oracle_RMA) = {
     is_valid <@ S.verify(pk, m', sig');
 
     q <@ O(S).nr_queries();
-    while (0 < n_efrma - q) {
+    while (0 < n_eufrma - q) {
       (m, sig) <@ O(S).sign();
       bad <- bad \/ m = m';
       q <- q + 1;
@@ -369,31 +369,31 @@ local module I_EF_RMA0 (S : Scheme) (A : Adv_I_EFRMA) (O : Oracle_RMA) = {
 }.
 
 local equiv left_mid:
-  I_EF_RMA(S, A, O_RMA_Lazy).main ~ I_EF_RMA0(S, A, O_RMA_Lazy).main:
-    ={glob A} ==> !I_EF_RMA0.bad{2} => res{1} => res{2}.
+  I_EUF_RMA(S, A, O_RMA_Lazy).main ~ I_EUF_RMA0(S, A, O_RMA_Lazy).main:
+    ={glob A} ==> !I_EUF_RMA0.bad{2} => res{1} => res{2}.
 proof.
 proc.
-conseq (: ={is_valid} /\ (!I_EF_RMA0.bad{2} => ={is_fresh}))=> />.
+conseq (: ={is_valid} /\ (!I_EUF_RMA0.bad{2} => ={is_fresh}))=> />.
 + by move=> freshL nrqsL badR freshR validR + Hbad - /(_ Hbad) ->.
 inline {1} 6; wp.
 inline {1} 5; inline {2} 8; wp.
 seq  4  5:
   (   ={glob O_RMA_Lazy, is_valid, m', sig'}
-   /\ !I_EF_RMA0.bad{2}).
+   /\ !I_EUF_RMA0.bad{2}).
 + call Sverify_stateless=> //.
   call (: ={glob O_RMA_Lazy}).
   + proc; inline *; if=> //; 2:by auto.
     by auto.
   by inline *; wp; call Skeygen_stateless; auto.
 inline {2} 1; sp.
-case: (n_efrma <= q{2}).
+case: (n_eufrma <= q{2}).
 + by rcondf {2} 1; by auto=> //#.
 while {2}
   (   ={m'}
    /\ (q = size O_RMA_Lazy.qs){2}
-   /\ (   !I_EF_RMA0.bad{2}
+   /\ (   !I_EUF_RMA0.bad{2}
        => (m'{1} \in O_RMA_Lazy.qs{1} <=> m'{2} \in O_RMA_Lazy.qs{2})))
-  (n_efrma - q{2}).
+  (n_eufrma - q{2}).
 + move=> &0 z; inline *.
   rcondt 1; 1:by auto=> /#.
   auto=> /> &1 nBad_inv n_gt_s.
@@ -403,7 +403,7 @@ by auto=> /#.
 qed.
 
 local equiv hybrid_left:
-  I_EF_RMA0(S, A, O_RMA_Lazy).main ~ I_EF_RMA0(S, A, O_RMA_Hybrid(LRO)).main:
+  I_EUF_RMA0(S, A, O_RMA_Lazy).main ~ I_EUF_RMA0(S, A, O_RMA_Hybrid(LRO)).main:
     ={glob A} /\ O_RMA_Hybrid.j{2} = 0 ==> ={res}.
 proof.
 proc; sim 7 7: (={is_valid, is_fresh}).
@@ -412,12 +412,12 @@ seq  5  5:
    /\ ={qs, sk}(O_RMA_Lazy, O_RMA_Hybrid)
    /\ (O_RMA_Hybrid.j = 0){2}
    /\ (O_RMA_Hybrid.j < size O_RMA_Hybrid.qs <=> () \in RO.m){2}
-   /\ (O_RMA_Lazy.bad => n_efrma <= size O_RMA_Lazy.qs){1}).
+   /\ (O_RMA_Lazy.bad => n_eufrma <= size O_RMA_Lazy.qs){1}).
 + call Sverify_stateless.
   call (: ={qs, sk}(O_RMA_Lazy, O_RMA_Hybrid)
        /\ (O_RMA_Hybrid.j = 0){2}
        /\ (O_RMA_Hybrid.j < size O_RMA_Hybrid.qs <=> () \in RO.m){2}
-       /\ (O_RMA_Lazy.bad => n_efrma <= size O_RMA_Lazy.qs){1}).
+       /\ (O_RMA_Lazy.bad => n_eufrma <= size O_RMA_Lazy.qs){1}).
   + proc; sp; if=> //.
     + rcondf {2} 1; 1:by auto; smt(size_ge0).
       if {2}.
@@ -456,22 +456,22 @@ by auto=> /#.
 qed.
 
 local equiv hybrid_right:
-  I_EF_RMA0(S, A, O_RMA_Hybrid(RO)).main ~ I_EF_RMA0(S, A, O_RMA_Eager).main:
-    ={glob A} /\ O_RMA_Hybrid.j{1} = n_efrma ==> ={res}.
+  I_EUF_RMA0(S, A, O_RMA_Hybrid(RO)).main ~ I_EUF_RMA0(S, A, O_RMA_Eager).main:
+    ={glob A} /\ O_RMA_Hybrid.j{1} = n_eufrma ==> ={res}.
 proof.
 proc.
 seq  6  6:
   (   ={is_valid, m', q}
    /\ ={qs, sk, msigl}(O_RMA_Hybrid, O_RMA_Eager)
-   /\ (O_RMA_Hybrid.j = n_efrma){1}
-   /\ (size O_RMA_Hybrid.qs <= n_efrma){1}
-   /\ (size O_RMA_Hybrid.msigl = n_efrma){1}
+   /\ (O_RMA_Hybrid.j = n_eufrma){1}
+   /\ (size O_RMA_Hybrid.qs <= n_eufrma){1}
+   /\ (size O_RMA_Hybrid.msigl = n_eufrma){1}
    /\ (q = size O_RMA_Hybrid.qs){1}).
 + inline *; auto; call Sverify_stateless.
   call (: ={qs, sk, msigl}(O_RMA_Hybrid, O_RMA_Eager)
-       /\ (O_RMA_Hybrid.j = n_efrma){1}
-       /\ (size O_RMA_Hybrid.qs <= n_efrma){1}
-       /\ (size O_RMA_Hybrid.msigl = n_efrma){1}).
+       /\ (O_RMA_Hybrid.j = n_eufrma){1}
+       /\ (size O_RMA_Hybrid.qs <= n_eufrma){1}
+       /\ (size O_RMA_Hybrid.msigl = n_eufrma){1}).
   + proc.
     sp 1 0; if {1}.
     + rcondt {1} 1; 1:by auto.
@@ -482,18 +482,18 @@ seq  6  6:
     by rewrite (nth_default witness) /#.
   wp; rnd {1}; wp.
   while (={msigl, sk}(O_RMA_Hybrid, O_RMA_Eager)
-      /\ (O_RMA_Hybrid.j = n_efrma){1}
-      /\ (size O_RMA_Hybrid.msigl <= n_efrma){1}).
+      /\ (O_RMA_Hybrid.j = n_eufrma){1}
+      /\ (size O_RMA_Hybrid.msigl <= n_eufrma){1}).
   + by auto=> /> &2 + + m _; rewrite size_rcons /#.
   auto; call Skeygen_stateless; auto=> />.
-  by rewrite ge0_nefrma /#.
+  by rewrite ge0_neufrma /#.
 inline *; wp.
 while (={q}
     /\ ={qs, sk, msigl}(O_RMA_Hybrid, O_RMA_Eager)
-    /\ (O_RMA_Hybrid.j = n_efrma){1}
+    /\ (O_RMA_Hybrid.j = n_eufrma){1}
     /\ (q = size O_RMA_Hybrid.qs){1}
-    /\ (size O_RMA_Hybrid.qs <= n_efrma){1}
-    /\ (size O_RMA_Hybrid.msigl = n_efrma){1}).
+    /\ (size O_RMA_Hybrid.qs <= n_eufrma){1}
+    /\ (size O_RMA_Hybrid.msigl = n_eufrma){1}).
 + sp 1 0.
   rcondt {1} 1; 1:by auto=> /#.
   rcondt {1} 1; 1:by auto=> /#.
@@ -505,7 +505,7 @@ by auto.
 qed.
 
 local lemma hybrid_mid_oracle j:
-     0 <= j < n_efrma
+     0 <= j < n_eufrma
   => equiv[ O_RMA_Hybrid(RO, S).sign ~ O_RMA_Hybrid(LRO, S).sign:
               ={O_RMA_Hybrid.qs}
            /\ (O_RMA_Hybrid.j = j){1} /\ (O_RMA_Hybrid.j = j + 1){2}
@@ -585,11 +585,11 @@ by rewrite size_rcons /#.
 qed.
 
 local lemma hybrid_mid j:
-     0 <= j < n_efrma
-  => equiv[ I_EF_RMA0(S, A, O_RMA_Hybrid(RO)).main ~ I_EF_RMA0(S, A, O_RMA_Hybrid(LRO)).main:
+     0 <= j < n_eufrma
+  => equiv[ I_EUF_RMA0(S, A, O_RMA_Hybrid(RO)).main ~ I_EUF_RMA0(S, A, O_RMA_Hybrid(LRO)).main:
               ={glob A} /\ O_RMA_Hybrid.j{1} = j /\ O_RMA_Hybrid.j{2} = j + 1 ==> ={res} ].
 proof.
-move=> /> ge0_j j_le_nefrma.
+move=> /> ge0_j j_le_neufrma.
 proc.
 inline O_RMA_Hybrid(RO, S).fresh O_RMA_Hybrid(LRO, S).fresh.
 wp.
@@ -648,7 +648,7 @@ smt(emptyE size_rcons get_setE).
 qed.
 
 local module D (O : RO) = {
-  proc distinguish = I_EF_RMA0(S, A, O_RMA_Hybrid(O)).main
+  proc distinguish = I_EUF_RMA0(S, A, O_RMA_Hybrid(O)).main
 }.
 
 local clone FullEager
@@ -656,7 +656,7 @@ local clone FullEager
   proof *.
   
 local equiv hybrid_mid_nop:
-  I_EF_RMA0(S, A, O_RMA_Hybrid(LRO)).main ~ I_EF_RMA0(S, A, O_RMA_Hybrid(RO)).main:
+  I_EUF_RMA0(S, A, O_RMA_Hybrid(LRO)).main ~ I_EUF_RMA0(S, A, O_RMA_Hybrid(RO)).main:
     ={glob D, RO.m} ==> ={res}.
 proof.
 symmetry; conseq (FullEager.RO_LRO_D D _)=> />.
@@ -668,26 +668,26 @@ local module Run (O : Oracle_RMA) = {
     var b;
 
     O_RMA_Hybrid.j <- j;
-    b <@ I_EF_RMA0(S, A, O).main();
+    b <@ I_EUF_RMA0(S, A, O).main();
     return b;
   }
 }.
     
 
 local lemma pr_hybrid &m:
-    Pr[I_EF_RMA0(S, A, O_RMA_Lazy).main() @ &m: res]
-  = Pr[I_EF_RMA0(S, A, O_RMA_Eager).main() @ &m: res].
+    Pr[I_EUF_RMA0(S, A, O_RMA_Lazy).main() @ &m: res]
+  = Pr[I_EUF_RMA0(S, A, O_RMA_Eager).main() @ &m: res].
 proof.
-have ->: Pr[I_EF_RMA0(S, A, O_RMA_Lazy).main() @ &m: res]
+have ->: Pr[I_EUF_RMA0(S, A, O_RMA_Lazy).main() @ &m: res]
        = Pr[Run(O_RMA_Hybrid(LRO)).main(0) @ &m: res].
 + byequiv (: ={glob A} /\ j{2} = 0 ==> _)=> //; proc *; inline {2} 1; wp.
   by call hybrid_left; auto.
-have ->: Pr[I_EF_RMA0(S, A, O_RMA_Eager).main() @ &m: res]
-       = Pr[Run(O_RMA_Hybrid(RO)).main(n_efrma) @ &m: res].
-+ byequiv (: ={glob A} /\ j{2} = n_efrma ==> _)=> //; proc *; inline {2} 1; wp.
+have ->: Pr[I_EUF_RMA0(S, A, O_RMA_Eager).main() @ &m: res]
+       = Pr[Run(O_RMA_Hybrid(RO)).main(n_eufrma) @ &m: res].
++ byequiv (: ={glob A} /\ j{2} = n_eufrma ==> _)=> //; proc *; inline {2} 1; wp.
   by symmetry; call hybrid_right; auto.
-have: (n_efrma <= n_efrma) by done.
-move: {-3}n_efrma ge0_nefrma=> n.
+have: (n_eufrma <= n_eufrma) by done.
+move: {-3}n_eufrma ge0_neufrma=> n.
 elim: n=> //=.
 + move=> _; byequiv (: ={glob D, RO.m, j} ==> _)=> //=.
   by proc; call hybrid_mid_nop; auto.
@@ -702,7 +702,7 @@ by proc; call hybrid_mid_nop; auto.
 qed.
 
 local equiv right_eq:
-  I_EF_RMA0(S, A, O_RMA_Eager).main ~ EF_RMA(S, R_EFRMA_IEFRMA(A)).main:
+  I_EUF_RMA0(S, A, O_RMA_Eager).main ~ EUF_RMA(S, R_EUFRMA_IEUFRMA(A)).main:
     ={glob A} ==> ={res}.
 proof.
 proc.
@@ -711,40 +711,40 @@ wp; conseq (: ={is_valid, m'}
            /\ O_RMA_Eager.qs{1} = unzip1 msigl{2})=> //.
 seq  5  5:
   (   ={pk, m', sig', is_valid}
-   /\ (size O_RMA_Eager.qs <= n_efrma){1}
+   /\ (size O_RMA_Eager.qs <= n_eufrma){1}
    /\ (O_RMA_Eager.msigl{1} = msigl{2})
    /\ (forall i, 0 <= i < size O_RMA_Eager.qs{1} => nth witness O_RMA_Eager.qs{1} i = (nth witness msigl{2} i).`1)
-   /\ (size O_RMA_Eager.qs{1} <= R_EFRMA_IEFRMA.O_R.q{2})
-   /\ (size O_RMA_Eager.qs{1} < n_efrma => size O_RMA_Eager.qs{1} = R_EFRMA_IEFRMA.O_R.q{2})
-   /\ (size msigl{2} = n_efrma)).
+   /\ (size O_RMA_Eager.qs{1} <= R_EUFRMA_IEUFRMA.O_R.q{2})
+   /\ (size O_RMA_Eager.qs{1} < n_eufrma => size O_RMA_Eager.qs{1} = R_EUFRMA_IEUFRMA.O_R.q{2})
+   /\ (size msigl{2} = n_eufrma)).
 + call Sverify_stateless; inline {2} 4; wp.
-  call (: (O_RMA_Eager.msigl{1} = R_EFRMA_IEFRMA.O_R.msigl{2})
-       /\ (forall i, 0 <= i < size O_RMA_Eager.qs{1} => nth witness O_RMA_Eager.qs{1} i = (nth witness R_EFRMA_IEFRMA.O_R.msigl{2} i).`1)
-       /\ (size O_RMA_Eager.qs{1} <= n_efrma)
-       /\ (size O_RMA_Eager.qs{1} <= R_EFRMA_IEFRMA.O_R.q{2})
-       /\ (size O_RMA_Eager.qs{1} < n_efrma => size O_RMA_Eager.qs{1} = R_EFRMA_IEFRMA.O_R.q{2})
-       /\ (size R_EFRMA_IEFRMA.O_R.msigl{2} = n_efrma)).
+  call (: (O_RMA_Eager.msigl{1} = R_EUFRMA_IEUFRMA.O_R.msigl{2})
+       /\ (forall i, 0 <= i < size O_RMA_Eager.qs{1} => nth witness O_RMA_Eager.qs{1} i = (nth witness R_EUFRMA_IEUFRMA.O_R.msigl{2} i).`1)
+       /\ (size O_RMA_Eager.qs{1} <= n_eufrma)
+       /\ (size O_RMA_Eager.qs{1} <= R_EUFRMA_IEUFRMA.O_R.q{2})
+       /\ (size O_RMA_Eager.qs{1} < n_eufrma => size O_RMA_Eager.qs{1} = R_EUFRMA_IEUFRMA.O_R.q{2})
+       /\ (size R_EUFRMA_IEUFRMA.O_R.msigl{2} = n_eufrma)).
   + by proc; inline *; auto; smt(size_rcons nth_rcons nth_default).
   inline *; wp=> //=.
   while (O_RMA_Eager.sk{1} = sk{2}
      /\ (O_RMA_Eager.msigl{1} = msigl{2})
-     /\ (0 <= size O_RMA_Eager.msigl <= n_efrma){1}).
+     /\ (0 <= size O_RMA_Eager.msigl <= n_eufrma){1}).
   + wp; ecall {2} (S_pfun sk{2} m{2}); auto=> /> &0 + _ + m _.
     by rewrite size_rcons /#.
   wp; call Skeygen_stateless; auto=> />.
-  by rewrite ge0_nefrma /#.
+  by rewrite ge0_neufrma /#.
 inline {1} 1; sp.
-case: (n_efrma <= q{1}).
+case: (n_eufrma <= q{1}).
 + rcondf {1} 1; 1:by auto=> /#.
   auto=> />; smt(eq_from_nth size_map nth_map).
 conseq (: O_RMA_Eager.qs{1} = unzip1 msigl{2})=> //.
 while {1}
   (   (q = size O_RMA_Eager.qs){1}
-   /\ (0 <= q <= n_efrma){1}
+   /\ (0 <= q <= n_eufrma){1}
    /\ (O_RMA_Eager.msigl{1} = msigl{2})
    /\ (forall i, 0 <= i < q{1} => nth witness O_RMA_Eager.qs{1} i = (nth witness msigl{2} i).`1)
-   /\ (size msigl{2} = n_efrma))
-  (n_efrma - q{1}).
+   /\ (size msigl{2} = n_eufrma))
+  (n_eufrma - q{1}).
 + move=> &0 z.
   inline *. rcondt 2; 1:by auto=> /#.
   by auto=> />; smt(size_rcons nth_rcons).
@@ -753,33 +753,33 @@ qed.
 
 local lemma pr_bad d &m:
      (forall m, mu1 dmsg m <= d)
-  => Pr[I_EF_RMA0(S, A, O_RMA_Lazy).main() @ &m: I_EF_RMA0.bad] <= n_efrma%r * d.
+  => Pr[I_EUF_RMA0(S, A, O_RMA_Lazy).main() @ &m: I_EUF_RMA0.bad] <= n_eufrma%r * d.
 proof.
 move=> p; byphoare=> //.
 proc.
-seq 6: (!I_EF_RMA0.bad) 1%r (n_efrma%r * d) 0%r _ (q <= n_efrma => q = size O_RMA_Lazy.qs)=> //.
+seq 6: (!I_EUF_RMA0.bad) 1%r (n_eufrma%r * d) 0%r _ (q <= n_eufrma => q = size O_RMA_Lazy.qs)=> //.
 + inline 6; wp.
-  conseq (: size O_RMA_Lazy.qs <= n_efrma)=> [/#|].
+  conseq (: size O_RMA_Lazy.qs <= n_eufrma)=> [/#|].
   call (: true).
-  call (: size O_RMA_Lazy.qs <= n_efrma).
+  call (: size O_RMA_Lazy.qs <= n_eufrma).
   + proc; if; 2:by auto.
     by auto=> /> &0 + + m _; rewrite size_rcons /#.
   inline *; auto; conseq (: true)=> //=.
-  exact: ge0_nefrma.
+  exact: ge0_neufrma.
 + inline 2; wp.
-  exlim (n_efrma - q)=> n; case @[ambient]: (0 <= n); last first.
+  exlim (n_eufrma - q)=> n; case @[ambient]: (0 <= n); last first.
   + move=> /ltzNge lt0_n; rcondf 1; 1:by auto=> /#.
-    by hoare=> // /> &0; move: (p witness); smt(ge0_mu ge0_nefrma).
+    by hoare=> // /> &0; move: (p witness); smt(ge0_mu ge0_neufrma).
   move=> ge0_n.
-  conseq (: _: <= ((n_efrma - q)%r * d))=> />.
+  conseq (: _: <= ((n_eufrma - q)%r * d))=> />.
   + move=> &0 ->> /(_ _)=> [/#|] -> _.
-    by move: (p witness); smt(ge0_mu ge0_nefrma size_ge0).
+    by move: (p witness); smt(ge0_mu ge0_neufrma size_ge0).
   elim: n ge0_n.
   + rcondf 1; 1:by auto=> /#.
-    by hoare=> // /> &0; move: (p witness); smt(ge0_mu ge0_nefrma).
+    by hoare=> // /> &0; move: (p witness); smt(ge0_mu ge0_neufrma).
   move=> n ge0_n ih.
   rcondt 1; 1:by auto=> /#.
-  seq  3: (I_EF_RMA0.bad) d 1%r 1%r (n%r * d) (n = n_efrma - q /\ q = size O_RMA_Lazy.qs)=> //.
+  seq  3: (I_EUF_RMA0.bad) d 1%r 1%r (n%r * d) (n = n_eufrma - q /\ q = size O_RMA_Lazy.qs)=> //.
   + inline *; rcondt 1; 1:by auto=> /#.
     by auto=> />; smt(size_rcons).
   + inline *; rcondt 1; 1:by auto=> /#.
@@ -790,21 +790,21 @@ seq 6: (!I_EF_RMA0.bad) 1%r (n_efrma%r * d) 0%r _ (q <= n_efrma => q = size O_RM
 by sp; hoare=> /=; conseq (: true)=> //.
 qed.
 
-lemma I_EFRMA_le_EF_RMA d &m:
+lemma I_EUFRMA_le_EUF_RMA d &m:
      (forall m, mu1 dmsg m <= d)
-  => Pr[I_EF_RMA(S, A, O_RMA_Default).main() @ &m : res]
-     <= Pr[EF_RMA(S, R_EFRMA_IEFRMA(A)).main() @ &m : res]
-        + n_efrma%r * d.
+  => Pr[I_EUF_RMA(S, A, O_RMA_Default).main() @ &m : res]
+     <= Pr[EUF_RMA(S, R_EUFRMA_IEUFRMA(A)).main() @ &m : res]
+        + n_eufrma%r * d.
 proof.
 move=> guessing.
-have ->: Pr[I_EF_RMA(S, A, O_RMA_Default).main() @ &m: res]
-       = Pr[I_EF_RMA(S, A, O_RMA_Lazy).main() @ &m: res].
+have ->: Pr[I_EUF_RMA(S, A, O_RMA_Default).main() @ &m: res]
+       = Pr[I_EUF_RMA(S, A, O_RMA_Lazy).main() @ &m: res].
 + by byequiv left_eq.
-apply: (StdOrder.RealOrder.ler_trans (  Pr[I_EF_RMA0(S, A, O_RMA_Lazy).main() @ &m: res]
-                                      + Pr[I_EF_RMA0(S, A, O_RMA_Lazy).main() @ &m: I_EF_RMA0.bad])).
+apply: (StdOrder.RealOrder.ler_trans (  Pr[I_EUF_RMA0(S, A, O_RMA_Lazy).main() @ &m: res]
+                                      + Pr[I_EUF_RMA0(S, A, O_RMA_Lazy).main() @ &m: I_EUF_RMA0.bad])).
 + by byequiv left_mid.
 apply: StdOrder.RealOrder.ler_add.
-+ apply: (StdOrder.RealOrder.ler_trans Pr[I_EF_RMA0(S, A, O_RMA_Eager).main() @ &m: res]).
++ apply: (StdOrder.RealOrder.ler_trans Pr[I_EUF_RMA0(S, A, O_RMA_Eager).main() @ &m: res]).
   + by rewrite pr_hybrid.
   by byequiv right_eq.
 by rewrite pr_bad.
