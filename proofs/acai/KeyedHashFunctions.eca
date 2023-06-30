@@ -72,15 +72,6 @@ type key_t.
 op f : key_t -> in_t -> out_t.
 
 
-(*
-(* Proper distribution over input type *)
-op [lossless] din : in_t distr.
-(* Proper distribution over output type *)
-op [lossless] dout : out_t distr.
-(* Proper distribution over (indexing) key type *)
-op [lossless] dkey : key_t distr.
-*)
-
 
 (* --- Properties --- *)
 (* 
@@ -187,6 +178,7 @@ end SMPRE.
 abstract theory MMPRE.
   (* Number of functions/targets in MM_PRE *)
   const t_mmpre : { int | 1 <= t_mmpre } as ge1_tmmpre.
+  
   (* Proper distribution over input type *)
   op [lossless] din : in_t distr.
 
@@ -249,10 +241,7 @@ end MMPRE.
 
 
 (* - Distinct-function, Multi-target PREimage resistance (DM_PRE) - *)
-abstract theory DMPRE.  
-  (* Number of functions/targets in DM_PRE *)
-  const t_dmpre : { int | 1 <= t_dmpre } as ge1_tdmpre.
-
+abstract theory DMPRE.
   (* Proper distribution over input type *)
   op [lossless] din : in_t distr.
 
@@ -280,14 +269,14 @@ abstract theory DMPRE.
       kl <@ A.pick();
 
       (*
-        Construct list yl of a size equal to the minimum of t_dmpre and the size of kl.
+        Construct list yl of a size equal to the size of kl.
         In yl, the element at index i is the mapping of a randomly sampled input 
         under the function obtained fromindexing f with the element of kl at index i.
         That is, if the i-th element of kl is k, then the i-th element of 
         yl is obtained by applying f k to a randomly sampled input
       *)
       yl <- [];
-      while (size yl < min t_dmpre (size kl)) {
+      while (size yl < size kl) {
         k <- nth witness kl (size yl);
         x <$ din;
         y <- f k x;
@@ -309,13 +298,11 @@ abstract theory DMPRE.
 
       (* 
         Success iff
-        (1) "0 <= i < min t_dmpre (size kl)": index provided by adversary is within the allowed 
-            bounds of kl (i.e., between 0 (including) and the minimum of t_dmpre and 
-            size kl (excluding)), and
+        (1) "0 <= i < size kl": index provided by adversary is within the bounds of kl, and
         (2) "uniq kl": kl contains no duplicate elements, and
         (3) "f k x' = y": f k maps x' to y
       *)
-      return 0 <= i < min t_dmpre (size kl) /\ uniq kl /\ f k x' = y;
+      return 0 <= i < size kl /\ uniq kl /\ f k x' = y;
     }
   }.
 end DMPRE.
@@ -484,9 +471,6 @@ end MMSPR.
 
 (* - Distinct-function, Multi-target Second Preimage Resistance (DM_SPR) - *)
 abstract theory DMSPR.
-  (* Number of functions/targets in DM_SPR *)
-  const t_dmspr : { int | 1 <= t_dmspr } as ge1_tdmspr.
-  
   (* Proper distribution over input type *)
   op [lossless] din : in_t distr.
 
@@ -513,11 +497,11 @@ abstract theory DMSPR.
       kl <@ A.pick();
 
       (*
-        Construct list xl of a size equal to the minimum of 
-        t_dmspr and the size of kl; each element of xl is a randomly sampled input.
+        Construct list xl of a size equal to the size of kl; 
+        each element of xl is a randomly sampled input.
       *)
       xl <- [];
-      while (size xl < min t_dmspr (size kl)) {
+      while (size xl < size kl) {
         x <$ din;
         xl <- rcons xl x;
       }
@@ -537,14 +521,12 @@ abstract theory DMSPR.
 
       (* 
         Success iff
-        (1) "0 <= i < min t_dmspr (size kl)": index provided by adversary is within the allowed 
-            bounds of kl (i.e., between 0 (including) and the minimum of t_dmspr and 
-            size kl (excluding)), and
+        (1) "0 <= i < size kl": index provided by adversary is within the bounds of kl, and
         (2) "uniq kl": kl contains no duplicate elements, and
         (3) "x <> x'": x is not equal to x', and
         (4) "f k x = f k x'": f k maps x' to y
       *)
-      return 0 <= i < min t_dmspr (size kl) /\ uniq kl /\ x <> x' /\ f k x = f k x';
+      return 0 <= i < size kl /\ uniq kl /\ x <> x' /\ f k x = f k x';
     }
   }.
 end DMSPR.
@@ -1057,9 +1039,6 @@ end MMDSPR.
 
 (* - Distinct-function, Multi-target Decisional Second Preimage Resistance (DM_DSPR) - *)
 abstract theory DMDSPR.
-  (* Number of functions/targets in DM_DSPR *)
-  const t_dmdspr : { int | 1 <= t_dmdspr } as ge1_tdmdspr.
-
   (* Proper distribution over input type *)
   op [lossless] din : in_t distr.
   
@@ -1091,11 +1070,11 @@ abstract theory DMDSPR.
       kl <@ A.pick();
 
       (*
-        Construct list xl of a size equal to the minimum of 
-        t_dmdspr and the size of kl; each element of xl is a randomly sampled input
+        Construct list xl of a size equal to the size of kl; 
+        each element of xl is a randomly sampled input
       *)
       xl <- [];
-      while (size xl < min t_dmdspr (size kl)) {
+      while (size xl < size kl) {
         x <$ din;
         xl <- rcons xl x;
       }
@@ -1115,13 +1094,11 @@ abstract theory DMDSPR.
 
       (* 
         Success iff
-        (1) "0 <= i < min t (size kl)": index i provided by adversary is within the allowed 
-            bounds of kl (i.e., between 0 (including) and the minimum of t_dmdspr 
-            and size kl (excluding)), and
+        (1) "0 <= i < size kl": index provided by adversary is within the bounds of kl, and
         (2) "uniq kl": kl contains no duplicate elements, and
         (3) "spexists k x": x has a second preimage under f k
       *)
-      return 0 <= i < min t_dmdspr (size kl) /\ uniq kl /\ spexists k x;
+      return 0 <= i < size kl /\ uniq kl /\ spexists k x;
     }
   }.
 
@@ -1144,11 +1121,11 @@ abstract theory DMDSPR.
       kl <@ A.pick();
 
       (*
-        Construct list xl of a size equal to the minimum of 
-        t_dmdspr and the size of kl; each element of xl is a randomly sampled input
+        Construct list xl of a size equal to the size of kl; 
+        each element of xl is a randomly sampled input
       *)
       xl <- [];
-      while (size xl < min t_dmdspr (size kl)) {
+      while (size xl < size kl) {
         x <$ din;
         xl <- rcons xl x;
       }
@@ -1168,14 +1145,12 @@ abstract theory DMDSPR.
 
       (* 
         Success iff
-        (1) "0 <= i < min t_dspr (size kl)": index i provided by adversary is within the allowed 
-            bounds of kl (i.e., between 0 (including) and the minimum of t_dmdspr 
-            and size kl (excluding)), and
+        (1) "0 <= i < size kl": index provided by adversary is within the bounds of kl, and
         (2) "uniq kl": kl contains no duplicate elements, and
         (3) "spexists k x = b": adversary correctly determined whether
             x has a second preimage under f k
       *)
-      return 0 <= i < min t_dmdspr (size kl) /\ uniq kl /\ spexists k x = b;
+      return 0 <= i < size kl /\ uniq kl /\ spexists k x = b;
     }
   }.
 
@@ -1378,9 +1353,6 @@ end MMUD.
 
 (* - Distinct-function, Multi-target UnDetectability (DM_UD) - *)
 abstract theory DMUD.
-  (* Number of functions/targets in DM_UD *)
-  const t_dmud : { int | 1 <= t_dmud } as ge1_tdmud. 
-
   (* Proper distribution over input type *)
   op [lossless] din : in_t distr.
 
@@ -1415,15 +1387,15 @@ abstract theory DMUD.
       kl <@ A.pick();
 
       (*
-        Construct list yl of a size equal to the minimum of 
-        t_ud and the size of kl; each element y of yl is obtained as 
+        Construct list yl of a size equal to the size of kl;
+        each element y of yl is obtained as 
           If b
           then get key k at corresponding position from kl, randomly sample input x, 
                and compute y by applying f k to x
           else randomly sample y
       *)
       yl <- [];
-      while (size yl < min t_dmud (size kl)) {
+      while (size yl < size kl) {
         k <- nth witness kl (size yl);
 
         if (b) {
@@ -1461,9 +1433,6 @@ end DMUD.
 -- 
 *)
 abstract theory ITSR.
-  (* Number of targets for ITSR *)
-  const t_itsr : { int | 1 <= t_itsr } as ge1_titsr.
-
   (* Number of secret value sets in each key set *)
   const svsks : { int | 1 <= svsks } as ge1_svsks.
 
@@ -1484,12 +1453,19 @@ abstract theory ITSR.
   (* 
     Map from outputs of hash function to a list of tuples of the form
     (key set index, secret value set index, secret value index).
-    In this list, each tuple has the same key set index
+    For this list, the following holds.
+    - Its size is equal to the number of secret value sets (i.e., svsvs).
+    - Each tuple it contains has the same key set index.
+    - Each tuple it contains has a different secret value set index.
   *) 
   op g : out_t -> (idxks_t * idxsvs_t * idxsv_t) list.
+  axiom size_g (y : out_t) : 
+    size (g y) = svsvs.
   axiom eqiks_g (x x' : idxks_t * idxsvs_t * idxsv_t) (y : out_t) : 
     x \in g y => x' \in g y => x.`1 = x'.`1.
-
+  axiom neqisvs_g (x x' : idxks_t * idxsvs_t * idxsv_t) (y : out_t) : 
+    x \in g y => x' \in g y => x <> x' => x.`2 <> x'.`2.
+    
   (* Composition of g with f *)
   op h (k : key_t) (x : in_t) : (idxks_t * idxsvs_t * idxsv_t) list = g (f k x).
 
@@ -1575,19 +1551,14 @@ abstract theory ITSR.
 
       (*
         Success iff
-        (1) "1 <= size kxl < t_itsr": the list of targets contains at least 1 and at most
-            t_itsr targets (i.e., the adversary specified at least 1 and at most t_itsr targets), 
-            and
-        (2) "(forall x, x \in ikssl_f => x \in ikssl_q)": the tuples in the list obtained from
-            mapping the key and input provided by the adversary under h are all contained within
-            the (combined) list of tuples obtained from mapping all of the specified targets
-            under h, and
-        (3) "!(k, x) \in kxl": the key and input provided by the adversary is not one of the
-            specified targets.
+        (1) "(forall x, x \in ikssl_f => x \in ikssl_q)": the tuples in the list obtained 
+            from mapping the key and input provided by the adversary under h are all 
+            contained within the (combined) list of tuples obtained from mapping all of 
+            the specified targets under h, and
+        (2) "! (k, x) \in kxl": the key and input provided by the adversary is not one 
+            of the specified targets.
       *)
-      return    1 <= size kxl < t_itsr 
-             /\ (forall x, x \in ikssl_f => x \in ikssl_q) 
-             /\ ! (k, x) \in kxl;
+      return (forall x, x \in ikssl_f => x \in ikssl_q) /\ ! (k, x) \in kxl;
     }
   }.
 end ITSR.
@@ -1674,8 +1645,7 @@ abstract theory PRF.
 
       (* 
         Ask adversary to determine whether the function used by the oracle is
-        (1) a (lazily sampled) random function with domain in_t and 
-            co-domain out_t, or 
+        (1) a random function with domain in_t and co-domain out_t, or 
         (2) of the form f k for a randomly sampled k
       *)  
       b' <@ A(O).distinguish();

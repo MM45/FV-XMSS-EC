@@ -1,0 +1,130 @@
+require import AllCore List.
+require Subtype.
+
+(* Generic auxiliary properties *)
+lemma neq_from_nth (x0 : 'a) (s1 s2 : 'a list) :
+     size s1 = size s2 
+  => (exists (i : int), 0 <= i < size s1 /\ nth x0 s1 i <> nth x0 s2 i) 
+  => s1 <> s2.
+proof.
+elim: s1 s2 => [/# | x1 s1 ih [// | x2 s2 /= eq_sz1 [i] [rng_i]]].
+case (i = 0) => [/# | neq0_i neq_nth]; rewrite negb_and; right.
+by rewrite (ih s2) 1,3:/#; exists (i - 1) => /#.
+qed.
+
+lemma eq_from_nthC (x0 : 'a) (s1 s2 : 'a list) :
+     size s1 = size s2
+  => s1 = s2
+  => (forall (i : int), 0 <= i && i < size s1 => nth x0 s1 i = nth x0 s2 i).
+proof.
+move=> eqsz; rewrite &(contraLR) negb_forall /= => -[i].
+rewrite negb_imply => neqnthi; apply (neq_from_nth x0) => //.
+by exists i.
+qed.
+
+(* *)
+const l : { int | 1 <= l } as ge1_l.
+
+type index.
+
+op valid_idxvals : index list -> bool.
+
+op valid_adrsidxs (adidxs : index list) = 
+  size adidxs = l /\ valid_idxvals adidxs.
+
+clone import Subtype as Adrs with
+  type T <- index list,
+    op P adidxs <- valid_adrsidxs adidxs.
+
+type adrs = Adrs.sT.
+
+op get_idx (ad : adrs) (i : int) : index =
+  nth witness (val ad) i.
+    
+op set_idx (ad : adrs) (i : int) (x : index) : adrs =
+  insubd (put (val ad) i x).
+
+op valid_setidx (ad : adrs) (i : int) (x : index) : bool =
+  valid_adrsidxs (put (val ad) i x).
+
+op eq_idx (ad ad' : adrs) (i : int) : bool =
+  get_idx ad i = get_idx ad' i.
+
+    
+lemma eq_adrs_idxs (ad ad' : adrs) :
+  val ad = val ad' <=> ad = ad'.
+proof. smt(val_inj). qed.
+    
+lemma eq_adrs_idxsq (ad ad' : adrs) :
+  (forall (i : int), eq_idx ad ad' i) <=> ad = ad'.
+proof. 
+rewrite -eq_adrs_idxs /eq_idx; split => [eqidx | eqvad].
++ by apply (eq_from_nth witness); smt(valP).
+by move: (eq_from_nthC witness (val ad) (val ad') _ eqvad); smt(valP).
+qed.
+      
+lemma getidx_df_setidx (ad : adrs) (i j : int) (x : index) :
+     i <> j
+  => valid_setidx ad i x
+  => get_idx ad j = get_idx (set_idx ad i x) j.
+proof.
+move=> neqi_k valset @/get_idx @/set_idx; rewrite insubdK //.
+case (0 <= i < l) => rng_i.
++ by rewrite nth_put 2:neqi_k; 1: smt(valP).
+by rewrite put_out; 1: smt(valP).
+qed.
+    
+lemma valin_getidx_setidx (ad : adrs) (i : int) (x : index) :
+     0 <= i < l
+  => valid_setidx ad i x
+  => get_idx (set_idx ad i x) i = x.
+proof. by move=> *; rewrite /get_idx /set_idx insubdK // nth_put; 1: smt(valP). qed.
+
+lemma eq_after_setidx (ad ad' : adrs) (i : int) (x : index) :
+     (forall (j : int), i <> j => eq_idx ad ad' j)
+  => valid_setidx ad i x
+  => valid_setidx ad' i x
+  => set_idx ad i x = set_idx ad' i x.
+proof.
+move=> equti valset valsetp; rewrite -eq_adrs_idxs &(eq_from_nth witness); 1: smt(valP).
+move: (valP (set_idx ad i x)) => @/valid_adrsidxs [#] -> _ j rng_j.
+case (i <> j) => [neqi_j | /= eqi_j].
++ move: (getidx_df_setidx ad i j x neqi_j valset) => @/get_idx <-.
+  move: (getidx_df_setidx ad' i j x neqi_j valsetp) => @/get_idx <-.
+  by move: (equti j neqi_j) => @/eq_idx.
+move: eqi_j valset valsetp => -> valset valsetp. 
+move: (valin_getidx_setidx ad j x rng_j valset) (valin_getidx_setidx ad' j x rng_j valsetp). 
+by rewrite /get_idx => -> ->.
+qed.
+
+lemma neq_after_setidx_sida (ad ad' : adrs) (i j : int) (x x' : index) :
+     i <> j
+  => 0 <= j < l
+  => ! eq_idx ad ad' j
+  => valid_setidx ad i x
+  => valid_setidx ad' i x'
+  => set_idx ad i x <> set_idx ad' i x'.
+proof.
+move=> @/valid_setidx neqi_j rng_j neqidxj valset valsetp.
+rewrite -eq_adrs_idxs /set_idx ?insubdK 1,2://.
+rewrite &(neq_from_nth witness) ?size_put; 1: smt(valP).
+exists j; split; 1: smt(valP).
+case (0 <= i < l) => rng_i.
++ rewrite ?nth_put; 1,2: smt(valP).
+  by rewrite neqi_j /= /#.
+by rewrite ?put_out; smt(valP).
+qed.
+
+lemma neq_after_setidx_sidv (ad ad' : adrs) (i : int) (x x' : index) :
+     x <> x'
+  => 0 <= i < l
+  => valid_setidx ad i x
+  => valid_setidx ad' i x'
+  => set_idx ad i x <> set_idx ad' i x'.
+proof.
+move=> @/valid_setidx neqx_xp rng_i valset valsetp.
+rewrite -eq_adrs_idxs /set_idx ?insubdK 1,2://.
+rewrite &(neq_from_nth witness) ?size_put; 1: smt(valP).
+exists i; split; 1: smt(valP).
+by rewrite ?nth_put; 1,2: smt(valP).
+qed.
