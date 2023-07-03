@@ -379,7 +379,7 @@ proof. by rewrite /l ler_eexpr; smt(ge1_h). qed.
 (* Base/radix w digits *)
 clone import Subtype as BaseW with 
   type T   <= int,
-  pred P x <= 0 <= x < w
+    op P x <= 0 <= x < w
   rename [type] "sT" as "baseW".
 
 (* Indices (tuple of 6 integers) used to map to addresses *)
@@ -403,7 +403,7 @@ type dgst = bool list.
 (* Digests with length 1 (block of 8 * n bits) *)
 clone import Subtype as DigestBlock with
   type T   <- dgst,
-  pred P x <- size x = 8 * n.
+    op P x <- size x = 8 * n.
 
 type dgstblock = DigestBlock.sT.
 
@@ -434,7 +434,7 @@ clone import FinType as DigestBlockFT with
 (* Lists of length len of which each entry is a digest of length 1 (block of 8 * n bits) *)
 clone import Subtype as DBLL with
   type T   <- dgstblock list,
-  pred P l <- size l = len.
+    op P l <- size l = len.
 
 type dgstblocklenlist = DBLL.sT.
 
@@ -2398,7 +2398,7 @@ qed.
 (* Chaining addresses *)
 clone import Subtype as ChainingAddress with
   type T <- adrs,
-  pred P <- fun (ad : adrs) => is_chtype ad.  
+    op P <- fun (ad : adrs) => is_chtype ad.  
 
 type chadrs = ChainingAddress.sT.
 

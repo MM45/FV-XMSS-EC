@@ -22,6 +22,50 @@ rewrite exprD_nneg // expr1 (: m = m - 1 + 1) // exprD_nneg 1:/# // expr1.
 by rewrite ltr_pmul2r 2:(ih (m - 1)) /#.
 qed.
 
+
+lemma drop_putK (s : 'a list) (i j : int) (x : 'a) :
+     j < i 
+  => drop i (put s j x) = drop i s.
+proof.
+elim: s i j => [ * | x' s ih i j gtj_i]; 1: by rewrite put_empty. 
+case (i <= 0) => [le0_i | /ltzNge gt0_i]; 1: by rewrite put_out /#.
+case (j = 0) => [-> /# | neq0_j].
+by rewrite put_consS // /= ih /#.
+qed.
+
+lemma drop_putC (s : 'a list) (i j : int) (x : 'a) :
+     0 <= i <= j 
+  => drop i (put s j x) = put (drop i s) (j - i) x.
+proof.
+elim: s i j => [ * | x' s ih i j [ge0_i gei_j] /=]; 1: smt(put_empty).
+case (i = 0) => [-> /# | neq0_i].
+by rewrite put_consS 1:/# /= (: ! i <= 0) 1:/# /= ih /#.
+qed.
+
+
+lemma take_putK (s : 'a list) (i j : int) (x : 'a) :
+     i <= j 
+  => take i (put s j x) = take i s.
+proof.
+elim: s i j => [ * | x' s ih i j gej_i]; 1: by rewrite put_empty. 
+case (i <= 0) => [le0_i | nle0_i]; 1: by rewrite take_le0 /#.
+by rewrite put_consS 1:/# /= nle0_i /= ih /#.
+qed.
+
+lemma take_putC (s : 'a list) (i j : int) (x : 'a) :
+     j < i
+  => take i (put s j x) = put (take i s) j x.
+proof.
+elim: s i j => [ * | x' s ih i j lti_j /=]; 1: smt(put_empty).
+case (i <= 0) => [le0_i | nle0_i]; 1: by rewrite take_le0 2:put_empty.
+case (j = 0) => [-> | neq0_j]; 1: by rewrite 2!put_cons0 /= nle0_i.
+by rewrite ?put_consS //= nle0_i /= ih /#.
+qed. 
+
+lemma take_put (s : 'a list) (i j : int) (x : 'a) :
+  take i (put s j x) = if i <= j then take i s else put (take i s) j x.
+proof. by case (i <= j) => [| /ltzNge]; [apply take_putK | apply take_putC]. qed.
+
 lemma neq_from_nth (x0 : 'a) (s1 s2 : 'a list) :
      size s1 = size s2 
   => (exists (i : int), 0 <= i < size s1 /\ nth x0 s1 i <> nth x0 s2 i) 
@@ -146,6 +190,34 @@ have ->: size x + sumz (map size (take (i - 1) s)) + j - size x = sumz (map size
 by apply (ih (i - 1)) => // /#.
 qed.
 
+lemma nth_flatten_flatten (s : 'a list list list) (i j k : int) :
+     0 <= i < size s
+  => 0 <= j < size (nth witness s i)
+  => 0 <= k < size (nth witness (nth witness s i) j)
+  => nth witness (flatten (map flatten s))
+                 (sumz (map (fun x => sumz (map size x)) (take i s)) 
+                  + sumz (map size (take j (nth witness s i))) 
+                  + k) 
+     =
+     nth witness (nth witness (nth witness s i) j) k.
+proof.
+elim: s i j k => [/# | x s ih i j k /=].
+case (i = 0) => [eq0_i | neq0_i rng_i rng_j rng_k].
++ rewrite eq0_i /sumz /= -/(sumz (map size (take j x))) => _ rng_j rng_k.
+  rewrite -nth_flatten // flatten_cons nth_cat.
+  rewrite (: sumz (map size (take j x)) + k < size (flatten x)) //.
+  rewrite size_flatten ?sumzE ?big_mapT /(\o).
+  rewrite -{2}(cat_take_drop j x) big_cat ler_lt_add //. 
+  rewrite (drop_nth witness) // big_consT /= ltr_paddr 2:/#.
+  by rewrite sumr_ge0 => ? _; apply size_ge0.
+rewrite (: ! i <= 0) 1:/#  -ih 1:/# //= flatten_cons nth_cat.
+pose susu := sumz (sumz _ :: _) + _ + _; rewrite (: ! susu < size (flatten x)) /= /susu.
++ rewrite -lezNgt size_flatten (sumzE (sumz _ :: _)) big_cons /predT /= -/predT.
+  rewrite -2!addrA ler_addl -sumzE addrA addr_ge0 2:/# addr_ge0 sumz_ge0 2:map_size_ge0.
+  by rewrite allP => l /mapP -[x' [xpin /= ->]]; rewrite sumz_ge0 map_size_ge0. 
+by congr; rewrite sumzE big_cons /predT /= -/predT size_flatten -sumzE /#. 
+qed.
+
 lemma nth_flatten_map_flatten (s : 'a list) (f : 'a -> 'b list list) (i j k : int) :
      0 <= i < size s
   => 0 <= j < size (nth witness (map f s) i)
@@ -156,41 +228,10 @@ lemma nth_flatten_map_flatten (s : 'a list) (f : 'a -> 'b list list) (i j k : in
                   + k) 
      =
      nth witness (nth witness (nth witness (map f s) i) j) k.
-proof.
-elim: s i j k => [| x s ih] i j k /=.
-+ by rewrite flatten_nil /#.
-rewrite flatten_cons => rng_i.
-case (i = 0) => [eq0_i | neq0_i rng_j rng_k].
-+ rewrite eq0_i /sumz /= -/(sumz (map size (take j (f x)))) nth_cat => rng_j rng_k.
-  have -> /=: sumz (map size (take j (f x))) + k < size (flatten (f x)).
-  - rewrite size_flatten ?sumzE ?big_mapT /(\o).
-    rewrite -{2}(cat_take_drop j (f x)) big_cat ler_lt_add //. 
-    rewrite (drop_nth witness) // big_consT /= ltr_paddr 2:/#.
-    by rewrite sumr_ge0 => ? _; apply size_ge0.
-  by apply nth_flatten.
-rewrite (: ! (i <= 0)) 1:/# nth_cat {1}/sumz /=.
-rewrite -/(sumz (map (fun (x0 : 'b list list) => sumz (map size x0)) (take (i - 1) (map f s)))).
-have -> /=: 
-  ! (sumz (map size (f x)) 
-     + sumz (map (fun (x0 : 'b list list) => sumz (map size x0)) (take (i - 1) (map f s))) 
-     + sumz (map size (take j (nth witness (map f s) (i - 1)))) + k 
-    <
-    size (flatten (f x))).
-+ rewrite -lezNgt size_flatten -2!addrA ler_addl.
-  rewrite ?addr_ge0 3:/# sumz_ge0 allP => l /mapP [x'] [xpin ->] /=.
-  - by rewrite sumz_ge0 map_size_ge0. 
-  by apply: size_ge0.
-have ->:
-  sumz (sumz (
-    map size (f x)) :: map (fun (x0 : 'b list list) => sumz (map size x0)) (take (i - 1) (map f s)))
-   + sumz (map size (take j (nth witness (map f s) (i - 1)))) 
-   + k 
-   - size (flatten (f x))
-  =
-  sumz (map (fun (x0 : 'b list list) => sumz (map size x0)) (take (i - 1) (map f s))) 
-    + sumz (map size (take j (nth witness (map f s) (i - 1)))) + k.
-+ by rewrite /sumz /= size_flatten; ring.
-by apply ih => /#. 
+proof. 
+move=> rng_i rng_j rng_k; move: (nth_flatten_flatten (map f s) i j k _ rng_j rng_k).
++ by rewrite size_map rng_i.
+by move=> <-; congr; rewrite map_comp.
 qed.
 
 lemma eq_from_flatten_nth (s s' : 'a list list):
@@ -252,30 +293,6 @@ const len2 : int = floor (log2 ((len1 * (w - 1))%r) / log2 w%r) + 1.
 (* Number of elements (of length n) in private keys, public keys, and signatures *)
 const len : int = len1 + len2.
 
-
-(* -- Outside/Encompassing structure -- *)
-(*
-(* Height of a single (XMSS) binary hash tree *)
-const h : { int | 1 <= h } as ge1_h. 
-
-(* Number of layers in (XMSS_MT/SPHINCS+) binary hash multi-tree *)
-const k : { int | 1 <= k } as ge1_k.
-
-(* Number of WOTS-TW instances of a single (XMSS) binary hash tree (i.e., number of leaves) *)
-const l = 2 ^ h.
-  
-(* Address type for chaining (used in tweakable hash function calls of WOTS-TW chains) *)
-const chtype : int.
-
-(* 
-  Address type for public (WOTS-TW) key compression 
-  (used in tweakable hash function calls of WOTS-TW public key compression) 
-*)
-const pkcotype : int.
-
-(* Address type for tree hashing (used in tweakable hash function calls of binary hash trees) *)
-const trhtype : int.
-*)
 
 (* -- Notions -- *)
 (*  Number of WOTS-TW instances to consider for M-EUF-GCMA notion *)
@@ -375,11 +392,6 @@ proof. smt(divr_ge0 ge1_len1 floor_gt val_w log_ge0). qed.
 lemma ge2_len : 2 <= len.
 proof. smt(ge1_len1 ge1_len2). qed.
 
-(*
-(* l is greater than or equal to 1 *)
-lemma ge2_l : 2 <= l.
-proof. by rewrite /l ler_eexpr; smt(ge1_h). qed.
-*)
 
 
 (* --- Types (1/2) --- *)
@@ -522,35 +534,8 @@ proof. by apply/dmap_ll /ddgstblock_ll. qed.
 
 
 
-(* --- Operators/mappings --- *)
-(*
-(* -- Auxiliary -- *)
-(* Number of nodes in a (XMSS) binary hash tree (of total height h) at a particular height h' *)
-op nr_nodes (h' : int) = 2 ^ (h - h').
-
-(* Number of trees in a (XMSS_MT/SPHINCS+) binary multi-tree (with k layers) at layer k' *)
-op nr_trees (k' : int) = 2 ^ (k - k' - 1).
-*)
-
-(* -- Validity checks for index/address ranges -- *)
-(*
-(* Layer index validity check *)
-op valid_lidx (lidx : int) : bool = 
-  0 <= lidx < k.
-
-(* Tree index validity check *)
-op valid_tidx (tidx lidx : int) : bool = 
-  0 <= tidx < nr_trees lidx.
-
-(* Type index validity check *)
-op valid_typeidx (typeidx : int) : bool =
-  typeidx = chtype \/ typeidx = pkcotype \/ typeidx = trhtype.
-
-(* Key pair index validity check *)
-op valid_kpidx (kpidx : int) : bool =
-  0 <= kpidx < l.
-*)
-
+(* --- Operators (1/2) --- *)
+(* -- Validity checks -- *)
 (* Chain index validity check *)
 op valid_chidx (chidx : int) : bool =
   0 <= chidx < len.
@@ -559,56 +544,56 @@ op valid_chidx (chidx : int) : bool =
 op valid_hidx (hidx : int) : bool = 
   0 <= hidx < w - 1.
 
-(*
-(* Tree height index validity check *)
-op valid_thidx (thidx : int) : bool = 
-  0 <= thidx <= h.
-  
-(* Tree breadth index validity check *)
-op valid_tbidx (thidx tbidx : int) : bool = 
-  0 <= tbidx < nr_nodes thidx.
-
-(* 
-  Validity check for full tuple of indices (i.e., checks whether the 
-  tuple's elements are within the allowed ranges and, hence, map to a valid address)
-*)
-op valid_adidxs (adidxs : adrsindices) : bool =
-  (valid_lidx adidxs.`1 /\ valid_tidx adidxs.`2 adidxs.`1) 
-  /\ 
-  (
-   (adidxs.`3 = chtype /\ valid_kpidx adidxs.`4 /\ valid_chidx adidxs.`5 /\ valid_hidx adidxs.`6)
-   \/
-   (adidxs.`3 = pkcotype /\ valid_kpidx adidxs.`4 /\ adidxs.`5 = 0 /\ adidxs.`6 = 0)
-   \/
-   (adidxs.`3 = trhtype /\ adidxs.`4 = 0 /\ valid_thidx adidxs.`5 /\ valid_tbidx adidxs.`5 adidxs.`6)
-  ).
-*)  
-
+(* Overall (generic) validity check for indices of addresses *)
 op valid_idxvals : int list -> bool.
 
+(* Overall (generic) validity check for indices of addresses, including the number of indices *)
 op valid_adrsidxs (adidxs : int list) =
   size adidxs = adrs_len /\ valid_idxvals adidxs.
 
+(* 
+  Generic validity check for the global/context part of the indices 
+  corresponding to a WOTS-TW address
+*)
 op valid_widxvalsgp : int list -> bool.
  
+(* 
+  Validity check for the local part of the indices (i.e., the chain and hash indices) 
+  corresponding to a WOTS-TW address 
+*)
 op valid_widxvalslp (adidxs : int list) : bool =
   valid_hidx (nth witness adidxs 0) /\ valid_chidx (nth witness adidxs 1).
-  
+
+(* 
+  Overall validity check for the indices corresponding to a WOTS-TW address
+  (the first two indices must be valid local indices, and the remaining indices 
+  must constitute valid global/context indices)
+*)  
 op valid_widxvals (adidxs : int list) =
   valid_widxvalsgp (drop 2 adidxs) /\ valid_widxvalslp (take 2 adidxs).
 
-axiom valid_widxvals_idxvals : 
-  valid_widxvals <= valid_idxvals.
-  
+(* 
+  Overall validity check for the indices corresponding to a WOTS-TW address,
+  including the number of indices
+*)    
 op valid_wadrsidxs (adidxs : int list) =
   size adidxs = adrs_len /\ valid_widxvals adidxs.
 
+(* 
+  The set of (indices corresponding to) valid WOTS-TW addresses must be a subset
+  of the full set of (indices corresonding to) addresses
+*) 
+axiom valid_widxvals_idxvals : 
+  valid_widxvals <= valid_idxvals.
+
+(* The set of valid WOTS-TW addresses is a subset of the full set of addresses *)
 lemma valid_wadrsidxs_adrsidxs :
   valid_wadrsidxs <= valid_adrsidxs.
 proof. 
 rewrite /(<=) /valid_wadrsidxs /valid_adrsidxs => adidxs [-> /=].
 by apply valid_widxvals_idxvals.
 qed.
+
 
 
 (* --- Types (2/2) --- *)
@@ -623,557 +608,59 @@ clone import HashAddresses as HA with
 
 import Adrs.
 
-(*
-(* Specific WOTS-TW address, only used for proof purposes *)
-clone import HashAddresses as WHA with
-  type index <= int,
-    op l <= adrs_len,
-    op valid_idxvals <- valid_widxvals,
-    op valid_adrsidxs <- valid_wadrsidxs
-    
-    rename [type] "adrs" as "wadrs".
-*)
 
-(*
-(* -- Address operators/mappings -- *)
-(* - Address <-> Indices maps - *)
-(*
-  Map from tuples of 6 integers to addresses.
-  In the context of (multi-)trees, the elements of 
-  the tuples respectively represent the values of the
-  - Layer index
-  - Tree index
-  - Type index
-  - Key pair index
-  - Chain/Tree Height index
-  - Hash/Tree Breadth index
-*)
-const m_adrs : (adrsindices, adrs) fmap.
 
+(* --- Operators (2/2) --- *)
+(* -- Setters and getters -- *)  
 (* 
-  Inverse map of m_adrs; function that maps addresses to the corresponding indices.
-  Note that this is a total function (i.e., its domain is the full adrs domain/type) 
-  since each address should have corresponding indices 
-  (while not all indices (i.e., 6-tuple of integers) necessarily have a
-  corresponding address) 
-*)
-op m_adidxs : adrs -> adrsindices.
-
-(* 
-  Specifies the domain of valid indices (i.e., indices corresponding to valid addresses) 
-  for m_adrs.
-  The number of different values for the valid indices is as follows.
-  - Layer index: 
-      d (Number of layers)
-  - Tree index: 
-      nr_trees lidx (Number of trees in layer lidx)
-  - Type index: 
-      3 (chtype = chaining, pkcotype = public key compression, trhtype = tree hashing) 
-  - Key pair index: 
-      0 (Padding in case of tree hashing)
-      or l (Number of WOTS-TW instances/leaves in each tree)
-  - Chain/Tree Height index: 
-      0 (Padding in case of public key compression)
-      or len (Number of chains in each WOTS-TW instance) 
-      or h (Height of a single tree)
-  - Hash/Tree Breadth index: 
-      0 (Padding in case of public key compression)
-      or w - 1 (Number of tweakable hash function calls in each WOTS-TW chain)
-      or nr_nodes thidx (Number of nodes in tree at height thidx)
-*)
-axiom madrs_dom (adidxs : adrsindices) :
-  valid_adidxs adidxs <=> adidxs \in m_adrs.
-
-(* Injectivity of m_adrs (i.e., no two different index tuples map to the same adrs). *)
-axiom madrs_inj (adidxs adidxs' : adrsindices) :
-  adidxs \in m_adrs => adidxs' \in m_adrs => m_adrs.[adidxs] = m_adrs.[adidxs'] => adidxs = adidxs'.
-
-(* m_adrs and m_adidxs are each other's inverse *)
-axiom m_adidxs_inv (ad : adrs) (adidxs : adrsindices) :
-  m_adrs.[adidxs] = Some ad <=> m_adidxs ad = adidxs.
-  
-(* Contraposition of injectivity of m_adrs *)
-lemma madrs_injA (adidxs adidxs' : adrsindices) :
-  adidxs \in m_adrs => adidxs' \in m_adrs => adidxs <> adidxs' => m_adrs.[adidxs] <> m_adrs.[adidxs'].
-proof. by move => ? ?; apply/contra /madrs_inj. qed.
-
-(* Cancelation of m_adrs with m_adidxs *)
-lemma madrsK (adidxs : adrsindices) :
-  adidxs \in m_adrs => m_adidxs (oget m_adrs.[adidxs]) = adidxs.
-proof. by rewrite -m_adidxs_inv => /domE; apply some_oget. qed.
-
-(* Cancelation of m_adidxs with m_adrs *)
-lemma madidxsK (ad : adrs) :
-  m_adrs.[m_adidxs ad] = Some ad.
-proof. by rewrite m_adidxs_inv. qed.
-
-(* Any indices obtained by mapping an adrs under m_idxs are in the domain of m_adrs *)
-lemma madidxs_in_madrs (ad : adrs) :
-  m_adidxs ad \in m_adrs.
-proof. by rewrite fmapP; exists ad; rewrite madidxsK. qed.
-
-(* Any indices obtained by mapping an adrs under m_adidxs are valid indices *)
-lemma madidxs_valid (ad : adrs) :
-  valid_adidxs (m_adidxs ad).
-proof. by rewrite madrs_dom madidxs_in_madrs. qed.
-
-(* Injectivity of m_adidxs (i.e., no two different addresses map to the same indices) *)
-lemma madidxs_inj (ad ad' : adrs) : 
-   m_adidxs ad = m_adidxs ad' => ad = ad'.
-proof. smt(m_adidxs_inv). qed.
-
-(* Contraposition of injectivity of m_adidxs *)
-lemma madidxs_injA (ad ad' : adrs) : 
-   ad <> ad' => m_adidxs ad <> m_adidxs ad'.
-proof. by apply/contra /madidxs_inj. qed.
-
-(* Equality of addresses is equivalent to equality of corresponding indices *)
-lemma eqad_eqadidxs (ad ad' : adrs) :
-  ad = ad' <=> m_adidxs ad = m_adidxs ad'.
-proof. by split => [-> // |]; apply: madidxs_inj. qed.
-
-(* Equality of addresses is equivalent to equality of corresponding indivdual indices *)
-lemma eqad_eqadidxstup (ad ad' : adrs) :
-  ad = ad' 
-  <=>
-  ((m_adidxs ad).`1, (m_adidxs ad).`2, (m_adidxs ad).`3, (m_adidxs ad).`4, (m_adidxs ad).`5, (m_adidxs ad).`6)
-  = 
-  ((m_adidxs ad').`1, (m_adidxs ad').`2, (m_adidxs ad').`3, (m_adidxs ad').`4, (m_adidxs ad').`5, (m_adidxs ad').`6). 
-proof. by smt(eqad_eqadidxs). qed.
-
-
-(* - Address/Indices getters - *)
-(* Gets adrs that corresponds to given tuple of integers *)
-op get_adrs (adidxs : adrsindices) : adrs = oget m_adrs.[adidxs].
- 
-(* Gets tuple of integers that corresponds to given adrs *)
-op get_adidxs (ad : adrs) : adrsindices = m_adidxs ad.
-
-(* Injectivity of get_adrs (i.e., no two valid indices tuples map to the same address) *)
-lemma getadrs_inj (adidxs adidxs' : adrsindices) :
-     valid_adidxs adidxs 
-  => valid_adidxs adidxs' 
-  => get_adrs adidxs = get_adrs adidxs' 
-  => adidxs = adidxs'.
-proof. smt(madrs_dom madrs_inj). qed.
-
-(* Contraposition of injectivity of get_adrs *)
-lemma getadrs_injA (adidxs adidxs' : adrsindices) :
-  valid_adidxs adidxs => valid_adidxs adidxs' =>
-    adidxs <> adidxs' => get_adrs adidxs <> get_adrs adidxs'.
-proof. by move=> ? ?; apply contraLR => /=; apply getadrs_inj. qed.
-
-(* Cancelation of get_adrs with get_adidxs *)
-lemma getadrsK (adidxs : adrsindices) :
-  adidxs \in m_adrs => get_adidxs (get_adrs adidxs) = adidxs.
-proof. by rewrite /get_adidxs /get_adrs &(madrsK). qed.
-
-(* Gets the four-element prefix of the indices corersponding to the given address *)
-op get_preffour (ad : adrs) : int * int * int * int = 
-  ((get_adidxs ad).`1, (get_adidxs ad).`2, (get_adidxs ad).`3, (get_adidxs ad).`4).
-
-(* Gets the five-element prefix of the indices corersponding to the given address *)
-op get_preffive (ad : adrs) : int * int * int * int * int =
-  ((get_adidxs ad).`1, (get_adidxs ad).`2, (get_adidxs ad).`3, (get_adidxs ad).`4, (get_adidxs ad).`5).
-  
-(* Checks for equality on the four-element prefixes of the indices corresponding to the given addresses *)
-op eq_preffour (ad ad' : adrs) : bool = get_preffour ad = get_preffour ad'.
-
-(* Checks for equality on the five-element prefixes of the indices corresponding to the given addresses *)
-op eq_preffive (ad ad' : adrs) : bool = get_preffive ad = get_preffive ad'.
-*)
-
-op get_wgpidxs (ad : adrs) : int list =
-  drop 2 (val ad).
-
-op eq_gp (ad ad' : adrs) : bool =
-  get_wgpidxs ad = get_wgpidxs ad'.
-  
-op uniq_wgpidxs (adl : adrs list) : bool =
-  uniq (map get_wgpidxs adl).
-
-op disj_wgpidxs (adl adl' : adrs list) : bool =
-  ! has (mem (map get_wgpidxs adl')) (map get_wgpidxs adl).
-
-(*  
-(* 
-  Checks whether the four-element prefixes of the indices corresponding to the addresses 
-  in the given list are unique (for that list) 
-*)
-op uniq_preffour (adl : adrs list) : bool =
-  uniq (map get_preffour adl).
-
-(* 
-  Checks whether the four-element prefixes of the indices corresponding to the addresses 
-  in the given lists are disjoint (from the four-element prefixes of indices corresponding 
-  to the addresses in the other list)
-*)
-op disj_preffour (adl adl' : adrs list) : bool =
-  ! has (mem (map get_preffour adl')) (map get_preffour adl).
-
-  
-(* - Type checks - *)
-(* Checks whether given address is of chaining type *)
-op is_chtype (ad : adrs) : bool = (get_adidxs ad).`3 = chtype.
-
-(* Checks whether given address is of public key compression type *)
-op is_pkcotype (ad : adrs) : bool = (get_adidxs ad).`3 = pkcotype.
-
-(* Checks whether given address is of tree hashing type *)
-op is_trhtype (ad : adrs) : bool = (get_adidxs ad).`3 = trhtype.
-
-
-(* - Address/Indices setters - *)
-(* 
-  'Sets' layer index in given address to given i. 
-  That is, if given address corresponds to indices (_, b, c, d, e, f), then
-  this operator returns the address corresponding to (i, b, c, d, e, f) 
-*)
-op set_lidx (ad : adrs) (i : int) : adrs =
-  get_adrs (i, (get_adidxs ad).`2, (get_adidxs ad).`3, (get_adidxs ad).`4, (get_adidxs ad).`5, (get_adidxs ad).`6). 
-
-(* 
-  'Sets' tree index in given address to given i. 
-  That is, if given address corresponds to indices (a, _, c, d, e, f), then
-  this operator returns the address corresponding to (a, i, c, d, e, f) 
-*)
-op set_tidx (ad : adrs) (i : int) : adrs =
-  get_adrs ((get_adidxs ad).`1, i, (get_adidxs ad).`3, (get_adidxs ad).`4, (get_adidxs ad).`5, (get_adidxs ad).`6).
-
-(* 
-  'Sets' type index in given address to given i and reinitialize the subsequent indices. 
-  That is, if given address corresponds to indices tuple (a, b, _, d, e, f), then
-  this operator returns the address corresponding to (a, b, i, 0, 0, 0) 
-*)
-op set_typeidx (ad : adrs) (i : int) : adrs =
-  get_adrs ((get_adidxs ad).`1, (get_adidxs ad).`2, i, 0, 0, 0).
-   
-(* 
-  'Sets' key pair index in given address to given i. 
-  That is, if given address corresponds to indices (a, b, c, _, e, f), then
-  this operator returns the address corresponding to (a, b, c, i, e, f) 
-*)
-op set_kpidx (ad : adrs) (i : int) : adrs =
-  get_adrs ((get_adidxs ad).`1, (get_adidxs ad).`2, (get_adidxs ad).`3, i, (get_adidxs ad).`5, (get_adidxs ad).`6).
-*)
-  
-(* 
-  'Sets' chain height index in given (WOTS-TW) address to given i. 
+  Sets chain index in (WOTS-TW) address
+  Assumes that the given address is a valid WOTS-TW address 
 *)
 op set_chidx (ad : adrs) (i : int) : adrs =
   set_idx ad 1 i.
   
 (* 
-  'Sets' hash index in given (WOTS-TW) address to given i. 
+  Sets hash index in (WOTS-TW) address
+  Assumes that the given address is a valid WOTS-TW address
 *)
 op set_hidx (ad : adrs) (i : int) : adrs =
   set_idx ad 0 i.
 
-(*
 (* 
-  'Sets' tree height and tree breadth indices in given address to given i and j, respecitvely. 
-  That is, if given address corresponds to indices (a, b, c, d, _, _), then
-  this obtains the address corresponding to (a, b, c, d, i, j) 
+  Gets (indices corresponding to) the global part of a WOTS-TW address
+  Assumes that the given address is a valid WOTS-TW address
 *)
-op set_thtbidx (ad : adrs) (i j: int) : adrs =
-  get_adrs ((get_adidxs ad).`1, (get_adidxs ad).`2, (get_adidxs ad).`3, (get_adidxs ad).`4, i, j).
+op get_wgpidxs (ad : adrs) : int list =
+  drop 2 (val ad).
 
-(* Setting a valid chain index of a chaining address does not alter the first four indices *)
-lemma eqpreffour_setchidx (ad : adrs) (i : int) :
-  is_chtype ad => valid_chidx i => eq_preffour (set_chthidx ad i) ad.
-proof.
-move=> adch vali @/eq_preffour @/get_preffour @/set_chthidx /=.
-by rewrite getadrsK // -madrs_dom /valid_idxs /get_adidxs /=; smt(madidxs_valid dist_adrstypes).
-qed.
-
-(* Setting valid chain and hash indices of a chaining address does not alter the first four indices *)
-lemma eqpreffour_setchidx_sethidx (ad : adrs) (i j : int) :
-  is_chtype ad => valid_chidx i => valid_hidx j => eq_preffour (set_htbidx (set_chthidx ad i) j) ad.
-proof.
-move=> adch vali valj @/eq_preffour @/get_preffour @/set_chthidx @/set_htbidx /=.
-rewrite ?getadrsK // -madrs_dom /valid_adidxs /get_adidxs /=; smt(madidxs_valid dist_adrstypes).
-qed.
-
-(* Setting a valid hash index of a chaining address does not alter the type *)
-lemma ischtype_sethidx (ad : adrs) (i : int) :
-  is_chtype ad => valid_hidx i => is_chtype (set_htbidx ad i).
-proof. 
-move=> adch vali @/is_chtype @/set_htbidx.
-by rewrite getadrsK // -madrs_dom /valid_adidxs /get_adidxs /=; smt(madidxs_valid dist_adrstypes).
-qed.
-
-(* Setting a valid tree breadth index of a tree hashing address does not alter the type *)
-lemma istrhtype_settbidx (ad : adrs) (i : int) :
-  is_trhtype ad => valid_tbidx (get_adidxs ad).`5 i => is_trhtype (set_htbidx ad i).
-proof. 
-move=> adtrh vali @/is_trhtype @/set_htbidx.
-by rewrite getadrsK // -madrs_dom /valid_adidxs /=; smt(madidxs_valid dist_adrstypes).
-qed.
-
-(* Setting a valid chain index of a chaining address does not alter the type *)
-lemma ischtype_setchidx (ad : adrs) (i : int) :
-  is_chtype ad => valid_chidx i => is_chtype (set_chthidx ad i).
-proof. smt(eqpreffour_setchidx). qed.
-
-(* Setting a valid tree height index of a tree hashing address does not alter the type *)
-lemma istrhtype_setthidx (ad : adrs) (i : int) :
-     is_trhtype ad 
-  => valid_thidx i 
-  => valid_tbidx i (get_adidxs ad).`6 
-  => is_trhtype (set_chthidx ad i).
-proof. 
-move=> adtrh valthi valtbi @/is_trhtype @/set_chthidx.
-by rewrite getadrsK // -madrs_dom /valid_adidxs /=; smt(madidxs_valid dist_adrstypes).
-qed.
-
-(* Setting a valid tree height and tree breadth index of a tree hashing address does not alter the type *)
-lemma istrhtype_setthtbidx (ad : adrs) (i j : int) :
-     is_trhtype ad
-  => valid_thidx i 
-  => valid_tbidx i j 
-  => is_trhtype (set_thtbidx ad i j).
-proof.
-move=> adtrh valthi valtbi @/is_trhtype @/set_thtbidx.
-by rewrite getadrsK // -madrs_dom /valid_adidxs /=; smt(madidxs_valid dist_adrstypes).
-qed.
-
-(* Setting a valid key pair index of a chaining address does not alter the type *)
-lemma ischtype_setkpidx (ad : adrs) (i : int) :
-  is_chtype ad => valid_kpidx i => is_chtype (set_kpidx ad i).
-proof. 
-move=> adch vali @/is_chtype @/set_kpidx.
-by rewrite getadrsK // -madrs_dom /valid_adidxs /get_adidxs /=; smt(madidxs_valid dist_adrstypes). 
-qed.
-
-(* Setting a valid key pair index of a public key compression address does not alter the type *)
-lemma ispkcotype_setkpidx (ad : adrs) (i : int) :
-  is_pkcotype ad => valid_kpidx i => is_pkcotype (set_kpidx ad i).
-proof. 
-move=> adch vali @/is_pkcotype @/set_kpidx.
-by rewrite getadrsK // -madrs_dom /valid_adidxs /get_adidxs /=; smt(madidxs_valid dist_adrstypes). 
-qed.
-
-(* Setting an address to a chaining type gives a chaining address *)
-lemma ischtype_settypeidx (ad : adrs)  :
-  is_chtype (set_typeidx ad chtype).
-proof. 
-by rewrite /is_chtype /set_typeidx getadrsK // -madrs_dom /valid_adidxs /=; smt(madidxs_valid ge2_l ge2_len val_w).
-qed.
-
-(* Setting an address to a public key compression type gives a public key compression address *)
-lemma ispkcotype_settypeidx (ad : adrs)  :
-  is_pkcotype (set_typeidx ad pkcotype).
-proof. 
-by rewrite /is_pkcotype /set_typeidx getadrsK // -madrs_dom /valid_adidxs /=; smt(madidxs_valid ge2_l ge2_len val_w).
-qed.
-
-(* Setting an address to a chaining type gives a chaining address *)
-lemma istrhtype_settypeidx (ad : adrs)  :
-  is_trhtype (set_typeidx ad trhtype).
-proof. 
-by rewrite /is_trhtype /set_typeidx getadrsK // -madrs_dom /valid_adidxs /=; smt(madidxs_valid ge1_h ge2_l).
-qed.
-
-(* Setting an address to a valid non-chaining type gives a non-chaining address *)
-lemma nischtype_settypeidx (ad : adrs) (t : int)  :
-     valid_typeidx t
-  => t <> chtype
-  => ! is_chtype (set_typeidx ad t).
-proof.
-move=> val_t neqch_t; rewrite /is_chtype /set_typeidx getadrsK //=.
-by rewrite -madrs_dom /valid_adidxs /=; smt(madidxs_valid ge1_h IntOrder.expr_gt0).
-qed.
+  
+(* -- Auxiliary checks -- *)
+(* 
+  Checks whether (indices corresponding to) global parts of WOTS-TW addresses are equal
+  Assumes that the given addresses are valid WOTS-TW addresses
+*)
+op eq_gp (ad ad' : adrs) : bool =
+  get_wgpidxs ad = get_wgpidxs ad'.
 
 (* 
-  If the four-element prefix of the indices corresponding to two (chaining) addresses 
-  are equal, then setting the same valid chain and hash indices preserves the 
-  equality of the addresses.
-*)
-lemma setchidx_sethidx_eqpf (ad ad' : adrs) (i j : int) :
-     is_chtype ad
-  => is_chtype ad'
-  => valid_chidx i
-  => valid_hidx j
-  => eq_preffour ad ad'
-  => set_htbidx (set_chthidx ad i) j = set_htbidx (set_chthidx ad' i) j.
-proof.
-move=> adch adpch iv jv eqpfad_pfadp @/set_htbidx @/set_chthidx.
-by rewrite ?getadrsK 1,2:-madrs_dom /valid_adidxs //=; smt(madidxs_valid dist_adrstypes).
-qed.
+  Checks whether (indices corresponding to) global parts of WOTS-TW addresses in a list are distinct
+  Assumes that the given lists exclusively contain valid WOTS-TW addresses
+*)  
+op uniq_wgpidxs (adl : adrs list) : bool =
+  uniq (map get_wgpidxs adl).
 
 (* 
-  If the four-element prefix of the indices corresponding to two (chaining) addresses 
-  are not equal, then setting valid chain and hash indices preserves the inequality of
-  the addresses.
-*)
-lemma setchidx_sethidx_neqpf (ad ad' : adrs) (i i' j j' : int) :
-     is_chtype ad
-  => is_chtype ad'
-  => valid_chidx i
-  => valid_chidx i'
-  => valid_hidx j
-  => valid_hidx j'
-  => ! eq_preffour ad ad'
-  => set_htbidx (set_chthidx ad i) j <> set_htbidx (set_chthidx ad' i') j'.
-proof.
-move=> adch adpch iv ipv jv jpv neqpfad_pfadp @/set_htbidx @/set_chthidx.
-by rewrite ?getadrsK 3:getadrs_injA 1,2:-madrs_dom /valid_adidxs //=; smt(madidxs_valid dist_adrstypes).
-qed.
+  Checks whether the WOTS-TW addresses in the first given list do not have any
+  global parts common with the WOTS-TW addresses in the second given list
+  Assumes that the given lists exclusively contain valid WOTS-TW addresses
 
-(*
-  Setting valid hash and chain indices of two (chaining) addresses results in unequal
-  addresses if the chain indices are different.
-*)
-lemma setchidx_sethidx_neqchidx (ad ad' : adrs) (i i' j j' : int) :
-     is_chtype ad
-  => is_chtype ad'
-  => valid_chidx i
-  => valid_chidx i'
-  => valid_hidx j
-  => valid_hidx j'
-  => i <> i'
-  => set_htbidx (set_chthidx ad i) j <> set_htbidx (set_chthidx ad' i') j'.
-proof.
-move=> adch adpch iv ipv jv jpv neqi_ip @/set_htbidx @/set_chthidx.
-by rewrite ?getadrsK 3:getadrs_injA 1,2:-madrs_dom /valid_adidxs //=; smt(madidxs_valid dist_adrstypes).
-qed.
+*)  
+op disj_wgpidxs (adl adl' : adrs list) : bool =
+  ! has (mem (map get_wgpidxs adl')) (map get_wgpidxs adl).
 
-(*
-  Setting valid key pair, hash, chain indices of two (chaining) addresses results in unequal
-  addresses if the key pair indices are different.
-*)
-lemma setkpidx_setchidx_sethidx_neqkpidx (ad ad' : adrs) (i i' j j' k k' : int):
-     is_chtype ad
-  => is_chtype ad'
-  => valid_kpidx i
-  => valid_kpidx i'
-  => valid_chidx j
-  => valid_chidx j'
-  => valid_hidx k
-  => valid_hidx k'
-  => i <> i'
-  => set_htbidx (set_chthidx (set_kpidx ad i) j) k <> set_htbidx (set_chthidx (set_kpidx ad' i') j') k'.
-proof.
-move => adch adpch valkp_i valkp_ip valch_j valch_jp valh_k valh_kp neqi_ip.
-rewrite /set_htbidx getadrs_injA /= 4:// 1,2:/valid_adidxs /=.
-+ by rewrite /set_chthidx /set_kpidx ?getadrsK -?madrs_dom /valid_adidxs /=; smt(madidxs_valid dist_adrstypes ge2_l ge2_len val_w).
-+ by rewrite /set_chthidx /set_kpidx ?getadrsK -?madrs_dom /valid_adidxs /=; smt(madidxs_valid dist_adrstypes ge2_l ge2_len val_w).
-rewrite !negb_and; do 3! right; left.
-rewrite /set_chthidx ?getadrsK -?madrs_dom /valid_adidxs /=; smt(madidxs_valid dist_adrstypes ge2_l ge2_len val_w).
-qed.
-
-(*
-  Setting valid hash indices of two (chaining) addresses results in unequal
-  addresses if the hash indices are different.
-*)
-lemma sethidx_neq (ad ad' : adrs) (i i' : int) :
-     is_chtype ad
-  => is_chtype ad'
-  => valid_hidx i
-  => valid_hidx i'
-  => i <> i'
-  => set_htbidx ad i <> set_htbidx ad' i'.
-proof.
-move=> adch adpch iv ipv neqi_ip @/set_htbidx.
-rewrite getadrs_injA /valid_adidxs //=; smt(madidxs_valid dist_adrstypes).
-qed.
-
-(*
-  Setting valid key pair indices of two (public key compression) addresses results in unequal
-  addresses if the key pair indices are different.
-*)
-lemma setkpidx_neq (ad ad' : adrs) (i i' : int) :
-     is_pkcotype ad
-  => is_pkcotype ad'
-  => valid_kpidx i
-  => valid_kpidx i'
-  => i <> i'
-  => set_kpidx ad i <> set_kpidx ad' i'.
-proof.
-move=> adpkco adppkco iv ipv neqi_ip @/set_kpidx.
-rewrite getadrs_injA /valid_adidxs //=; smt(madidxs_valid dist_adrstypes).
-qed.
-
-(*
-  Setting valid tree height and tree breadth indices of two (tree hashing) addresses 
-  results in unequal addresses if the tree height indices are different.
-*)
-lemma setthtbidx_neqthidx (ad ad' : adrs) (i i' j j' : int) :
-     is_trhtype ad
-  => is_trhtype ad'
-  => valid_thidx i
-  => valid_thidx i'
-  => valid_tbidx i j
-  => valid_tbidx i' j'
-  => i <> i'
-  => set_thtbidx ad i j <> set_thtbidx ad' i' j'.
-proof.
-move=> adtrh adptrh iv ipv jv jpv neqi_ip @/set_thtbidx.
-by rewrite getadrs_injA 3:/# 3:// /valid_adidxs //=; smt(madidxs_valid dist_adrstypes).
-qed.
-
-(*
-  Setting valid tree height and tree breadth indices of two (tree hashing) addresses 
-  results in unequal addresses if the tree breadth indices are different.
-*)
-lemma setthtbidx_neqtbidx (ad ad' : adrs) (i i' j j' : int) :
-     is_trhtype ad
-  => is_trhtype ad'
-  => valid_thidx i
-  => valid_thidx i'
-  => valid_tbidx i j
-  => valid_tbidx i' j'
-  => j <> j'
-  => set_thtbidx ad i j <> set_thtbidx ad' i' j'.
-proof.
-move=> adtrh adptrh iv ipv jv jpv neqi_ip @/set_thtbidx.
-by rewrite getadrs_injA 3:/# 3:// /valid_adidxs //=; smt(madidxs_valid dist_adrstypes).
-qed.
-*)
-
-lemma drop_putK (s : 'a list) (i j : int) (x : 'a) :
-     j < i 
-  => drop i (put s j x) = drop i s.
-proof.
-elim: s i j => [ * | x' s ih i j gtj_i]; 1: by rewrite put_empty. 
-case (i <= 0) => [le0_i | /ltzNge gt0_i]; 1: by rewrite put_out /#.
-case (j = 0) => [-> /# | neq0_j].
-by rewrite put_consS // /= ih /#.
-qed.
-
-lemma drop_putC (s : 'a list) (i j : int) (x : 'a) :
-     0 <= i <= j 
-  => drop i (put s j x) = put (drop i s) (j - i) x.
-proof.
-elim: s i j => [ * | x' s ih i j [ge0_i gei_j] /=]; 1: smt(put_empty).
-case (i = 0) => [-> /# | neq0_i].
-by rewrite put_consS 1:/# /= (: ! i <= 0) 1:/# /= ih /#.
-qed.
-
-
-lemma take_putK (s : 'a list) (i j : int) (x : 'a) :
-     i <= j 
-  => take i (put s j x) = take i s.
-proof.
-elim: s i j => [ * | x' s ih i j gej_i]; 1: by rewrite put_empty. 
-case (i <= 0) => [le0_i | nle0_i]; 1: by rewrite take_le0 /#.
-by rewrite put_consS 1:/# /= nle0_i /= ih /#.
-qed.
-
-lemma take_putC (s : 'a list) (i j : int) (x : 'a) :
-     j < i
-  => take i (put s j x) = put (take i s) j x.
-proof.
-elim: s i j => [ * | x' s ih i j lti_j /=]; 1: smt(put_empty).
-case (i <= 0) => [le0_i | nle0_i]; 1: by rewrite take_le0 2:put_empty.
-case (j = 0) => [-> | neq0_j]; 1: by rewrite 2!put_cons0 /= nle0_i.
-by rewrite ?put_consS //= nle0_i /= ih /#.
-qed. 
-
-lemma take_put (s : 'a list) (i j : int) (x : 'a) :
-  take i (put s j x) = if i <= j then take i s else put (take i s) j x.
-proof. by case (i <= j) => [| /ltzNge]; [apply take_putK | apply take_putC]. qed.
-
+(* 
+  Checks whether an address is a WOTS-TW addresses
+*)  
 op valid_wadrs (ad : adrs) : bool =
   valid_wadrsidxs (val ad).
 
@@ -1298,7 +785,6 @@ lemma neq_gp (ad ad' : adrs) :
   get_wgpidxs ad <> get_wgpidxs ad' => ad <> ad'.
 proof. smt(). qed.
 
-
 lemma eq_gp_sethidx (ad : adrs) (i : int) :
      valid_wadrs ad
   => valid_hidx i
@@ -1327,6 +813,7 @@ move=> valad vali valj @/get_wgpidxs @/set_hidx @/set_chidx @/set_idx.
 rewrite ?insubdK ?valid_wadrsidxs_adrsidxs ?validwadrsidxs_putchidx ?validwadrsidxs_putchhidx //.
 by rewrite ?drop_putK.
 qed.
+
 
 (* -- Keyed hash functions -- *)
 (* Keyed hash function (PRF) used to generate WOTS-TW secret keys *)
@@ -1491,31 +978,7 @@ move=> + gt0_i1 lew1_si1; move=> /(_ _ _); first 2 by smt().
 move=> ih /=; rewrite chS // addrA /= ih (: s + i = (s + 1 + i - 1)) 1:/#.
 by rewrite -chS 2:valP // /#.
 qed.
-(*
-(* Equality of chaining results for addresses that potentially differ in the hash index *)
-lemma eq_ch (g : pseed -> adrs -> dgst -> dgstblock) (ps : pseed) (ad ad' : adrs) (s i : int) (x : dgst) :
-     valid_wadrs ad 
-  => valid_wadrs ad'
-  => size x = 8 * n 
-  => eq_preffive ad ad' 
-  => 0 <= s 
-  => 0 < i 
-  => s + i <= w - 1 
-  => ch g ps ad s i x = ch g ps ad' s i x.
-proof.
-move=> adch adpch eq8n_szx eqpfive + lt0_i.
-move: lt0_i; case (0 <= i) => [| /#].
-elim: i => // i ge0_i ih gt0_i1 ge0_s lew1_si1.
-have eqpfive_sethidx: 
-  forall (idx : int), 0 <= idx < w - 1 => set_hidx ad idx = set_hidx ad' idx.
-+ by move=> idx rng_idx @/set_hidx; congr => /#.
-case (i = 0) => [-> /=| neq0_i].
-+ by rewrite ?ch1 // 1,2:/#; congr; apply eqpfive_sethidx => /#.
-rewrite ?ch_comp 6,12:-addrA // ih // 1,2:/#. 
-rewrite ?ch1 2,6:valP // 1..4:/#. 
-by congr; apply eqpfive_sethidx => /#.
-qed.
-*)
+
 
 (* - Message encoding - *)
 op encode_msgWOTS : msgWOTS -> emsgWOTS.
@@ -2875,7 +2338,7 @@ module M_EUF_GCMA_WOTSTWES(A : Adv_MEUFGCMA_WOTSTWES, O : Oracle_MEUFGCMA_WOTSTW
     var sig, sig': sigWOTS;
     var adlO, adlOC : adrs list;
     var nrqs : int;
-    var is_valid, is_fresh, dist_preffour : bool;
+    var is_valid, is_fresh, dist_wgpidxs : bool;
 
     (* Sample secret seed and public seed *)
     ss <$ dsseed;
@@ -2920,7 +2383,7 @@ module M_EUF_GCMA_WOTSTWES(A : Adv_MEUFGCMA_WOTSTWES, O : Oracle_MEUFGCMA_WOTSTW
       Check whether the four-element prefixes of the indices corresponding to the addresses
       queried by the adversary (to the signing oracle) are distinct 
     *)
-    dist_preffour <@ O.dist_addresses();
+    dist_wgpidxs <@ O.dist_addresses();
     
     (* Get the list of addresses from the signing oracle and family oracle, respectively *)
     adlO <@ O.get_addresses();
@@ -2933,13 +2396,13 @@ module M_EUF_GCMA_WOTSTWES(A : Adv_MEUFGCMA_WOTSTWES, O : Oracle_MEUFGCMA_WOTSTW
       (2) "0 <= i < nrqs": the query index provided by the adversary is valid, and
       (3) "is_valid": the forged signature provided by the adversary is valid, and 
       (4) "is_fresh": the message for which the adversary forged a signature is fresh, and
-      (5) "dist_preffour": the four-element prefixes of the indices corresponding to the addresses queried by the adversary
+      (5) "dist_wgpidxs": the four-element prefixes of the indices corresponding to the addresses queried by the adversary
                            to the signing oracle are distinct, and
       (6) "disj_wgpidxs adlO adlOC": the adversary did not query the oracles O and OC with 
                                       addresses of which the corresponding indices share four-element prefixes.
     *)
     return 0 <= nrqs <= d /\ 0 <= i < nrqs /\ 
-           is_valid /\ is_fresh /\ dist_preffour /\ disj_wgpidxs adlO adlOC;     
+           is_valid /\ is_fresh /\ dist_wgpidxs /\ disj_wgpidxs adlO adlOC;     
   }
 }.
 
@@ -3101,7 +2564,7 @@ module (R_PRF_Game0NOPRFWOTSTWES (A : Adv_MEUFGCMA_WOTSTWES) : Adv_PRF) (O : Ora
     var m, m' : msgWOTS;
     var pk : pkWOTS;
     var sig, sig' : sigWOTS;
-    var is_valid, is_fresh, dist_preffour : bool;
+    var is_valid, is_fresh, dist_wgpidxs : bool;
     var adlO, adlOC : adrs list;
     var nrqs : int;
     
@@ -3122,14 +2585,14 @@ module (R_PRF_Game0NOPRFWOTSTWES (A : Adv_MEUFGCMA_WOTSTWES) : Adv_PRF) (O : Ora
     
     nrqs <@ O_R_PRF_Game0NOPRFWOTSTWES.nr_queries();
     
-    dist_preffour <@ O_R_PRF_Game0NOPRFWOTSTWES.dist_addresses();
+    dist_wgpidxs <@ O_R_PRF_Game0NOPRFWOTSTWES.dist_addresses();
        
     adlO <@ O_R_PRF_Game0NOPRFWOTSTWES.get_addresses();
         
     adlOC <@ O_THFC_Default.get_tweaks();  
         
     return 0 <= nrqs <= d /\ 0 <= i < nrqs /\ 
-           is_valid /\ is_fresh /\ dist_preffour /\ disj_wgpidxs adlO adlOC;
+           is_valid /\ is_fresh /\ dist_wgpidxs /\ disj_wgpidxs adlO adlOC;
   }
 }.
 
@@ -3288,7 +2751,7 @@ module (R_SMDTUDC_Game23WOTSTWES (A : Adv_MEUFGCMA_WOTSTWES) : Adv_SMDTUDC) (O :
     var m, m' : msgWOTS;
     var pk : pkWOTS;
     var sig, sig' : sigWOTS;
-    var is_valid, is_fresh, dist_preffour : bool;
+    var is_valid, is_fresh, dist_wgpidxs : bool;
     var adlO, adlOC : adrs list;
     var nrqs : int;
         
@@ -3302,14 +2765,14 @@ module (R_SMDTUDC_Game23WOTSTWES (A : Adv_MEUFGCMA_WOTSTWES) : Adv_SMDTUDC) (O :
     
     nrqs <@ O_R_DistRCH_Game23WOTSTW.nr_queries();
     
-    dist_preffour <@ O_R_DistRCH_Game23WOTSTW.dist_addresses();
+    dist_wgpidxs <@ O_R_DistRCH_Game23WOTSTW.dist_addresses();
        
     adlO <@ O_R_DistRCH_Game23WOTSTW.get_addresses();
         
     adlOC <@ O_R_DistRCH_Game23WOTSTW_THFC.get_tweaks();  
     
     return 0 <= nrqs <= d /\ 0 <= i < nrqs /\ 
-           is_valid /\ is_fresh /\ dist_preffour /\ disj_wgpidxs adlO adlOC;
+           is_valid /\ is_fresh /\ dist_wgpidxs /\ disj_wgpidxs adlO adlOC;
   }
 
   proc pick() : unit = {
@@ -4348,7 +3811,7 @@ local module Game4_WOTSTWES = {
     var sig, sig': sigWOTS;
     var adlO, adlOC : adrs list;
     var nrqs : int;
-    var is_valid, is_fresh, dist_preffour, hchwcoll : bool;
+    var is_valid, is_fresh, dist_wgpidxs, hchwcoll : bool;
 
     ps <$ dpseed;
     
@@ -4367,7 +3830,7 @@ local module Game4_WOTSTWES = {
     
     nrqs <@ O_Game34_WOTSTWES.nr_queries();
     
-    dist_preffour <@ O_Game34_WOTSTWES.dist_addresses();
+    dist_wgpidxs <@ O_Game34_WOTSTWES.dist_addresses();
     
     adlO <@ O_Game34_WOTSTWES.get_addresses();
     adlOC <@ O_THFC_Default.get_tweaks();
@@ -4377,7 +3840,7 @@ local module Game4_WOTSTWES = {
     hchwcoll <- has_chwcoll ps ad em em' sig sig';
 
     return 0 <= nrqs <= d /\ 0 <= i < nrqs /\ 
-           is_valid /\ is_fresh /\ dist_preffour /\ disj_wgpidxs adlO adlOC /\ !hchwcoll;
+           is_valid /\ is_fresh /\ dist_wgpidxs /\ disj_wgpidxs adlO adlOC /\ !hchwcoll;
   }
 }.
 
@@ -4401,7 +3864,7 @@ local module Game3_WOTSTWES_Hchwcoll = {
     var sig, sig': sigWOTS;
     var adlO, adlOC : adrs list;
     var nrqs : int;
-    var is_valid, is_fresh, dist_preffour : bool;
+    var is_valid, is_fresh, dist_wgpidxs : bool;
 
     ps <$ dpseed;
     
@@ -4418,7 +3881,7 @@ local module Game3_WOTSTWES_Hchwcoll = {
 
     is_fresh <- m' <> m;
     
-    dist_preffour <@ O_Game34_WOTSTWES.dist_addresses();
+    dist_wgpidxs <@ O_Game34_WOTSTWES.dist_addresses();
     
     nrqs <@ O_Game34_WOTSTWES.nr_queries();
        
@@ -4430,7 +3893,7 @@ local module Game3_WOTSTWES_Hchwcoll = {
     hchwcoll <- has_chwcoll ps ad em em' sig sig';
     
     return 0 <= nrqs <= d /\ 0 <= i < nrqs /\ 
-           is_valid /\ is_fresh /\ dist_preffour /\ disj_wgpidxs adlO adlOC;   
+           is_valid /\ is_fresh /\ dist_wgpidxs /\ disj_wgpidxs adlO adlOC;   
   }
 }.
 
@@ -4452,7 +3915,7 @@ local module Game4_WOTSTWES_Alt = {
     var sig, sig': sigWOTS;
     var adlO, adlOC : adrs list;
     var nrqs : int;
-    var is_valid, is_fresh, dist_preffour, hchwcoll : bool;
+    var is_valid, is_fresh, dist_wgpidxs, hchwcoll : bool;
 
     ps <$ dpseed;
     
@@ -4471,7 +3934,7 @@ local module Game4_WOTSTWES_Alt = {
     
     nrqs <@ O_Game34_WOTSTWES.nr_queries();
     
-    dist_preffour <@ O_Game34_WOTSTWES.dist_addresses();
+    dist_wgpidxs <@ O_Game34_WOTSTWES.dist_addresses();
     
     adlO <@ O_Game34_WOTSTWES.get_addresses();
     adlOC <@ O_THFC_Default.get_tweaks();
@@ -4481,7 +3944,7 @@ local module Game4_WOTSTWES_Alt = {
     hchwcoll <- has_chwcoll ps ad em em' sig sig';
 
     return 0 <= nrqs <= d /\ 0 <= i < nrqs /\ 
-           is_valid /\ is_fresh /\ dist_preffour /\ disj_wgpidxs adlO adlOC /\ !hchwcoll;
+           is_valid /\ is_fresh /\ dist_wgpidxs /\ disj_wgpidxs adlO adlOC /\ !hchwcoll;
   }
 }.
 
@@ -4597,7 +4060,7 @@ local module (R_DistRCH_Game23WOTSTW : Adv_DistRCH) (O : Oracle_DistRCH, OC : Or
     var m, m' : msgWOTS;
     var pk : pkWOTS;
     var sig, sig' : sigWOTS;
-    var is_valid, is_fresh, dist_preffour : bool;
+    var is_valid, is_fresh, dist_wgpidxs : bool;
     var adlO, adlOC : adrs list;
     var nrqs : int;
         
@@ -4611,14 +4074,14 @@ local module (R_DistRCH_Game23WOTSTW : Adv_DistRCH) (O : Oracle_DistRCH, OC : Or
     
     nrqs <@ O_R_DistRCH_Game23WOTSTW.nr_queries();
     
-    dist_preffour <@ O_R_DistRCH_Game23WOTSTW.dist_addresses();
+    dist_wgpidxs <@ O_R_DistRCH_Game23WOTSTW.dist_addresses();
        
     adlO <@ O_R_DistRCH_Game23WOTSTW.get_addresses();
         
     adlOC <@ O_R_DistRCH_Game23WOTSTW_THFC.get_tweaks();  
     
     return 0 <= nrqs <= d /\ 0 <= i < nrqs /\ 
-           is_valid /\ is_fresh /\ dist_preffour /\ disj_wgpidxs adlO adlOC;
+           is_valid /\ is_fresh /\ dist_wgpidxs /\ disj_wgpidxs adlO adlOC;
   }
 }.
 
@@ -5207,8 +4670,8 @@ inline{2} 2.
 wp 13 13 => /=.
 conseq (: _ 
           ==>
-             ={dist_preffour} 
-          /\ (dist_preffour{2}
+             ={dist_wgpidxs} 
+          /\ (dist_wgpidxs{2}
              =>
              (   (0 <= nrqs{1} <= d /\ 0 <= i{1} < nrqs{1}
               /\ is_valid{1} /\ is_fresh{1} /\ disj_wgpidxs adlO{1} adlOC{1})

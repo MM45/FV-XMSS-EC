@@ -11,6 +11,7 @@ require (*--*) TweakableHashFunctions DigitalSignatures HashAddresses.
 (* (*---*) import DigestBlock DBLL ChainingAddress EmsgWOTS. *)
 
 
+
 (* --- Generic types/datastructures --- *)
 (* - Binary trees - *)
 type 'a bintree = [  
@@ -18,10 +19,6 @@ type 'a bintree = [
   | Node of 'a bintree & 'a bintree 
 ].
 
-
-
-(* --- Generic properties --- *)
-(* -- Binary (hash) trees -- *)
 (* Computes height, i.e., the number of levels to the furthest leaf, of a binary tree *)
 op height (bt : 'a bintree) =
   with bt = Leaf _ => 0
@@ -389,7 +386,8 @@ by rewrite (list2treeS e) //= fun_if2.
 qed.
 
 
-(* -- Miscellaneous -- *)
+
+(* --- Generic auxiliary properties --- *)
 lemma take_rev_int2bs (i j n : int):
   0 <= j <= i =>
   take j (rev (int2bs i n)) = rev (int2bs j (n %/ 2 ^ (i - j))).
@@ -484,11 +482,14 @@ lemma ge2_l : 2 <= l.
 proof. by rewrite /l ler_eexpr; smt(ge1_h). qed.
 
 
-(* --- Auxiliary Operators --- *)
+
+(* --- Operators (1/2) --- *)
+(* -- Auxiliary -- *)
 (* Number of nodes in a (XMSS) binary hash tree (of total height h) at a particular height h' *)
 op nr_nodes (h' : int) = 2 ^ (h - h').
 
-(* -- Validity checks for index/address ranges -- *)
+
+(* -- Validity checks for (indices corresponding to) XMSS-TW addresses -- *)
 (* Type index validity check *)
 op valid_typeidx (typeidx : int) : bool =
   typeidx = chtype \/ typeidx = pkcotype \/ typeidx = trhtype.
@@ -513,35 +514,39 @@ op valid_chidx (chidx : int) : bool =
 op valid_hidx (hidx : int) : bool = 
   0 <= hidx < w - 1.
 
-(* Chaining address indices validity check (local/concrete/specified part) *) 
+(* Chaining address indices validity check (local part) *) 
 op valid_xidxvalslpch (adidxs : int list) : bool =
      valid_hidx (nth witness adidxs 0) 
   /\ valid_chidx (nth witness adidxs 1)
   /\ valid_kpidx (nth witness adidxs 2)
   /\ nth witness adidxs 3 = chtype.
 
-(* Public-key compression address indices validity check (local/concrete/specified part) *)  
+(* Public-key compression address indices validity check (local part) *)  
 op valid_xidxvalslppkco (adidxs : int list) : bool =
      nth witness adidxs 0 = 0 
   /\ nth witness adidxs 1 = 0
   /\ valid_kpidx (nth witness adidxs 2)
   /\ nth witness adidxs 3 = pkcotype.
 
-(* Tree hashing address indices validity check (local/concrete/specified part)*)  
+(* Tree hashing address indices validity check (local part)*)  
 op valid_xidxvalslptrh (adidxs : int list) : bool =
      valid_tbidx (nth witness adidxs 1) (nth witness adidxs 0)
   /\ valid_thidx (nth witness adidxs 1)
   /\ nth witness adidxs 2 = 0
   /\ nth witness adidxs 3 = trhtype.
 
-(* Local/Concrete/Specified address indices validity check *)
+(* Local address indices validity check *)
 op valid_xidxvalslp (adidxs : int list) : bool =
   valid_xidxvalslpch adidxs \/ valid_xidxvalslppkco adidxs \/ valid_xidxvalslptrh adidxs.
 
+  
+
+(* --- Fixed-Length XMSS-TW in an encompassing structure --- *)
 theory ES.
 (* Length of addresses used in tweakable hash functions (including unspecified global/context part) *)
 const adrs_len : { int | 4 <= adrs_len} as ge4_adrslen.
 
+(* *)
 op valid_idxvals : int list -> bool.
 
 op valid_adrsidxs (adidxs : int list) =
@@ -551,12 +556,12 @@ op valid_xidxvalsgp : int list -> bool.
     
 op valid_xidxvals (adidxs : int list) =
   valid_xidxvalsgp (drop 4 adidxs) /\ valid_xidxvalslp (take 4 adidxs).
-
-axiom valid_xidxvals_idxvals : 
-  valid_xidxvals <= valid_idxvals.
   
 op valid_xadrsidxs (adidxs : int list) =
   size adidxs = adrs_len /\ valid_xidxvals adidxs.
+
+axiom valid_xidxvals_idxvals : 
+  valid_xidxvals <= valid_idxvals.
   
 lemma valid_xadrsidxs_adrsidxs :
   valid_xadrsidxs <= valid_adrsidxs.
@@ -566,8 +571,8 @@ by apply valid_xidxvals_idxvals.
 qed.
 
 
-  
-(* --- Types (2/2) --- *)
+
+(* --- Types (1/3) --- *)
 (* Addresses used in tweakable hash functions *)
 clone import HashAddresses as HA with
   type index <= int,
@@ -582,7 +587,10 @@ import Adrs.
 
 type adrs = HA.adrs.
 
-(* WOTS-TW (in encompassing structure) *)
+
+
+(* --- Clones and imports --- *)
+(* WOTS-TW *)
 clone import WOTS_TW as WTW with
   op adrs_len <- adrs_len,
   op n <- n,
@@ -615,6 +623,8 @@ clone import WOTS_TW as WTW with
 import DigestBlock DBLL WAddress EmsgWOTS.
 
 
+
+(* --- Types (2/3) --- *)
 (* Integers between 0 (including) and l (including), used for the signing index *)
 clone import Subtype as Index with
   type T <= int,
@@ -624,7 +634,6 @@ clone import Subtype as Index with
   realize inhabited by exists 0; smt(ge2_l).
   
 type index = Index.sT.
-
 
 (* Lists of length h of which the entries are digest of length 1 (block of 8 * n bits) *)
 clone import Subtype as DBHL with
@@ -657,8 +666,8 @@ op [lossless full uniform] dmsgFLXMSSTW : msgFLXMSSTW distr.
 
 
 
-(* --- Operators (2/2) --- *)
-(* - Validity/type checks for addresses - *)
+(* --- Operators --- *)
+(* - Validity/type checks for (indices corresponding to) XMSS-TW addresses - *)
 op valid_xidxchvals (adidxs : int list) : bool =
   valid_xidxvalsgp (drop 4 adidxs) /\ valid_xidxvalslpch (take 4 adidxs).
 
@@ -741,7 +750,8 @@ rewrite /valid_xidxchvals /valid_xidxpkcovals => -[-> /=].
 rewrite /valid_xidxvalslpch /valid_xidxvalslppkco ?nth_take //; smt(dist_adrstypes).
 qed.
 
-(* - Address/Indices setters - *)
+
+(* - Setters - *)
 op set_typeidx (ad : adrs) (i : int) : adrs =
   insubd (put (put (put (put (val ad) 0 0) 1 0) 2 0) 3 i).
 
@@ -750,7 +760,6 @@ op set_kpidx (ad : adrs) (i : int) : adrs =
   
 op set_thtbidx (ad : adrs) (i j : int) : adrs =
   insubd (put (put (val ad) 0 j) 1 i).
-
 
 lemma validxadrschidxs_puttypeidx (adidxs : int list) :
      valid_xadrsidxs adidxs
@@ -772,7 +781,6 @@ rewrite ?drop_putK // => [#] -> /=.
 by rewrite ?nth_take // ?nth_put ?size_put ?size_take; smt(ge4_adrslen val_w ge2_len ge2_l).
 qed.
 
-
 lemma validxadrstrhidxs_puttypeidx (adidxs : int list) :
      valid_xadrsidxs adidxs
   => valid_xadrstrhidxs (put (put (put (put adidxs 0 0) 1 0) 2 0) 3 trhtype).
@@ -782,7 +790,6 @@ rewrite eqadl /= /valid_xidxvals /valid_xidxvalslp /valid_xidxvalslptrh.
 rewrite ?drop_putK // => [#] -> /=.
 by rewrite ?nth_take // ?nth_put ?size_put ?size_take; smt(ge4_adrslen val_w ge2_len ge2_l ge1_h).
 qed. 
-
 
 lemma validxadrschidxs_putkpidx (adidxs : int list) (i : int) :
      valid_xadrschidxs adidxs
@@ -824,14 +831,12 @@ rewrite eqadl ?drop_putK // take_put //= => -> /= @/valid_xidxvalslpch.
 by rewrite ?nth_put ?size_take //=; smt(ge4_adrslen). 
 qed.
 
-
 lemma validxadrschidxs_putchhidx (adidxs : int list) (i j : int) :
      valid_xadrschidxs adidxs
   => valid_chidx i
   => valid_hidx j
   => valid_xadrschidxs (put (put adidxs 1 i) 0 j).
 proof. smt(validxadrschidxs_puthidx validxadrschidxs_putchidx). qed.
-
 
 lemma validxadrstrhidxs_putthtbidx (adidxs : int list) (i j : int) :
      valid_xadrstrhidxs adidxs
@@ -857,7 +862,6 @@ rewrite /valid_xadrsch /valid_xadrschidxs /set_typeidx /valid_xidxchvals ?insubd
 rewrite ?size_put szad /= ?drop_putK // valgp /= ?take_put //= /valid_xidxvalslpch.
 rewrite ?nth_put ?size_put ?size_take //=; smt(ge4_adrslen val_w ge2_len ge2_l).
 qed.
-
 
 lemma validxadrspkco_settypeidx (ad : adrs) :
      valid_xadrs ad
@@ -887,7 +891,6 @@ rewrite ?size_put szad /= ?drop_putK // valgp /= ?take_put //= /valid_xidxvalslp
 rewrite ?nth_put ?size_put ?size_take //=; smt(ge4_adrslen val_w ge2_len ge2_l ge1_h).
 qed.
 
-
 lemma validxadrsch_setkpidx (ad : adrs) (i : int) :
      valid_xadrsch ad
   => valid_kpidx i
@@ -915,7 +918,6 @@ rewrite /valid_xadrsch /set_hidx /set_idx => valad vali.
 by rewrite insubdK 1:valid_xadrsidxs_adrsidxs 1:valid_xadrschidxs_xadrsidxs validxadrschidxs_puthidx.
 qed.
  
-
 lemma validxadrsch_setchidx (ad : adrs) (i : int) :
      valid_xadrsch ad
   => valid_chidx i
@@ -924,7 +926,6 @@ proof.
 rewrite /valid_xadrsch /set_chidx /set_idx => valad vali.
 by rewrite insubdK 1:valid_xadrsidxs_adrsidxs 1:valid_xadrschidxs_xadrsidxs validxadrschidxs_putchidx.
 qed.
-
 
 lemma validxadrsch_setchhidx (ad : adrs) (i j : int) :
      valid_xadrsch ad
@@ -1023,7 +1024,6 @@ by rewrite validxadrschidxs_puthidx //; smt(validxadrsch_setchidx validxadrsch_s
 by rewrite validxadrschidxs_puthidx //; smt(validxadrsch_setchidx validxadrsch_setkpidx).
 qed.
 
-
 lemma neq_after_setthtbidx (ad ad' : adrs) (i i' j j'  : int) :
      valid_xadrstrh ad
   => valid_xadrstrh ad'
@@ -1046,15 +1046,6 @@ rewrite -{1}(Adrs.insubdK (put _ _ i)) 2:-{1}(Adrs.insubdK (put _ _ i')) ?valid_
 by apply contra => ->.
 qed.
 
-(*
-(* 
-  'Sets' tree height and tree breadth indices in given address to given i and j, respecitvely. 
-  That is, if given address corresponds to indices (a, b, c, d, _, _), then
-  this obtains the address corresponding to (a, b, c, d, i, j) 
-*)
-op set_thtbidx (ad : adrs) (i j: int) : adrs =
-  get_adrs ((get_adidxs ad).`1, (get_adidxs ad).`2, (get_adidxs ad).`3, (get_adidxs ad).`4, i, j).
-*)
 
 (* -- Tweakable hash functions -- *)
 (* 
@@ -1444,14 +1435,14 @@ op val_ap_trh (ap : apFLXMSSTW) (idx : index) (leaf : dgstblock) (ps : pseed) (a
 (* --- Types (3/3) -- *)
 (* -- General -- *)
 (*
-  FL-XMSS-TW addresses
+  XMSS-TW addresses
   Introduced only for the purpose of the proof; specifically, to ensure that 
-  the adversary provides us with a valid FL-XMSS-TW addresses in the security notion. 
+  the adversary provides us with a valid XMSS-TW addresses in the security notion. 
   Essentially, this excludes the "irrelevant"
   adversaries that provide invalid addresses from the considered class of
-  adversaries. Equivalently, we could extend the behavioral check on the adversary
+  adversaries. Equivalently, we could introduce a behavioral check on the adversary
   at the end of the game (i.e., only let the adversary succeed if the
-  provided address is a valid FL-XMSS-TW address). Furthermore, this approach
+  provided address is a valid XMSS-TW address). Furthermore, this approach
   would also be equivalent to having no subtype or extended behavioral check
   but instead have the considered scheme/oracle do input sanitization (i.e., have the scheme
   check whether the provided address ia a valid FL-XMSS-TW addresses).   
@@ -1463,7 +1454,8 @@ clone import Subtype as XAddress with
 type xadrs = XAddress.sT.
 
 
-(* --- Fixed-Length XMSS-TW in encompassing structure --- *)
+
+(* --- Specification and Proof --- *)
 (* -- Specification of Fixed-Length XMSS-TW in encompassing structure -- *)
 module FL_XMSS_TW_ES = {
   (* Compute list of leaves from a secret seed, public seed, and address *) 
@@ -4834,10 +4826,16 @@ end section Proof_EUF_RMA_FLXMSSTWES.
 end ES.
 
 
+
 (* --- Fixed-Length XMSS-TW as standalone --- *)
 theory SA.
 
+
 (* -- Clones, includes, and imports -- *)
+(* 
+  Fixed-Length XMSS-TW in an encompassing structure without the global parts of addresses 
+  In other words, the XMSS-TW addresses constitute the full set of addresses
+*) 
 clone include ES with
   op adrs_len <- 4,
   op valid_idxvals <- valid_xidxvalslp,
@@ -4864,7 +4862,7 @@ clone include ES with
 
 import WTW XAddress. 
   
-(* Import relevant definitions for key-updating signature scheme *)
+(* Key-updating signature scheme *)
 clone import DigitalSignatures as FLXMSSTW with
   type pk_t <= pkFLXMSSTW,
   type sk_t <= skFLXMSSTW,

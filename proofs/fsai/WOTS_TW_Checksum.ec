@@ -11,7 +11,7 @@ theory Checksum.
 
   clone import Subtype as BaseW with
     type T   <= int,
-    pred P x <= 0 <= x < w
+      op P x <= 0 <= x < w
     rename [type] "sT" as "baseW".
 
   op int2lbw (l n : int) =

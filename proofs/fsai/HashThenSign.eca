@@ -167,7 +167,7 @@ import DSS_FL_EUFRMA.
   (because drco is full and uniform)
 *) 
 lemma p_max_rcom (m : msg_al_t) :
-  p_max (dmap drco (fun (rco : rco_t) => (rco, m))) = mu1 drco witness.
+  Repro.p_max (dmap drco (fun (rco : rco_t) => (rco, m))) = mu1 drco witness.
 proof.
 apply ler_anti; split => [|_].
 + move: (listmax_in Real.(<=) RealOrder.ler_trans RealOrder.ler_total). 

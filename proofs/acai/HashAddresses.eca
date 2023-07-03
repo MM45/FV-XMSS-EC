@@ -22,7 +22,6 @@ rewrite negb_imply => neqnthi; apply (neq_from_nth x0) => //.
 by exists i.
 qed.
 
-(* *)
 const l : { int | 1 <= l } as ge1_l.
 
 type index.

@@ -60,14 +60,14 @@ type 'a bintree = [
 (* Integers between 0 (including) and l (including), used for the signing index *)
 clone import Subtype as Index with
   type T <= int,
-  pred P <= fun (i : int), 0 <= i < l.
+    op P <= fun (i : int), 0 <= i < l.
 
 type index = Index.sT.
 
 (* Lists of length h of which the entries are digest of length 1 (block of 8 * n bits) *)
 clone import Subtype as DBHL with
   type T <= dgstblock list,
-  pred P <= fun (ls : dgstblock list) => size ls = h.
+    op P <= fun (ls : dgstblock list) => size ls = h.
    
 (* Authentication paths in Fixed-Length XMSS-TW binary hash tree *)
 type apFLXMSSTW = DBHL.sT.
