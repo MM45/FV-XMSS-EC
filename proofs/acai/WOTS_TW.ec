@@ -3948,7 +3948,7 @@ local module Game4_WOTSTWES_Alt = {
   }
 }.
 
-(* Equivalence between Game3_WOTSTWES and Game3_WOTSTWES_Alt *)
+(* Equivalence between Game4_WOTSTWES and Game4_WOTSTWES_Alt *)
 local equiv Game4_WOTSTWES_Orig_Alt :
   Game4_WOTSTWES.main ~ Game4_WOTSTWES_Alt.main : ={glob A} ==> ={res}.
 proof.
@@ -6707,7 +6707,7 @@ apply (ler_trans (  `|Pr[Game0_WOTSTWES.main() @ &m : res] -
                       Pr[M_EUF_GCMA_WOTSTWES(A, O_MEUFGCMA_WOTSTWES_NOPRF, O_THFC_Default).main() @ &m : res]|
                   +   Pr[M_EUF_GCMA_WOTSTWES(A, O_MEUFGCMA_WOTSTWES_NOPRF, O_THFC_Default).main() @ &m : res])).
 + rewrite -{4}(ger0_norm Pr[M_EUF_GCMA_WOTSTWES(A, O_MEUFGCMA_WOTSTWES_NOPRF, O_THFC_Default).main() @ &m : res]). 
-  - by rewrite Pr[mu_ge0]. 
+  - by rewrite Pr[mu_ge0].
   by apply ler_norm_add.
 by rewrite -2!addrA ler_add 1:Step_Game0_MEUFGCMA_WOTSTWES_NOPRF_PRF // addrA.
 qed.
