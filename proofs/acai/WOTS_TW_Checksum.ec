@@ -11,7 +11,10 @@ theory Checksum.
 
   clone import Subtype as BaseW with
     type T   <= int,
-      op P x <= 0 <= x < w.
+      op P x <= 0 <= x < w
+      
+    proof *.
+    realize inhabited by exists 0; rewrite gt0_w.
       
   type baseW = BaseW.sT.
 

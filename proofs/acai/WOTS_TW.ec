@@ -12,16 +12,15 @@ require (*--*) HashAddresses KeyedHashFunctions TweakableHashFunctions DigitalSi
 
 (* --- Generic auxilliary properties --- *)
 lemma gt_exprsbde (x n m : int) :
-  1 < x => 0 <= n => n < m => x ^ n < x ^ m.
+  1 < x => 0 <= n < m => x ^ n < x ^ m.
 proof.
-move=> gt1_x ge0_n gtn_m. 
+move=> gt1_x [ge0_n gtn_m]. 
 have ge0_m: 0 <= m by smt(). 
 elim: n ge0_n m ge0_m gtn_m => [| i ge0_i ih m ge0_m gti1_m].
 + by elim => [/# | *]; rewrite expr0 exprn_egt1 /#.
 rewrite exprD_nneg // expr1 (: m = m - 1 + 1) // exprD_nneg 1:/# // expr1.
 by rewrite ltr_pmul2r 2:(ih (m - 1)) /#.
 qed.
-
 
 lemma drop_putK (s : 'a list) (i j : int) (x : 'a) :
      j < i 
@@ -41,7 +40,6 @@ elim: s i j => [ * | x' s ih i j [ge0_i gei_j] /=]; 1: smt(put_empty).
 case (i = 0) => [-> /# | neq0_i].
 by rewrite put_consS 1:/# /= (: ! i <= 0) 1:/# /= ih /#.
 qed.
-
 
 lemma take_putK (s : 'a list) (i j : int) (x : 'a) :
      i <= j 

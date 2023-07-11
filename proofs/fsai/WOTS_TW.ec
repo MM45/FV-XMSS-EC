@@ -2338,7 +2338,10 @@ have /#: exists q, q \in qs /\ eq_preffour q.`1 ad.
 + move/flatten_mapP: adin => [q] [qin /= /flatten_mapP [i [/mem_iota /= rng_i]]].
   case (BaseW.val (encode_msgWOTS q.`2).[i] <> 0) => valem; rewrite mapP => -[j [/mem_iota /= rng_j ->]].
   - exists q; split => [// | @/eq_preffour @/get_preffour @/set_htbidx @/set_chthidx /=].  
-    by rewrite ?getadrsK 1,2,3:-madrs_dom /valid_adidxs //=; smt(allP all_map madidxs_valid dist_adrstypes BaseW.valP).
+    rewrite ?getadrsK 1,2,3:-madrs_dom /valid_adidxs //=; split; 1,3,5: smt(madidxs_valid).
+    * by left; split; smt(allP all_map madidxs_valid dist_adrstypes BaseW.valP).
+    * by left; split; smt(allP all_map madidxs_valid dist_adrstypes BaseW.valP).
+    * by left; split; smt(allP all_map madidxs_valid dist_adrstypes BaseW.valP).
   exists q; split => [// | @/eq_preffour @/get_preffour @/set_htbidx @/set_chthidx /=].
   by rewrite ?getadrsK 1,2,3:-madrs_dom //=; smt(allP all_map madidxs_valid dist_adrstypes BaseW.valP).
 qed.

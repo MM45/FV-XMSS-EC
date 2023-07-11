@@ -12,8 +12,12 @@ theory Checksum.
   clone import Subtype as BaseW with
     type T   <= int,
       op P x <= 0 <= x < w
-    rename [type] "sT" as "baseW".
-
+      
+    rename [type] "sT" as "baseW"
+    
+    proof *.
+    realize inhabited by exists 0; rewrite gt0_w.
+    
   op int2lbw (l n : int) =
     mkseq (fun (i : int) => BaseW.insubd ((n %/ w ^ (l - 1 - i)) %% w)) l.
 

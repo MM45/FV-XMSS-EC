@@ -12,16 +12,6 @@ case (i = 0) => [/# | neq0_i neq_nth]; rewrite negb_and; right.
 by rewrite (ih s2) 1,3:/#; exists (i - 1) => /#.
 qed.
 
-lemma eq_from_nthC (x0 : 'a) (s1 s2 : 'a list) :
-     size s1 = size s2
-  => s1 = s2
-  => (forall (i : int), 0 <= i && i < size s1 => nth x0 s1 i = nth x0 s2 i).
-proof.
-move=> eqsz; rewrite &(contraLR) negb_forall /= => -[i].
-rewrite negb_imply => neqnthi; apply (neq_from_nth x0) => //.
-by exists i.
-qed.
-
 const l : { int | 1 <= l } as ge1_l.
 
 type index.
@@ -59,7 +49,7 @@ lemma eq_adrs_idxsq (ad ad' : adrs) :
 proof. 
 rewrite -eq_adrs_idxs /eq_idx; split => [eqidx | eqvad].
 + by apply (eq_from_nth witness); smt(valP).
-by move: (eq_from_nthC witness (val ad) (val ad') _ eqvad); smt(valP).
+by move=> i @/get_idx; rewrite eqvad.
 qed.
       
 lemma getidx_df_setidx (ad : adrs) (i j : int) (x : index) :

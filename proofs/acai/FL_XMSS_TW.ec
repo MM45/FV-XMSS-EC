@@ -429,7 +429,7 @@ proof. by elim: s i j => //= /#. qed.
 lemma take_take (s : 'a list) (i j : int) :
   take i (take j s) = if i <= j then take i s else take j s.
 proof. by elim: s i j => // /#. qed.
-
+  
 
 
 (* --- Parameters --- *)
@@ -546,7 +546,6 @@ theory ES.
 (* Length of addresses used in tweakable hash functions (including unspecified global/context part) *)
 const adrs_len : { int | 4 <= adrs_len} as ge4_adrslen.
 
-(* *)
 op valid_idxvals : int list -> bool.
 
 op valid_adrsidxs (adidxs : int list) =
