@@ -64,15 +64,10 @@ lemma take_put (s : 'a list) (i j : int) (x : 'a) :
   take i (put s j x) = if i <= j then take i s else put (take i s) j x.
 proof. by case (i <= j) => [| /ltzNge]; [apply take_putK | apply take_putC]. qed.
 
-lemma neq_from_nth (x0 : 'a) (s1 s2 : 'a list) :
-     size s1 = size s2 
-  => (exists (i : int), 0 <= i < size s1 /\ nth x0 s1 i <> nth x0 s2 i) 
+lemma neq_from_nth (x0 : 'a) (s1 s2 : 'a list) (i : int) :
+     nth x0 s1 i <> nth x0 s2 i 
   => s1 <> s2.
-proof.
-elim: s1 s2 => [/# | x1 s1 ih [// | x2 s2 /= eq_sz1 [i] [rng_i]]].
-case (i = 0) => [/# | neq0_i neq_nth]; rewrite negb_and; right.
-by rewrite (ih s2) 1,3:/#; exists (i - 1) => /#.
-qed.
+proof. by apply contra => ->. qed.
 
 lemma nth_nmem (s : 'a list) (x : 'a) :
      (forall (i : int), 0 <= i < size s => nth witness s i <> x)
@@ -996,8 +991,8 @@ move: (two_encodings (insubd ((put (val m) 0 (! (nth witness (val m) 0))))) m _)
 + pose pm := DigestBlock.insubd _. 
   have: val pm <> val m; last by apply contraLR => /= ->.
   rewrite /pm insubdK 1:size_put 1:valP //.
-  apply (neq_from_nth witness); first by rewrite size_put.
-  by exists 0 => /=; rewrite nth_put /= 2:size_put valP; smt(ge1_n).
+  apply (neq_from_nth witness _ _ 0).
+  by rewrite nth_put 1:valP; smt(ge1_n).
 elim=> i [rng_i ltvm_vpm].
 by exists i; smt(BaseW.valP).
 qed.

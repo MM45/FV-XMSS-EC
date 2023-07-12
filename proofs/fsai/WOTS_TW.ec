@@ -12,9 +12,9 @@ require (*--*) KeyedHashFunctions TweakableHashFunctions DigitalSignatures.
 
 (* --- Generic auxilliary properties --- *)
 lemma gt_exprsbde (x n m : int) :
-  1 < x => 0 <= n => n < m => x ^ n < x ^ m.
+  1 < x => 0 <= n < m => x ^ n < x ^ m.
 proof.
-move=> gt1_x ge0_n gtn_m. 
+move=> gt1_x [ge0_n gtn_m]. 
 have ge0_m: 0 <= m by smt(). 
 elim: n ge0_n m ge0_m gtn_m => [| i ge0_i ih m ge0_m gti1_m].
 + by elim => [/# | *]; rewrite expr0 exprn_egt1 /#.
@@ -22,15 +22,10 @@ rewrite exprD_nneg // expr1 (: m = m - 1 + 1) // exprD_nneg 1:/# // expr1.
 by rewrite ltr_pmul2r 2:(ih (m - 1)) /#.
 qed.
 
-lemma neq_from_nth (x0 : 'a) (s1 s2 : 'a list) :
-     size s1 = size s2 
-  => (exists (i : int), 0 <= i < size s1 /\ nth x0 s1 i <> nth x0 s2 i) 
+lemma neq_from_nth (x0 : 'a) (s1 s2 : 'a list) (i : int) :
+     nth x0 s1 i <> nth x0 s2 i 
   => s1 <> s2.
-proof.
-elim: s1 s2 => [/# | x1 s1 ih [// | x2 s2 /= eq_sz1 [i] [rng_i]]].
-case (i = 0) => [/# | neq0_i neq_nth]; rewrite negb_and; right.
-by rewrite (ih s2) 1,3:/#; exists (i - 1) => /#.
-qed.
+proof. by apply contra => ->. qed.
 
 lemma nth_nmem (s : 'a list) (x : 'a) :
      (forall (i : int), 0 <= i < size s => nth witness s i <> x)
@@ -1259,8 +1254,7 @@ move: (two_encodings (insubd ((put (val m) 0 (! (nth witness (val m) 0))))) m _)
 + pose pm := DigestBlock.insubd _. 
   have: val pm <> val m; last by apply contraLR => /= ->.
   rewrite /pm insubdK 1:size_put 1:valP //.
-  apply (neq_from_nth witness); first by rewrite size_put.
-  by exists 0 => /=; rewrite nth_put /= 2:size_put valP; smt(ge1_n).
+  rewrite &(neq_from_nth witness _ _ 0) nth_put 1:valP; smt(ge1_n).
 elim=> i [rng_i ltvm_vpm].
 by exists i; smt(BaseW.valP).
 qed.

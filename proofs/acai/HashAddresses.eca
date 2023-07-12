@@ -2,15 +2,10 @@ require import AllCore List.
 require Subtype.
 
 (* Generic auxiliary properties *)
-lemma neq_from_nth (x0 : 'a) (s1 s2 : 'a list) :
-     size s1 = size s2 
-  => (exists (i : int), 0 <= i < size s1 /\ nth x0 s1 i <> nth x0 s2 i) 
+lemma neq_from_nth (x0 : 'a) (s1 s2 : 'a list) (i : int) :
+     nth x0 s1 i <> nth x0 s2 i 
   => s1 <> s2.
-proof.
-elim: s1 s2 => [/# | x1 s1 ih [// | x2 s2 /= eq_sz1 [i] [rng_i]]].
-case (i = 0) => [/# | neq0_i neq_nth]; rewrite negb_and; right.
-by rewrite (ih s2) 1,3:/#; exists (i - 1) => /#.
-qed.
+proof. by apply contra => ->. qed.
 
 const l : { int | 1 <= l } as ge1_l.
 
@@ -96,8 +91,7 @@ lemma neq_after_setidx_sida (ad ad' : adrs) (i j : int) (x x' : index) :
 proof.
 move=> @/valid_setidx neqi_j rng_j neqidxj valset valsetp.
 rewrite -eq_adrs_idxs /set_idx ?insubdK 1,2://.
-rewrite &(neq_from_nth witness) ?size_put; 1: smt(valP).
-exists j; split; 1: smt(valP).
+rewrite &(neq_from_nth witness _ _ j).
 case (0 <= i < l) => rng_i.
 + rewrite ?nth_put; 1,2: smt(valP).
   by rewrite neqi_j /= /#.
@@ -113,7 +107,6 @@ lemma neq_after_setidx_sidv (ad ad' : adrs) (i : int) (x x' : index) :
 proof.
 move=> @/valid_setidx neqx_xp rng_i valset valsetp.
 rewrite -eq_adrs_idxs /set_idx ?insubdK 1,2://.
-rewrite &(neq_from_nth witness) ?size_put; 1: smt(valP).
-exists i; split; 1: smt(valP).
+rewrite &(neq_from_nth witness _ _ i).
 by rewrite ?nth_put; 1,2: smt(valP).
 qed.

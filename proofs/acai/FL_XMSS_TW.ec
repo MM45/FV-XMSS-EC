@@ -977,8 +977,7 @@ lemma neq_wgp_after_setkpidxch (ad ad' : adrs) (i i'  : int) :
   => get_wgpidxs (set_kpidx ad i) <> get_wgpidxs (set_kpidx ad' i').
 proof.
 move=> valad valadp vali valip neqip_i @/get_wgpidxs.
-rewrite (neq_from_nth witness) ?size_drop // ?lez_maxr; 1..4: smt(Adrs.valP ge4_adrslen).
-exists 0; rewrite ?nth_drop //= /set_kpidx /set_idx; split; 1: smt(Adrs.valP ge4_adrslen). 
+rewrite &(neq_from_nth witness _ _ 0) ?nth_drop //= /set_kpidx /set_idx. 
 rewrite ?insubdK ?valid_xadrsidxs_adrsidxs ?valid_xadrschidxs_xadrsidxs ?validxadrschidxs_putkpidx 1..4:/#.
 by rewrite ?nth_put //; smt(Adrs.valP ge4_adrslen).
 qed.
@@ -1035,12 +1034,8 @@ lemma neq_after_setthtbidx (ad ad' : adrs) (i i' j j'  : int) :
 proof. 
 move=> valad valadp vali valip valj valjp neqij @/set_thtbidx.
 have: put (put (val ad) 0 j) 1 i <> put (put (val ad') 0 j') 1 i'. 
-+ rewrite (neq_from_nth witness) 1:?size_put //; 1:smt(Adrs.valP). 
-  move: neqij => -[neqip_i | neqjp_j]; [exists 1 | exists 0]; rewrite ?size_put.
-  - split; 1: smt(Adrs.valP ge4_adrslen).
-    by rewrite ?nth_put ?size_put; smt(Adrs.valP ge4_adrslen).
-  split; 1: smt(Adrs.valP ge4_adrslen).
-  by rewrite ?nth_put ?size_put; smt(Adrs.valP ge4_adrslen).
++ move: neqij => -[neqip_i | neqjp_j].
+  - by rewrite &(neq_from_nth witness _ _ 1) ?nth_put ?size_put; smt(Adrs.valP ge4_adrslen).  by rewrite &(neq_from_nth witness _ _ 0) ?nth_put ?size_put; smt(Adrs.valP ge4_adrslen). 
 rewrite -{1}(Adrs.insubdK (put _ _ i)) 2:-{1}(Adrs.insubdK (put _ _ i')) ?valid_xadrsidxs_adrsidxs ?valid_xadrstrhidxs_xadrsidxs 1,2:validxadrstrhidxs_putthtbidx //. 
 by apply contra => ->.
 qed.
