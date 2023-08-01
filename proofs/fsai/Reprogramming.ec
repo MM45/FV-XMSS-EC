@@ -8,22 +8,19 @@ type hash.
 
 type pT = from distr.
 
-clone import MUniFinFun as MUFF with
+clone import FinType as FinFrom with
   type t <- from.
-
-clone import MUniFinFun as MUFFH with
-  type t <- hash.
-
+  
 op [lossless] dhash : hash distr.
     
 op p_max (d : pT) =
- listmax Real.(<=) 0%r (map (fun x => mu d (fun p => x = p)) MUFF.FinT.enum).
+ listmax Real.(<=) 0%r (map (fun x => mu d (fun p => x = p)) FinFrom.enum).
 
 lemma p_maxE (d : pT) (x : from) : mu d (fun p  => x = p) <= p_max d.
 proof.
   apply listmax_gt_in.
   + by apply ler_trans. + by apply ler_total.
-  apply mapP; exists x => //=; apply MUFF.FinT.enumP.
+  apply mapP; exists x => //=; apply FinFrom.enumP.
 qed.
 
 lemma p_max_ge0 (d : pT) : 0%r <= p_max d.
@@ -42,7 +39,7 @@ clone import ROM as ROM_ with
 
   
 clone import ROM_.LazyEager as LE with 
-  theory FinType <- MUFF.FinT
+  theory FinType <- FinFrom
   
   proof *.
   

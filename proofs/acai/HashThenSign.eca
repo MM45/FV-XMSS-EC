@@ -42,9 +42,6 @@ type sk_fl_t.
 (* Messages (assumed to be finite) *)
 type msg_fl_t.
 
-clone import FinType as MSG_FL with
-  type t <= msg_fl_t.
-
 (* Signatures *)
 type sig_fl_t.
 
@@ -129,14 +126,13 @@ clone import Reprogramming as Repro with
          
       op dhash <- dmsg_fl,
       
-  theory MUFF.FinT <- RCOMSGAL,
-  theory MUFFH.FinT <- MSG_FL,
+  theory FinFrom <- RCOMSGAL,
   theory ROM_ <- MCORO,
   theory LE <- MCOROLE
   
   proof *. 
   realize dhash_ll by exact: dmsg_fl_ll.
-
+  
 (* Equivalence between the considered interactive EUF-RMA and regular EUF-RMA notions *)
 clone import EUFRMA_Interactive_Equiv as EUFRMAEqv with
   type msg_t <- msg_fl_t,

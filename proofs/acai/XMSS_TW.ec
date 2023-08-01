@@ -168,7 +168,6 @@ clone import HashThenSign as HtS with
     op WithPRF.dms <= dmseed,
     
   theory RCO <= MKey,
-  theory MSG_FL <= DigestBlockFT,
   theory MSG_AL <= MsgXMSSTW,
   theory MCORO <= MCORO,
   theory MCOROLE <= MCOROLE,
