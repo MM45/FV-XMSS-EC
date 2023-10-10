@@ -43,8 +43,6 @@ clone import ROM_.LazyEager as LE with
   proof *.
   
 
-print POracle.
-
 module type Oracle_r = {
     include Oracle
     proc set(x : from, Y : hash) : unit

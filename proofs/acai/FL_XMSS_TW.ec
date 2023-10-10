@@ -8,7 +8,6 @@ require (*--*) Word Subtype.
 (* -- Local -- *)
 require (*--*) WOTS_TW.
 require (*--*) TweakableHashFunctions DigitalSignatures HashAddresses.
-(* (*---*) import DigestBlock DBLL ChainingAddress EmsgWOTS. *)
 
 
 
@@ -573,7 +572,7 @@ qed.
 
 (* --- Types (1/3) --- *)
 (* Addresses used in tweakable hash functions *)
-clone import HashAddresses as HA with
+clone import HashAddresses as HAX with
   type index <= int,
     op l <- adrs_len,
     op valid_idxvals <- valid_idxvals,
@@ -584,9 +583,7 @@ clone import HashAddresses as HA with
 
 import Adrs.
 
-type adrs = HA.adrs.
-
-
+type adrs = HAX.adrs.
 
 (* --- Clones and imports --- *)
 (* WOTS-TW *)
@@ -603,9 +600,8 @@ clone import WOTS_TW as WTW with
   op valid_adrsidxs <- valid_adrsidxs,
   op valid_widxvalsgp adidxswgp <=    valid_kpidx (nth witness adidxswgp 0) 
                                    /\ nth witness adidxswgp 1 = chtype
-                                   /\ valid_xidxvalsgp (drop 2 adidxswgp),
-  
-  theory HA <- HA
+                                   /\ valid_xidxvalsgp (drop 2 adidxswgp),  
+  theory HAW.Adrs <- HAX.Adrs
   
   proof ge2_adrslen, ge1_n, val_log2w, ge1_d, valid_widxvals_idxvals.
   realize ge2_adrslen by smt(ge4_adrslen).
@@ -4835,23 +4831,23 @@ clone include ES with
   op valid_idxvals <- valid_xidxvalslp,
   op valid_xidxvalsgp <- predT
   
-  proof ge4_adrslen, valid_xidxvals_idxvals, HA.Adrs.inhabited, WTW.WAddress.inhabited, XAddress.inhabited.
+  proof ge4_adrslen, valid_xidxvals_idxvals, HAX.Adrs.inhabited, WTW.WAddress.inhabited, XAddress.inhabited.
   realize ge4_adrslen by trivial.
   realize valid_xidxvals_idxvals. 
     rewrite /(<=) => adidxs @/valid_xidxvals @/valid_xidxvalslp @/predT /=.
     rewrite /valid_xidxvalslpch /valid_xidxvalslppkco /valid_xidxvalslptrh.
     by rewrite ?nth_take.
   qed.
-  realize HA.Adrs.inhabited by exists [0; 0; 0; pkcotype]; smt(ge2_l).
+  realize HAX.Adrs.inhabited by exists [0; 0; 0; pkcotype]; smt(ge2_l).
   realize WTW.WAddress.inhabited. 
     rewrite /valid_wadrs /valid_wadrsidxs /valid_widxvals /predT /valid_widxvalslp.
-    exists (HA.Adrs.insubd [0; 0; 0; chtype]).
-    by rewrite ?HA.Adrs.insubdK /valid_adrsidxs /= /valid_xidxvalslp /valid_xidxvalslpch /=; smt(ES.WTW.val_w ES.WTW.ge2_len ge2_l).
+    exists (HAX.Adrs.insubd [0; 0; 0; chtype]).
+    by rewrite ?HAX.Adrs.insubdK /valid_adrsidxs /= /valid_xidxvalslp /valid_xidxvalslpch /=; smt(ES.WTW.val_w ES.WTW.ge2_len ge2_l).
   qed.
   realize XAddress.inhabited. 
-    exists (HA.Adrs.insubd [0; 0; 0; pkcotype]).
+    exists (HAX.Adrs.insubd [0; 0; 0; pkcotype]).
     rewrite /valid_xadrs /valid_xadrsidxs /valid_xidxvals /valid_xidxvalslp.       
-    by rewrite HA.Adrs.insubdK /predT //= /valid_adrsidxs /valid_xidxvalslp /valid_xidxvalslppkco /=; smt(ge2_l).
+    by rewrite HAX.Adrs.insubdK /predT //= /valid_adrsidxs /valid_xidxvalslp /valid_xidxvalslppkco /=; smt(ge2_l).
   qed.
 
 import WTW XAddress. 

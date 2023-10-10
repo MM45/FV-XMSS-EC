@@ -591,8 +591,8 @@ qed.
 
 (* --- Types (2/2) --- *)
 (* Addresses used in tweakable hash functions *)
-clone import HashAddresses as HA with
-  type index <- int,
+clone import HashAddresses as HAW with
+  type index <= int,
     op l <- adrs_len,
     op valid_idxvals <- valid_idxvals,
     op valid_adrsidxs <- valid_adrsidxs
@@ -601,7 +601,7 @@ clone import HashAddresses as HA with
 
 import Adrs.
 
-
+type adrs = HAW.adrs.
 
 (* --- Operators (2/2) --- *)
 (* -- Setters and getters -- *)  
@@ -2019,9 +2019,11 @@ rewrite uniq_flatten_map_in => [| q q' qin qpin |] /=; last first.
   - rewrite all_map /preim allP => i /mem_iota [ge0_i /= ltlen_i].
     case (BaseW.val (encode_msgWOTS q.`2).[i] <> 0) => ?.
     * rewrite map_inj_in_uniq 2:iota_uniq => j k /mem_iota /= rng_j /mem_iota /= rng_k.
-      by apply: contraLR => neqk_j; apply: neq_after_sethidx; smt(validwadrs_setchidx allP all_map BaseW.valP).
+      apply: contraLR => neqk_j. 
+      by apply: neq_after_sethidx; smt(validwadrs_setchidx allP all_map BaseW.valP).
     rewrite map_inj_in_uniq 2:iota_uniq => j k /mem_iota /= rng_j /mem_iota /= rng_k. 
-    by apply: contraLR => neqk_j; apply: neq_after_sethidx => //=; smt(validwadrs_setchidx allP all_map BaseW.valP).
+    apply: contraLR => neqk_j. 
+    by apply: neq_after_sethidx => //=; smt(validwadrs_setchidx allP all_map BaseW.valP).
   move=> rng_i rng_j; apply: contraLR => neqj_i; rewrite hasPn => ad.
   case (BaseW.val (encode_msgWOTS q.`2).[j] <> 0) => ?; rewrite mapP => -[j'] [] /mem_iota /= ? ->.
   - case (BaseW.val (encode_msgWOTS q.`2).[i] <> 0) => ?; rewrite mapP negb_exists => i' /=.
