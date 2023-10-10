@@ -86,6 +86,7 @@ op [lossless full uniform] dmsg_fl : msg_fl_t distr.
 
 
 (* --- Clones and imports --- *)
+(*
 (* -- Model -- *)
 (* Random oracle *)
 clone import ROM as MCORO with
@@ -114,7 +115,7 @@ clone DigitalSignatures as DSS_FL with
   type sig_t <= sig_fl_t
   
   proof *.
-
+*)
 
 (* -- Proof-specific -- *)
 (* Reprogramming technique and corresponding bound *)
@@ -126,12 +127,17 @@ clone import Reprogramming as Repro with
          
       op dhash <- dmsg_fl,
       
-  theory FinFrom <- RCOMSGAL,
-  theory ROM_ <- MCORO,
-  theory LE <- MCOROLE
+  theory FinFrom <- RCOMSGAL
+  
+  rename [theory] "ROM_" as "MCORO"
+  rename [theory] "LE" as "MCOROLE"
   
   proof *. 
   realize dhash_ll by exact: dmsg_fl_ll.
+
+import MCORO.
+import MCOROLE.
+module MCO = ERO.
 
 (* Equivalence between the considered interactive EUF-RMA and regular EUF-RMA notions *)
 clone import EUFRMA_Interactive_Equiv as EUFRMAEqv with
@@ -143,9 +149,13 @@ clone import EUFRMA_Interactive_Equiv as EUFRMAEqv with
   op n_eufrma <- n,
   op dmsg <- dmsg_fl,
   
-  theory ClassDS <- DSS_FL
+  type ClassDS.pk_t <= pk_fl_t,
+  type ClassDS.sk_t <= sk_fl_t,
+  type ClassDS.msg_t <= msg_fl_t,
+  type ClassDS.sig_t <= sig_fl_t
   
   rename [theory] "Class_EUFRMA" as "DSS_FL_EUFRMA"
+  rename [theory] "ClassDS" as "DSS_FL"
   
   proof *. 
   realize dmsg_ll by exact: dmsg_fl_ll.
@@ -314,9 +324,7 @@ theory WithSampling.
     type d_in_t <- int,
     type d_out_t <- bool,
 
-      op doutm <- fun _ => dmsg_fl,
-
-    theory RO <- MCORO
+      op doutm <- fun _ => dmsg_fl
 
     proof *.
 
@@ -902,7 +910,7 @@ theory WithSampling.
   
   
   (* - Auxiliary reduction adversaries - *)
-    local module (R_Repro_EUFCMARORepro : DistA) (WMCO : POracle, RepWMCO : RepO_t) = {
+  local module (R_Repro_EUFCMARORepro : DistA) (WMCO : POracle, RepWMCO : RepO_t) = {
     module O_R_Repro_EUFCMARORepro = {
       include var O_CMA_CC [-sign]
 
@@ -1587,10 +1595,8 @@ theory WithPRF.
     type d_in_t <- int,
     type d_out_t <- bool,
 
-      op doutm <- fun _ => dmsg_fl,
-
-    theory RO <- MCORO
-
+      op doutm <- fun _ => dmsg_fl
+      
     proof *.
 
   import KeyUpdatingROM.

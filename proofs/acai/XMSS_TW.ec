@@ -81,65 +81,6 @@ op [lossless full uniform] dmkey : mkey distr.
 (* PRF that generates indexing keys for message compression given a seed and an index *)  
 op mkg : mseed -> index -> mkey.
 
-(*
-clone import KeyedHashFunctions as MKG with
-  type key_t <- mseed,
-  type in_t <- index,
-  type out_t <- mkey,
-  
-    op f <- mkg
-    
-  proof *.
-  
-clone import PRF as MKG_PRF with  
-  op dkey <- dmseed,
-  op doutm <- fun _ => dmkey
-  
-  proof *.
-  realize dkey_ll by exact: dmseed_ll.
-  realize doutm_ll by move=> _; apply dmkey_ll.
-
-*)
-
-(* --- Clones and imports --- *)
-(* -- Model -- *)
-(* Random oracle *)
-(*
-clone import ROM as MCORO with
-  type in_t <- mkey * msgXMSSTW,
-  type out_t <- msgFLXMSSTW,
-    op dout <- fun _ => dmsgFLXMSSTW,
-  type d_in_t <- int,
-  type d_out_t <- bool
-  
-  proof *.
-
-clone import MCORO.LazyEager as MCOROLE with
-  theory FinType <- MKeyMsgXMSSTW
-  
-  proof *. 
-
-module MCO = ERO.
-*)
-
-(* -- Scheme specification and security notions -- *)
-(*
-(* XMSS-TW (where the message compression function is considered to be an RO) *)
-clone import DigitalSignaturesROM as XMSSTW_ROM with
-  type pk_t <- pkXMSSTW,
-  type sk_t <- skXMSSTW,
-  type msg_t <- msgXMSSTW,
-  type sig_t <- sigXMSSTW,
-  
-  type in_t <- mkey * msgXMSSTW,
-  type out_t <- msgFLXMSSTW,
-  type d_in_t <- int,
-  type d_out_t <- bool,
-  
-    op doutm <- fun _ => dmsgFLXMSSTW
-  
-  proof *.
-*)
 
 (* -- Proof-specific -- *)
 (* Hash-then-sign proof technique *)
@@ -166,15 +107,6 @@ clone import HashThenSign as HtS with
     
   theory RCO <= MKey,
   theory MSG_AL <= MsgXMSSTW
-(*
-  theory MCORO <= MCORO,
-  theory MCOROLE <= MCOROLE,
-  theory DSS_FL <= FLXMSSTW,
-  theory EUFRMAEqv.DSS_FL_EUFRMA <= FLXMSSTW_EUFRMA,
-  theory WithPRF.MKG <= MKG,
-  theory WithPRF.MKG_PRF <= MKG_PRF,
-  theory WithPRF.DSS_AL_PRF <= XMSSTW_ROM
-*)
   
   proof *.
   realize ge0_n by smt(ge2_l).
@@ -339,9 +271,7 @@ declare axiom A_forge_queries (RO <: POracle{-A, -QC_A}) (SO <: SOracle_CMA{-A, 
   hoare[A(QC_A(A, RO, SO).QC_RO, QC_A(A, RO, SO).QC_SO).forge : 
     QC_A.cH = 0 /\ QC_A.cS = 0 ==> QC_A.cH <= qH /\ QC_A.cS <= qS].
 
-print EUF_CMA_RO.
-print ALKUDSS_EUFCMARO_PRF_CRRO_EUFRMA.
-locate ALKUDSS_EUFCMARO_PRF_CRRO_EUFRMA.
+
 (* -- Security theorems -- *)
 (* 
   High-level security theorem (based on EUF-RMA of FL-XMSS-TW):

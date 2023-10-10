@@ -81,68 +81,6 @@ op [lossless full uniform] dmkey : mkey distr.
 (* PRF that generates indexing keys for message compression given a seed and an index *)  
 op mkg : mseed -> index -> mkey.
 
-clone import KeyedHashFunctions as MKG with
-  type key_t <- mseed,
-  type in_t <- index,
-  type out_t <- mkey,
-  
-    op f <- mkg
-    
-  proof *.
-  
-clone import PRF as MKG_PRF with  
-  op dkey <- dmseed,
-  op doutm <- fun _ => dmkey
-  
-  proof *.
-  realize dkey_ll by exact: dmseed_ll.
-  realize doutm_ll. by move=> _; apply dmkey_ll. qed.
-
-
-
-(* --- Clones and imports --- *)
-(* -- Model -- *)
-(* Random oracle *)
-clone import ROM as MCORO with
-  type in_t <- mkey * msgXMSSTW,
-  type out_t <- msgFLXMSSTW,
-    op dout <- fun _ => dmsgFLXMSSTW,
-  type d_in_t <- int,
-  type d_out_t <- bool
-  
-  proof *.
-
-clone import MCORO.LazyEager as MCOROLE with
-  theory FinType <- MKeyMsgXMSSTW
-  
-  proof *. 
-
-module MCO = ERO.
-
-
-(* -- Scheme specification and security notions -- *)
-(* XMSS-TW (where the message compression function is considered to be an RO) *)
-clone import DigitalSignaturesROM as XMSSTW_ROM with
-  type pk_t <- pkXMSSTW,
-  type sk_t <- skXMSSTW,
-  type msg_t <- msgXMSSTW,
-  type sig_t <- sigXMSSTW,
-  
-  type in_t <- mkey * msgXMSSTW,
-  type out_t <- msgFLXMSSTW,
-  type d_in_t <- int,
-  type d_out_t <- bool,
-  
-    op doutm <- fun _ => dmsgFLXMSSTW,
-   
-  theory RO <- MCORO
-  
-  proof *.
-
-import XMSSTW_ROM.KeyUpdatingROM.
-import DSS.
-import KeyUpdating.
-
 
 (* -- Proof-specific -- *)
 (* Hash-then-sign proof technique *)
@@ -168,14 +106,7 @@ clone import HashThenSign as HtS with
     op WithPRF.dms <= dmseed,
     
   theory RCO <= MKey,
-  theory MSG_AL <= MsgXMSSTW,
-  theory MCORO <= MCORO,
-  theory MCOROLE <= MCOROLE,
-  theory DSS_FL <= FLXMSSTW,
-  theory EUFRMAEqv.DSS_FL_EUFRMA <= FLXMSSTW_EUFRMA,
-  theory WithPRF.MKG <= MKG,
-  theory WithPRF.MKG_PRF <= MKG_PRF,
-  theory WithPRF.DSS_AL_PRF <= XMSSTW_ROM
+  theory MSG_AL <= MsgXMSSTW
   
   proof *.
   realize ge0_n by smt(ge2_l).
@@ -189,9 +120,10 @@ clone import HashThenSign as HtS with
   realize drco_fu by exact: dmkey_fu.
   realize WithPRF.dms_ll by exact: dmseed_ll.
 
-import WithPRF.
+import Repro MCORO MCOROLE.
+import EUFRMAEqv DSS_FL DSS_FL_EUFRMA.
+import WithPRF MKG MKG_PRF DSS_AL_PRF KeyUpdatingROM DSS KeyUpdating.
 import WS.
-import EUFRMAEqv.
   
 
 (* --- XMSS-TW --- *)
@@ -457,7 +389,12 @@ lemma EUFCMARO_XMSSTW &m :
     l%r * mu1 dmsgFLXMSSTW witness.
 proof.
 move=> led_l.
-move: (EUFRMA_FLXMSSTW (R_EUFRMA_IEUFRMA(R_EUFCMARO_IEUFRMA(A))) _ &m led_l) (EUFCMARO_XMSSTW_EUFRMA &m); 2: smt().
+move: (EUFRMA_FLXMSSTW (R_EUFRMA_IEUFRMA(R_EUFCMARO_IEUFRMA(A))) _ &m) (EUFCMARO_XMSSTW_EUFRMA &m); last first.
+have -> /#:
+  Pr[FLXMSSTW_EUFRMA.EUF_RMA(FL_XMSS_TW, R_EUFRMA_IEUFRMA(R_EUFCMARO_IEUFRMA(A))).main() @ &m : res]
+  =
+  Pr[EUF_RMA(FL_XMSS_TW, R_EUFRMA_IEUFRMA(R_EUFCMARO_IEUFRMA(A))).main() @ &m : res].
++ by byequiv => //; sim.
 proc; inline *.
 wp; call (: true). 
 + by move=> RO SO ROll SOll; apply (A_forge_ll RO SO).
