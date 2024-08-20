@@ -898,7 +898,7 @@ clone import FC.SMDTPREC as FC_PRE with
   Interpretation of arguments is, respectively, as follows:
   - Tweakable hash function to chain
   - Public seed
-  - Address (should be of chaining type (chtype))
+  - Address
   - Current position/index in chain
   - Number of times to chain the tweakable hash function
   - Input to apply the tweakable hash function on
@@ -5368,7 +5368,7 @@ have indtelesum:
     BRA.bigi predT (fun (x : int) => Pr[DistRCHil.main(x) @ &m : res] - Pr[DistRCHil.main(x + 1) @ &m : res]) 0 i.
 + elim => [/= | i ge0_i ih]; first by rewrite range_geq.
   rewrite -addr0 (: 0%r = (- Pr[DistRCHil.main(i) @ &m : res] + Pr[DistRCHil.main(i) @ &m : res])) 1:/#.
-  by rewrite addrA ih BRA.big_int_recr //= addrA.
+  by rewrite BRA.big_int_recr /#.
 rewrite (indtelesum (w - 2)); first by smt(val_w).
 have ->:
   BRA.bigi predT (fun (i : int) => Pr[DistRCHil.main(i) @ &m : res] - Pr[DistRCHil.main(i + 1) @ &m : res]) 0 (w - 2)

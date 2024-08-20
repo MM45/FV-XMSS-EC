@@ -5616,7 +5616,7 @@ have indtelesum:
     BRA.bigi predT (fun (x : int) => Pr[DistRCHil.main(x) @ &m : res] - Pr[DistRCHil.main(x + 1) @ &m : res]) 0 i.
 + elim => [/= | i ge0_i ih]; first by rewrite range_geq.
   rewrite -addr0 (: 0%r = (- Pr[DistRCHil.main(i) @ &m : res] + Pr[DistRCHil.main(i) @ &m : res])) 1:/#.
-  by rewrite addrA ih BRA.big_int_recr //= addrA.
+  by rewrite addrA BRA.big_int_recr /#.
 rewrite (indtelesum (w - 2)); first by smt(val_w).
 have ->:
   BRA.bigi predT (fun (i : int) => Pr[DistRCHil.main(i) @ &m : res] - Pr[DistRCHil.main(i + 1) @ &m : res]) 0 (w - 2)

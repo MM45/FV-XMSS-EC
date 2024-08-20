@@ -4109,7 +4109,7 @@ have nthxval:
     split=> [| _].
     * rewrite {2}(: i = i - 1 + 1) // (take_nth witness) 1:/# flatten_rcons size_cat.
       by rewrite ltz_add2l /#.
-    rewrite -{2}(cat_take_drop i) flatten_cat size_cat.
+    rewrite -{2}(cat_take_drop i R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF.inpll{2}) flatten_cat size_cat.
     by rewrite lez_addl size_ge0.
   rewrite xval equnz2ts_flinpl nth_flatten 1,2:/#.
   case (i = 1) => [eq1_i | neq1_i].
@@ -4130,7 +4130,7 @@ have -> //=:
     split=> [| _].
     * rewrite {2}(: i = i - 1 + 1) // (take_nth witness) 1:/# flatten_rcons size_cat.
       by rewrite ltz_add2l /#.
-    rewrite -{2}(cat_take_drop i) flatten_cat size_cat.
+    rewrite -{2}(cat_take_drop i R_SMDTTCRCTRH_EUFRMAFLXMSSTWESNOPRF.adrsll{2}) flatten_cat size_cat.
     by rewrite lez_addl size_ge0.
   do 4! congr. 
   apply (eq_from_nth witness); first by rewrite 2!size_map ?size_take /#. 

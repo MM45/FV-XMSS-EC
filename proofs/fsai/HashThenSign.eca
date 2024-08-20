@@ -1355,7 +1355,7 @@ theory WithSampling.
   apply (ler_trans (`|  Pr[EUF_CMA_RO_CC_NoRepro.main() @ &m : res /\ !EUF_CMA_RO_CC_NoRepro.coll]
                       - Pr[EUF_CMA_RO_CC_ReproSample.main() @ &m : res /\ !EUF_CMA_RO_CC_ReproSample.coll] |
                     + Pr[EUF_CMA_RO_CC_ReproSample.main() @ &m : res /\ !EUF_CMA_RO_CC_ReproSample.coll])).
-  + by rewrite -{4}(ger0_norm Pr[EUF_CMA_RO_CC_ReproSample.main() @ &m : res /\ !EUF_CMA_RO_CC_ReproSample.coll]) 1:Pr[mu_ge0] 2:&(ler_norm_add).
+  + by rewrite -{4}(ger0_norm Pr[EUF_CMA_RO_CC_ReproSample.main() @ &m : res /\ !EUF_CMA_RO_CC_ReproSample.coll]) 1:Pr[mu_ge0]; smt(ler_norm_add).
   rewrite addrC; apply ler_add.
   + by rewrite EUFRMAROCCReproSample_Query EUFRMAROCCReproQuery_IEUFRMA.
   apply (ler_trans `| Pr[ReproGame(ERO, R_Repro_EUFCMARORepro).main(false) @ &m : res] -
@@ -1388,7 +1388,7 @@ theory WithSampling.
   apply (ler_trans (`|  Pr[EUF_CMA_RO_CC_NoRepro.main() @ &m : res /\ !EUF_CMA_RO_CC_NoRepro.coll]
                       - Pr[EUF_CMA_RO_CC_ReproSample.main() @ &m : res /\ !EUF_CMA_RO_CC_ReproSample.coll] |
                     + Pr[EUF_CMA_RO_CC_ReproSample.main() @ &m : res /\ !EUF_CMA_RO_CC_ReproSample.coll])).
-  + by rewrite -{4}(ger0_norm Pr[EUF_CMA_RO_CC_ReproSample.main() @ &m : res /\ !EUF_CMA_RO_CC_ReproSample.coll]) 1:Pr[mu_ge0] 2:&(ler_norm_add).
+  + by rewrite -{4}(ger0_norm Pr[EUF_CMA_RO_CC_ReproSample.main() @ &m : res /\ !EUF_CMA_RO_CC_ReproSample.coll]) 1:Pr[mu_ge0]; smt(ler_norm_add).
   rewrite addrC; apply ler_add.
   + by rewrite EUFRMAROCCReproSample_Query EUFRMAROCCReproQuery_IEUFRMA.
   apply (ler_trans `| Pr[ReproGame(ERO, R_Repro_EUFCMARORepro).main(false) @ &m : res] -
@@ -2067,8 +2067,7 @@ theory WithPRF.
   rewrite opprB (addrC Pr[WS.DSS_AL.KeyUpdatingROM.EUF_CMA_RO(WS.AL_KU_DSS(FL_KU_DSS), A, WS.DSS_AL.DSS.KeyUpdating.O_CMA_Default, MCO).main() @ &m : res]) addrA.
   apply (ler_trans (`| Pr[EUF_CMA_RO(AL_KU_DSS(FL_KU_DSS), A, O_CMA_Default, MCO).main() @ &m : res] - 
                        Pr[DSS_AL.KeyUpdatingROM.EUF_CMA_RO(WS.AL_KU_DSS(FL_KU_DSS), A, DSS_AL.DSS.KeyUpdating.O_CMA_Default, MCO).main() @ &m : res] | +
-                    `| Pr[DSS_AL.KeyUpdatingROM.EUF_CMA_RO(WS.AL_KU_DSS(FL_KU_DSS), A, DSS_AL.DSS.KeyUpdating.O_CMA_Default, MCO).main() @ &m : res] |)).
-  + by apply ler_norm_add.
+                    `| Pr[DSS_AL.KeyUpdatingROM.EUF_CMA_RO(WS.AL_KU_DSS(FL_KU_DSS), A, DSS_AL.DSS.KeyUpdating.O_CMA_Default, MCO).main() @ &m : res] |)); 1: smt(ler_norm_add).
   rewrite -3!addrA &(ler_add) 1:ALKUDSS_EUFCMARO_PRF //.
   rewrite ger0_norm 1:Pr[mu_ge0] //.
   move: (ALKUDSS_EUFCMARO_CRRO_EUFRMA FL_KU_DSS FL_KU_DSS_sign_ll FL_KU_DSS_verify_ll A 
@@ -2098,8 +2097,7 @@ theory WithPRF.
   rewrite opprB (addrC Pr[WS.DSS_AL.KeyUpdatingROM.EUF_CMA_RO(WS.AL_KU_DSS(FL_KU_DSS), A, WS.DSS_AL.DSS.KeyUpdating.O_CMA_Default, MCO).main() @ &m : res]) addrA.
   apply (ler_trans (`| Pr[EUF_CMA_RO(AL_KU_DSS(FL_KU_DSS), A, O_CMA_Default, MCO).main() @ &m : res] - 
                        Pr[DSS_AL.KeyUpdatingROM.EUF_CMA_RO(WS.AL_KU_DSS(FL_KU_DSS), A, DSS_AL.DSS.KeyUpdating.O_CMA_Default, MCO).main() @ &m : res] | +
-                    `| Pr[DSS_AL.KeyUpdatingROM.EUF_CMA_RO(WS.AL_KU_DSS(FL_KU_DSS), A, DSS_AL.DSS.KeyUpdating.O_CMA_Default, MCO).main() @ &m : res] |)).
-  + by apply ler_norm_add.
+                    `| Pr[DSS_AL.KeyUpdatingROM.EUF_CMA_RO(WS.AL_KU_DSS(FL_KU_DSS), A, DSS_AL.DSS.KeyUpdating.O_CMA_Default, MCO).main() @ &m : res] |)); 1: smt(ler_norm_add).
   rewrite -3!addrA &(ler_add) 1:ALKUDSS_EUFCMARO_PRF //.
   rewrite ger0_norm 1:Pr[mu_ge0] //.
   move: (ALKUDSS_EUFCMARO_METCRRO_EUFRMA FL_KU_DSS FL_KU_DSS_sign_ll FL_KU_DSS_verify_ll A 

@@ -1,0 +1,56 @@
+name: XMSS
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+      - ci
+
+env:
+  OPAMROOT: /home/charlie/.opam
+  OPAMYES: true
+  OPAMJOBS: 2
+  ECRJOBS: 1
+
+jobs:
+  ec:
+    name: Check XMSS EasyCrypt Project
+    runs-on: ubuntu-20.04
+    container:
+      image: ghcr.io/easycrypt/ec-build-box
+    strategy:
+      fail-fast: false
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - uses: actions/checkout@v4
+      name: Checkout EasyCrypt
+      with:
+        repository: EasyCrypt/easycrypt
+        ref: refs/heads/main
+        path: easycrypt
+    - name: Update OPAM & EasyCrypt dependencies
+      run: |
+        opam update
+        opam pin add -n easycrypt easycrypt
+        opam install --deps-only easycrypt
+    - name: Compile & Install EasyCrypt
+      run: opam install easycrypt
+    - name: Detect SMT provers
+      run: |
+        opam config exec -- easycrypt why3config -why3 ~/.why3.conf
+    - name: Compile Project (acai)
+      run: opam config exec -- easycrypt runtest -report report_acai.log -raw-args -gcstats config/tests.config xmss-acai
+    - name: Compile Project (fsai)
+      run: opam config exec -- easycrypt runtest -report report_fsai.log -raw-args -gcstats config/tests.config xmss-fsai
+    - uses: actions/upload-artifact@v4
+      name: Upload reports
+      if: always()
+      with:
+        name: reports
+        path: |
+          report_acai.log
+          report_fsai.log
+        if-no-files-found: ignore
