@@ -1,4 +1,4 @@
-require import AllCore List Int Distr RealExp SmtMap FinType StdOrder StdBigop.
+require import AllCore List Int Distr RealExp FMap FinType StdOrder StdBigop.
 (*---*) import Bigreal.BRA Bigreal RField RealOrder.
 require (*--*) ROM.
 

@@ -1,4 +1,4 @@
-require import AllCore List Distr SmtMap.
+require import AllCore List Distr FMap.
 require (*--*) DigitalSignatures PROM.
 
 (* -- Types -- *)
