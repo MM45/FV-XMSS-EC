@@ -369,7 +369,8 @@ lemma list2tree1 (x : 'a) :
   list2tree [x] = Leaf x.
 proof.
 move: (list2tree_lvb [x] 0 0 _) => //.
-by rewrite expr0 /= int2bs0s /#.
+rewrite expr0 /= int2bs0s rev_nil.
+by case: (list2tree [x]).
 qed.
 
 lemma list2tree_uniq2 ['a] (e : int) (s : 'a list) (t1 t2 : 'a bintree) :
