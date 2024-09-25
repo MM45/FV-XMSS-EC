@@ -1,0 +1,57 @@
+name: Low-Level Reusable Workflow Continuous Integration EasyCrypt Projects
+
+on:
+    workflow_call:
+        inputs:
+            ec-branch:
+                description: Branch (in EasyCrypt repository)
+                required: true
+                type: string
+            test-file:
+                description: Test configuration file location
+                required: true
+                type: string
+            test-name:
+                description: Test name
+                required: true
+                type: string
+
+env:
+    OPAMROOT: /home/charlie/.opam
+    OPAMYES: true
+    OPAMJOBS: 2
+    ECRJOBS: 1
+
+jobs:
+    default:
+        runs-on: ubuntu-20.04
+        container:
+            image: ghcr.io/easycrypt/ec-build-box
+        steps:
+            -   uses: actions/checkout@v4
+                name: Initialize submodules (if any)
+                with:
+                    submodules: recursive
+            -   uses: actions/checkout@v4
+                name: Checkout EasyCrypt
+                with:
+                    repository: EasyCrypt/easycrypt
+                    ref: ${{ format('refs/heads/{0}', inputs.ec-branch) }}
+                    path: easycrypt
+            -   name: Update OPAM and EasyCrypt dependencies
+                run: |
+                    opam update
+                    opam pin add -n easycrypt easycrypt
+                    opam install --deps-only easycrypt
+            -   name: Install EasyCrypt
+                run: opam install easycrypt
+            -   name: Configure SMT provers
+                run: opam config exec -- easycrypt why3config -why3 ~/.why3.conf
+            -   name: Check project
+                run: ${{ format('opam config exec -- easycrypt runtest -report report.log -raw-args -gcstats {0} {1}', inputs.test-file, inputs.test-name) }}
+            -   uses: actions/upload-artifact@v4
+                name: Upload report
+                with:
+                    name: report.log
+                    path: report.log
+                    if-no-files-found: ignore

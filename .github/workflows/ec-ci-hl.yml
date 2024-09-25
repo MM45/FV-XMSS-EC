@@ -1,0 +1,63 @@
+name: High-Level (Coordinating) Workflow Continuous Integration EasyCrypt Projects
+run-name: ${{ format('Branch "{0}" | Execute test "{1}" (in file "{2}") | See details for EasyCrypt version/branch.', github.ref_name, github.event.inputs.test-name || vars.DEFAULT_TEST_NAME, github.event.inputs.test-file || vars.DEFAULT_TEST_FILE) }}
+
+on:
+    # Always trigger on push and pull request to any branch. 
+    # Checks related to executing branch/triggering event are delegated to jobs themselves.
+    # (Reason for this is that we cannot access contexts in on.push and on.pull_request.)   
+    push:
+    pull_request:
+    # Enable manual execution of jobs (possibly with non-default configuration).
+    workflow_dispatch:
+        inputs:
+            ec-branch:
+                description: Branch (in EasyCrypt repository)
+                type: string
+            test-file:
+                description: Test configuration file location
+                type: string
+            test-name:
+                description: Test name
+                type: string
+
+jobs:
+    # Manually executed jobs (possibly with non-default configuration)
+    check-custom:
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        uses: ./.github/workflows/ec-ci-ll.yml
+        with: # If custom configuration manually specified, use that; else, use default configuration (defined in repository variables).
+            ec-branch: ${{ github.event.inputs.ec-branch || vars.DEFAULT_EC_BRANCH }}
+            test-file: ${{ github.event.inputs.test-file || vars.DEFAULT_TEST_FILE }}
+            test-name: ${{ github.event.inputs.test-name || vars.DEFAULT_TEST_NAME }}
+    # Automatically executed job (on any push or pull request) for the default branch.
+    check-default:
+        if: ${{ github.event_name != 'workflow_dispatch' && github.ref_name == github.event.repository.default_branch }}
+        uses: ./.github/workflows/ec-ci-ll.yml
+        with: # Use default configuration (defined in repository variables).
+            ec-branch: ${{ vars.DEFAULT_EC_BRANCH }} 
+            test-file: ${{ vars.DEFAULT_TEST_FILE }}
+            test-name: ${{ vars.DEFAULT_TEST_NAME }}
+    # Preprocessing step for check-merge-x job: Extracts 'x' from 'merge-x'.
+    preprocess-merge-x:
+        if: ${{ github.event_name != 'workflow_dispatch' && startsWith(github.ref_name, 'merge-') }}
+        runs-on: ubuntu-latest
+        outputs:
+            extracted-branch: ${{ steps.extract-branch.outputs.extracted-branch }}
+        steps:
+            -   id: extract-branch
+                run: |
+                    BRANCH=${{ github.ref_name }}
+                    echo "extracted-branch=${BRANCH#merge-}" >> "$GITHUB_OUTPUT"
+    # Automatically executed job (on any push or pull request) for any merge-x branch.
+    check-merge-x:
+        if: ${{ github.event_name != 'workflow_dispatch' && startsWith(github.ref_name, 'merge-') }}
+        needs: preprocess-merge-x
+        uses: ./.github/workflows/ec-ci-ll.yml
+        with: 
+            # Use 'x' (extracted from 'merge-x' by preprocess-merge-x) for the EasyCrypt branch. 
+            # Use default configuration (defined in repository variables) for the remainder.  
+            ec-branch: ${{ needs.preprocess-merge-x.outputs.extracted-branch }}
+            test-file: ${{ vars.DEFAULT_TEST_FILE }}
+            test-name: ${{ vars.DEFAULT_TEST_NAME }}
+        
+
