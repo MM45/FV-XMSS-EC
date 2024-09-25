@@ -18,7 +18,7 @@
 
 (* --- Require/Import --- *)
 (* -- Built-in (i.e, standard library) -- *)
-require import AllCore StdOrder List Distr DInterval Finite SmtMap.
+require import AllCore StdOrder List Distr DInterval Finite FMap.
 require (*--*) PlugAndPray.
 (*---*) import RField RealOrder.
 

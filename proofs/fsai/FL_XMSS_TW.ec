@@ -1,6 +1,6 @@
 (* --- Require/Import --- *)
 (* -- Built-In (Standard Library) -- *)
-require import AllCore List Distr DList IntDiv RealExp StdOrder SmtMap BitEncoding FinType.
+require import AllCore List Distr DList IntDiv RealExp StdOrder FMap BitEncoding FinType.
 require (*--*) Word Subtype.
 (*---*) import RField IntOrder RealOrder BS2Int.
 
