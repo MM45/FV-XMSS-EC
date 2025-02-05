@@ -5094,7 +5094,7 @@ seq 5 5 : (    #pre
            /\ is_chtype ad{1}
            /\ sig{1} = []
            /\ pk{1} = []).
-+ by auto => />; rewrite ChainingAddress.valP.
++ by auto => /> &0; rewrite ChainingAddress.valP.
 while{1} (   is_chtype ad{1}
           /\ (forall (i : int), 0 <= i < size sig => 
                nth witness sig i 
@@ -5397,7 +5397,7 @@ seq 1 1 : (   ={glob A, O_MEUFGCMA_WOTSTWES.qs, ps}
                 /\ pk{1} = []
                 /\ pk{2} = []
                 /\ sig{2} = []).
-    * by auto => />; rewrite ChainingAddress.valP.
+    * by auto => /> &0; rewrite ChainingAddress.valP.
     seq 2 0 : (   #pre
                /\ size sig{1} = len
                /\ (forall (i : int), 0 <= i < len =>

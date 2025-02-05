@@ -4846,7 +4846,7 @@ seq 5 5 : (    #pre
            /\ valid_wadrs ad{1}
            /\ sig{1} = []
            /\ pk{1} = []).
-+ by auto => |>; rewrite WAddress.valP.
++ by auto => |> &0; rewrite WAddress.valP.
 while{1} (   valid_wadrs ad{1}
           /\ (forall (i : int), 0 <= i < size sig => 
                nth witness sig i 
@@ -5149,7 +5149,7 @@ seq 1 1 : (   ={glob A, O_MEUFGCMA_WOTSTWES.qs, ps}
                 /\ pk{1} = []
                 /\ pk{2} = []
                 /\ sig{2} = []).
-    * by auto => |>; rewrite WAddress.valP.
+    * by auto => |> &0; rewrite WAddress.valP.
     seq 2 0 : (   #pre
                /\ size sig{1} = len
                /\ (forall (i : int), 0 <= i < len =>

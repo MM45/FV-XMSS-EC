@@ -477,7 +477,7 @@ seq  6  6:
     + rcondt {1} 1; 1:by auto.
       rcondf {1} 2; 1:by auto=> /#.
       rcondf {1} 2; 1:by auto=> /#.
-      by auto=> /> &0; rewrite size_rcons /#.
+      by auto=> /> &1 &2; rewrite size_rcons /#.
     auto=> /> &0 &2 eqwt qs_le_n msigl_n /lezNgt n_le_qs.
     by rewrite (nth_default witness) /#.
   wp; rnd {1}; wp.
@@ -500,7 +500,7 @@ while (={q}
   rcondf {1} 2; 1:by auto=> /#.
   rcondf {1} 2; 1:by auto=> /#.
   rcondt {2} 2; 1:by auto=> /#.
-  by auto=> /> &0; rewrite size_rcons /#.
+  by auto=> /> &1 &2; rewrite size_rcons /#.
 by auto.
 qed.
 
