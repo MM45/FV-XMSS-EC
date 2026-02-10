@@ -4,6 +4,7 @@
 ## Docker
 DOCKER_BIN ?= docker
 DOCKER_IMAGE ?= fv-xmss-ec:r2026.02
+DOCKER_TTY ?= -t
 
 ## EasyCrypt
 EC_BIN ?= easycrypt
@@ -41,7 +42,7 @@ docker-build: docker-safe
 	$(DOCKER_BIN) build -t $(DOCKER_IMAGE) .
 
 docker-run: docker-build
-	$(DOCKER_BIN) run --rm -t $(DOCKER_IMAGE)
+	$(DOCKER_BIN) run --rm $(DOCKER_TTY) $(DOCKER_IMAGE)
 
 docker-shell: docker-build
 	$(DOCKER_BIN) run --rm -it $(DOCKER_IMAGE) bash

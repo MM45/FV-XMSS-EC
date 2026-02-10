@@ -25,4 +25,4 @@ jobs:
         run: |
           docker version
           docker info
-          make docker-check
+          make DOCKER_TTY= docker-check
