@@ -40,10 +40,10 @@ docker-safe:
 docker-build: docker-safe
 	$(DOCKER_BIN) build -t $(DOCKER_IMAGE) .
 
-docker-run: docker-safe docker-build
+docker-run: docker-build
 	$(DOCKER_BIN) run --rm -t $(DOCKER_IMAGE)
 
-docker-shell: docker-safe docker-build
+docker-shell: docker-build
 	$(DOCKER_BIN) run --rm -it $(DOCKER_IMAGE) bash
 
 
@@ -82,9 +82,9 @@ help:
 	@printf "  make <target>\n\n"
 
 	@printf "Main targets:\n"
-	@printf "  %-18s %s\n" "docker-check" "Run all EasyCrypt tests in Docker."
-	@printf "  %-18s %s\n" "check"        "Run all EasyCrypt tests."
-	@printf "  %-18s %s\n\n" "clean"      "Remove EasyCrypt's cached verification results (*.eco files)."
+	@printf "  %-18s %s\n"   "docker-check" "Run all EasyCrypt tests in Docker."
+	@printf "  %-18s %s\n"   "check"        "Run all EasyCrypt tests."
+	@printf "  %-18s %s\n\n" "clean"        "Remove EasyCrypt's cached verification results (*.eco files)."
 
 	@printf "Miscellaneous targets:\n"
 	@printf "  %-18s %s\n" "docker-safe"  "Check if it is safe to run Docker targets."
@@ -93,7 +93,7 @@ help:
 	@printf "  %-18s %s\n" "docker-shell" "Start an interactive shell in Docker (instead of running tests)."
 	@printf "  %-18s %s\n" "check_<name>" "Run a specific EasyCrypt test (maps '_' to '-')."
 	@printf "  %-18s %s\n" "dry_clean"    "Show what 'make clean' would remove."
-	@printf "  %-18s %s\n" "clobber"    "clean + remove $(EC_RUNTEST_REPORT_DIR) directory."
+	@printf "  %-18s %s\n" "clobber"      "clean + remove $(EC_RUNTEST_REPORT_DIR) directory."
 
 ## Special
 .PHONY: docker-check docker-safe docker-build docker-run docker-shell

@@ -5,8 +5,8 @@ on:
     # Always trigger on push and pull request to any branch. 
     # Checks related to executing branch/triggering event are delegated to jobs themselves.
     # (Reason for this is that we cannot access contexts in on.push and on.pull_request.)   
-    push:
-    pull_request:
+    # push:
+    # pull_request:
     # Enable manual execution of jobs (possibly with non-default configuration).
     workflow_dispatch:
         inputs:
