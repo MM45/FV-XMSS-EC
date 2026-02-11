@@ -76,7 +76,6 @@ clobber: clean
 FORCE:
 
 ## Help
-.PHONY: help
 help:
 	@printf "\n"
 	@printf "Usage:\n"
@@ -99,4 +98,5 @@ help:
 ## Special
 .PHONY: docker-check docker-safe docker-build docker-run docker-shell
 .PHONY: check clean dry_clean clobber FORCE
+.PHONY: help
 .NOTPARALLEL:

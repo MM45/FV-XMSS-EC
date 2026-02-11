@@ -109,7 +109,7 @@ directory (automatically created on the first test run).
 
 Remove EasyCrypt’s cached verification artifacts (.eco files):
 ```shell
-   make clean
+make clean
 ```
 
 Additionally remove the reports/ directory:
@@ -121,5 +121,5 @@ make clobber
 All of the above uses `make` and, hence, goes through the repository's
 `Makefile`. To list available targets and brief descriptions:
 ```shell
-    make help
+make help
 ```
