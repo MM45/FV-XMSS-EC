@@ -19,8 +19,8 @@ for a complete formal verification of SPHINCS⁺. Furthermore, again due to the
 modular approach, the scripts contain an independent formal verification of a
 security property of XMSS as a component of SPHINCS⁺.  
 
-Currently, the latest version of EasyCrypt that has been confirmed to verify the
-scripts in this repository corresponds to [release
+The most recent version of EasyCrypt that has been confirmed to verify the scripts in
+this repository corresponds to [release
 2026.02](https://github.com/EasyCrypt/easycrypt/releases/tag/r2026.02) with SMT
 provers Z3 4.13.4 and Alt-Ergo 2.6.0 (as specified in `easycrypt.project`).
 
@@ -123,3 +123,9 @@ All of the above uses `make` and, hence, goes through the repository's
 ```shell
 make help
 ```
+
+You can override `make` variables (see `Makefile`), for
+example to tweak the setup or speed up testing by increasing parallelism.
+However, be aware that changing these parameters can affect test stability
+(e.g., different degrees of parallelism can trigger solver/time-out failures),
+so unexpected failures may occur when deviating from the default settings.

@@ -13,7 +13,7 @@ EC_PROOFS_ROOT ?= proofs
 ### Runtest
 EC_RUNTEST_ENV ?=
 EC_RUNTEST_FILE ?= config/tests.config
-EC_RUNTEST_JOBS ?= 2
+EC_RUNTEST_JOBS ?= 1
 EC_RUNTEST_REPORT_DIR ?= reports
 
 EC_RUNTEST_OPTS = -jobs $(EC_RUNTEST_JOBS)
@@ -49,22 +49,22 @@ docker-shell: docker-build
 
 
 ## EasyCrypt
-check: check_default
+check: check-default
 
-check_%: FORCE
-	@echo "Creating $(EC_RUNTEST_REPORT_DIR) directory if it does not exist yet"
+check-%: FORCE
+	@echo "Creating $(EC_RUNTEST_REPORT_DIR) directory if it does not exist yet..."
 	@mkdir -p "$(EC_RUNTEST_REPORT_DIR)"
-	@echo "Starting test $(subst _,-,$*)..."
-	$(EC_RUNTEST) -report "$(EC_RUNTEST_REPORT_DIR)/$(subst _,-,$*).log" $(subst _,-,$*)
+	@echo "Starting test $*..."
+	$(EC_RUNTEST) -report "$(EC_RUNTEST_REPORT_DIR)/$*.log" $*
 
 clean:
-	@echo "Removing EasyCrypt's cached verification results ('.eco' files)"
+	@echo "Removing EasyCrypt's cached verification results ('.eco' files)..."
 	@if [ -d "$(EC_PROOFS_ROOT)" ]; then \
 		find "$(EC_PROOFS_ROOT)" -type f -name '*.eco' -exec rm -f '{}' + ; \
 	fi
 
 dry_clean:
-	@echo "make clean would remove the following files"
+	@echo "make clean would remove the following files..."
 	@if [ -d "$(EC_PROOFS_ROOT)" ]; then \
 		find "$(EC_PROOFS_ROOT)" -type f -name '*.eco' -print ; \
 	fi
@@ -91,7 +91,7 @@ help:
 	@printf "  %-18s %s\n" "docker-build" "Build Docker image ($(DOCKER_IMAGE))."
 	@printf "  %-18s %s\n" "docker-run"   "Run Docker image ($(DOCKER_IMAGE)), equivalent to 'docker-check'."
 	@printf "  %-18s %s\n" "docker-shell" "Start an interactive shell in Docker (instead of running tests)."
-	@printf "  %-18s %s\n" "check_<name>" "Run a specific EasyCrypt test (maps '_' to '-')."
+	@printf "  %-18s %s\n" "check_<name>" "Run a specific EasyCrypt test."
 	@printf "  %-18s %s\n" "dry_clean"    "Show what 'make clean' would remove."
 	@printf "  %-18s %s\n" "clobber"      "clean + remove $(EC_RUNTEST_REPORT_DIR) directory."
 
