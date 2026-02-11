@@ -97,6 +97,6 @@ help:
 
 ## Special
 .PHONY: docker-check docker-safe docker-build docker-run docker-shell
-.PHONY: check clean dry_clean clobber FORCE
+.PHONY: check clean dry-clean clobber FORCE
 .PHONY: help
 .NOTPARALLEL:
