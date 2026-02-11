@@ -25,7 +25,7 @@ scripts in this repository corresponds to [release
 provers Z3 4.13.4 and Alt-Ergo 2.6.0 (as specified in `easycrypt.project`).
 
 ## Repository Structure and Contents
-This repository is structured as follows.  
+This repository is structured as follows (excluding versioning- and build-related material).  
 * `proofs/`: All scripts relevant to the formal verification of the security of
   XMSS (both as standalone and as a component of SPHINCS⁺) and the fix of the
   security proof of SPHINCS⁺.  
@@ -60,3 +60,66 @@ This repository is structured as follows.
 * `config/`: Configuration and test files  
   * `tests.config`: Specifies tests  
 * `easycrypt.project`: EasyCrypt project file, specifying SMT prover versions and timeout  
+
+## Building, Running, and Testing
+
+You can run this development either via Docker (recommended for reproducibility)
+or natively (if you have the correct EasyCrypt + solver installation).
+
+### Prerequisites
+
+- Docker approach:  
+  - [Docker Engine](https://docs.docker.com/engine/install), installed and running.
+- Native approach:  
+  - [EasyCrypt (release r2026.02)](https://github.com/EasyCrypt/easycrypt/tree/r2026.02), installed and configured with the solvers listed below.
+  - Alt-Ergo 2.6.
+  - Z3 4.13.4.
+
+For the native approach, the [EasyCrypt README.md for
+r2026.02](https://github.com/EasyCrypt/easycrypt/blob/r2026.02/README.md)
+describes installation and solver configuration. More detailed instructions are
+provided in the
+[INSTALL.md](https://github.com/EasyCrypt/easycrypt/blob/r2026.02/INSTALL.md).
+
+### Docker
+
+Run all tests inside the Docker environment:
+```shell
+make docker-check
+```
+
+To explore and interact with the repository inside the container, start an interactive shell:
+```shell
+make docker-shell
+```
+
+This drops you into a shell inside the Docker image with the repository as the
+working directory. From there you can run the same commands as in the native
+approach (see below).
+
+### Native
+
+Run all tests:
+```shell
+make check
+```
+
+Beyond running the tests, this also stores test reports in the `reports/`
+directory (automatically created on the first test run).
+
+Remove EasyCrypt’s cached verification artifacts (.eco files):
+```shell
+   make clean
+```
+
+Additionally remove the reports/ directory:
+```shell
+make clobber
+```
+
+### Help with Make
+All of the above uses `make` and, hence, goes through the repository's
+`Makefile`. To list available targets and brief descriptions:
+```shell
+    make help
+```

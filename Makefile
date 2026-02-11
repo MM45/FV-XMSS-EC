@@ -90,7 +90,7 @@ help:
 	@printf "Miscellaneous targets:\n"
 	@printf "  %-18s %s\n" "docker-safe"  "Check if it is safe to run Docker targets."
 	@printf "  %-18s %s\n" "docker-build" "Build Docker image ($(DOCKER_IMAGE))."
-	@printf "  %-18s %s\n" "docker-run"   "Run Docker image ($(DOCKER_IMAGE))."
+	@printf "  %-18s %s\n" "docker-run"   "Run Docker image ($(DOCKER_IMAGE)), equivalent to 'docker-check'."
 	@printf "  %-18s %s\n" "docker-shell" "Start an interactive shell in Docker (instead of running tests)."
 	@printf "  %-18s %s\n" "check_<name>" "Run a specific EasyCrypt test (maps '_' to '-')."
 	@printf "  %-18s %s\n" "dry_clean"    "Show what 'make clean' would remove."
