@@ -63,8 +63,8 @@ This repository is structured as follows (excluding versioning- and build-relate
 
 ## Building, Running, and Testing
 
-You can run this development either via Docker (recommended for reproducibility)
-or natively (if you have the correct EasyCrypt + solver installation).
+You can run this development either via Docker or natively (if you have the
+correct EasyCrypt + solver installation).
 
 ### Prerequisites
 
