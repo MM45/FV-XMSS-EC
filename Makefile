@@ -63,7 +63,7 @@ clean:
 		find "$(EC_PROOFS_ROOT)" -type f -name '*.eco' -exec rm -f '{}' + ; \
 	fi
 
-dry_clean:
+dry-clean:
 	@echo "make clean would remove the following files..."
 	@if [ -d "$(EC_PROOFS_ROOT)" ]; then \
 		find "$(EC_PROOFS_ROOT)" -type f -name '*.eco' -print ; \
@@ -91,8 +91,8 @@ help:
 	@printf "  %-18s %s\n" "docker-build" "Build Docker image ($(DOCKER_IMAGE))."
 	@printf "  %-18s %s\n" "docker-run"   "Run Docker image ($(DOCKER_IMAGE)), equivalent to 'docker-check'."
 	@printf "  %-18s %s\n" "docker-shell" "Start an interactive shell in Docker (instead of running tests)."
-	@printf "  %-18s %s\n" "check_<name>" "Run a specific EasyCrypt test."
-	@printf "  %-18s %s\n" "dry_clean"    "Show what 'make clean' would remove."
+	@printf "  %-18s %s\n" "check-<name>" "Run a specific EasyCrypt test."
+	@printf "  %-18s %s\n" "dry-clean"    "Show what 'make clean' would remove."
 	@printf "  %-18s %s\n" "clobber"      "clean + remove $(EC_RUNTEST_REPORT_DIR) directory."
 
 ## Special
